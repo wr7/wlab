@@ -6,12 +6,24 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Item<'a> {
+pub enum Statement<'a> {
+    Expression(Expression<'a>),
+    Let(&'a str, Box<Expression<'a>>),
+    Assign(&'a str, Box<Expression<'a>>),
+    Function(&'a str, Vec<Statement<'a>>),
+}
+
+impl<'a> From<Expression<'a>> for Statement<'a> {
+    fn from(expr: Expression<'a>) -> Self {
+        Statement::Expression(expr)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Expression<'a> {
     Identifier(&'a str),
     BinaryOperator(Box<Self>, OpCode, Box<Self>),
-    Function(&'a str, Vec<Item<'a>>),
-    CompoundExpression(Vec<Self>),
-    Let(&'a str, Box<Item<'a>>),
+    CompoundExpression(Vec<Statement<'a>>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,20 +32,19 @@ pub enum OpCode {
     Minus,
     Asterisk,
     Slash,
-    Assign,
 }
 
-pub fn try_parse_ident<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
+pub fn try_parse_ident<'a>(tokens: &'a [Token<'a>]) -> Option<Expression<'a>> {
     if let Token::Identifier(ident) = tokens.first()? {
         if tokens.len() == 1 {
-            return Some(Item::Identifier(ident));
+            return Some(Expression::Identifier(ident));
         }
     }
 
     None
 }
 
-pub fn try_parse_bracket_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
+pub fn try_parse_bracket_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Expression<'a>> {
     let Token::OpenBracket(bracket_type) = tokens.first()? else {
         return None;
     };
@@ -48,7 +59,9 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
             if bracket_level == 0 {
                 assert_eq!(tok, &Token::CloseBracket(*bracket_type));
                 if *bracket_type == BracketType::Curly {
-                    return Some(Item::CompoundExpression(parse_expr_list(&tokens[1..i])));
+                    return Some(Expression::CompoundExpression(parse_statement_list(
+                        &tokens[1..i],
+                    )));
                 } else {
                     return try_parse_expr(&tokens[1..i]);
                 }
@@ -60,7 +73,7 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
     panic!("Expected closing bracket, reached end of expression")
 }
 
-pub fn try_parse_function<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
+pub fn try_parse_function<'a>(tokens: &'a [Token<'a>]) -> Option<Statement<'a>> {
     let mut token_iter = tokens.iter().enumerate();
 
     let [&T!("fn"), Token::Identifier(fn_name)] = [token_iter.next()?.1, token_iter.next()?.1]
@@ -73,15 +86,32 @@ pub fn try_parse_function<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
 
     let (body_start, _) = token_iter.next().unwrap();
 
-    let Item::CompoundExpression(body) = try_parse_bracket_expr(&tokens[body_start..]).unwrap()
+    let Expression::CompoundExpression(body) =
+        try_parse_bracket_expr(&tokens[body_start..]).unwrap()
     else {
         unreachable!()
     };
 
-    Some(Item::Function(&fn_name, body))
+    Some(Statement::Function(&fn_name, body))
 }
 
-pub fn try_parse_let<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
+pub fn try_parse_assign<'a>(tokens: &'a [Token<'a>]) -> Option<Statement<'a>> {
+    let mut token_iter = tokens.iter();
+
+    let [Token::Identifier(var_name), T!("=")] = [token_iter.next()?, token_iter.next()?] else {
+        return None;
+    };
+
+    if tokens.len() <= 2 {
+        panic!()
+    }
+
+    let val = try_parse_expr(&tokens[2..]);
+
+    Some(Statement::Assign(&var_name, Box::new(val.unwrap())))
+}
+
+pub fn try_parse_let<'a>(tokens: &'a [Token<'a>]) -> Option<Statement<'a>> {
     let mut token_iter = tokens.iter().enumerate();
 
     let [&T!("let"), Token::Identifier(var_name)] = [token_iter.next()?.1, token_iter.next()?.1]
@@ -95,20 +125,17 @@ pub fn try_parse_let<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
 
     let val = try_parse_expr(&tokens[equal_idx + 1..]).unwrap();
 
-    return Some(Item::Let(&var_name, Box::new(val)));
+    return Some(Statement::Let(&var_name, Box::new(val)));
 }
 
 pub fn try_parse_bin<'a>(
     tokens: &'a [Token<'a>],
     opcodes: &[(Token<'a>, OpCode)],
-) -> Option<Item<'a>> {
+) -> Option<Expression<'a>> {
     let mut bracket_level = 0;
 
     for (i, tok) in tokens.iter().enumerate().rev() {
         if matches!(tok, Token::OpenBracket(_)) {
-            if bracket_level == 0 {
-                abort()
-            }
             assert_ne!(bracket_level, 0);
             bracket_level -= 1;
         } else if matches!(tok, Token::CloseBracket(_)) {
@@ -121,10 +148,15 @@ pub fn try_parse_bin<'a>(
 
         for (ttok, opcode) in opcodes {
             if tok == ttok {
-                return Some(Item::BinaryOperator(
-                    Box::new(try_parse_expr(&tokens[0..i]).unwrap()),
+                let x = try_parse_expr(&tokens[0..i]);
+                let y = try_parse_expr(&tokens[(i + 1)..]);
+                if x.is_none() || y.is_none() {
+                    abort();
+                }
+                return Some(Expression::BinaryOperator(
+                    Box::new(x.unwrap()),
                     *opcode,
-                    Box::new(try_parse_expr(&tokens[(i + 1)..]).unwrap()),
+                    Box::new(y.unwrap()),
                 ));
             }
         }
@@ -133,7 +165,7 @@ pub fn try_parse_bin<'a>(
     return None;
 }
 
-pub fn parse_expr_list<'a>(tokens: &'a [Token<'a>]) -> Vec<Item<'a>> {
+pub fn parse_statement_list<'a>(tokens: &'a [Token<'a>]) -> Vec<Statement<'a>> {
     let mut items = Vec::new();
 
     let mut bracket_level = 0;
@@ -156,22 +188,22 @@ pub fn parse_expr_list<'a>(tokens: &'a [Token<'a>]) -> Vec<Item<'a>> {
         }
 
         if tok == &T!(";") && statement_start != i {
-            items.push(try_parse_expr(&tokens[statement_start..i]).unwrap());
+            items.push(try_parse_statement(&tokens[statement_start..i]).unwrap());
         } else if tok == &T!("}") {
-            items.push(try_parse_expr(&tokens[statement_start..=i]).unwrap());
+            items.push(try_parse_statement(&tokens[statement_start..=i]).unwrap());
         }
 
         statement_start = i + 1;
     }
 
     if statement_start != tokens.len() {
-        items.push(try_parse_expr(&tokens[statement_start..]).unwrap());
+        items.push(try_parse_statement(&tokens[statement_start..]).unwrap());
     }
 
     items
 }
 
-pub fn try_parse_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
+pub fn try_parse_statement<'a>(tokens: &'a [Token<'a>]) -> Option<Statement<'a>> {
     if tokens.len() == 0 {
         return None;
     }
@@ -179,10 +211,26 @@ pub fn try_parse_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
     let rules = [
         |tokens| try_parse_function(tokens),
         |tokens| try_parse_let(tokens),
+        |tokens| try_parse_assign(tokens),
+    ];
+
+    for rule in rules {
+        if let Some(statement) = rule(tokens) {
+            return Some(statement);
+        }
+    }
+
+    try_parse_expr(tokens).map(|e| e.into())
+}
+
+pub fn try_parse_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Expression<'a>> {
+    if tokens.len() == 0 {
+        return None;
+    }
+
+    let rules = [
         |tokens| try_parse_ident(tokens),
         |tokens| try_parse_bracket_expr(tokens),
-        |tokens| try_parse_bin(tokens, &[(T!("="), OpCode::Assign)]),
-        |tokens| try_parse_bin(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)]),
         |tokens| try_parse_bin(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)]),
         |tokens| {
             try_parse_bin(
@@ -199,6 +247,7 @@ pub fn try_parse_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
     }
 
     dbg!(tokens);
+    abort();
     panic!("Invalid syntax")
 }
 
@@ -215,40 +264,40 @@ mod tests {
         let tokens: Vec<Token> = tokens.unwrap();
 
         let ast = try_parse_expr(&tokens).unwrap();
-        let expected_ast = Item::BinaryOperator(
-            Box::new(Item::BinaryOperator(
-                Box::new(Item::BinaryOperator(
-                    Box::new(Item::Identifier("foo")),
+        let expected_ast = Expression::BinaryOperator(
+            Box::new(Expression::BinaryOperator(
+                Box::new(Expression::BinaryOperator(
+                    Box::new(Expression::Identifier("foo")),
                     OpCode::Plus,
-                    Box::new(Item::BinaryOperator(
-                        Box::new(Item::BinaryOperator(
-                            Box::new(Item::Identifier("bar")),
+                    Box::new(Expression::BinaryOperator(
+                        Box::new(Expression::BinaryOperator(
+                            Box::new(Expression::Identifier("bar")),
                             OpCode::Slash,
-                            Box::new(Item::Identifier("biz")),
+                            Box::new(Expression::Identifier("biz")),
                         )),
                         OpCode::Asterisk,
-                        Box::new(Item::BinaryOperator(
-                            Box::new(Item::Identifier("bang")),
+                        Box::new(Expression::BinaryOperator(
+                            Box::new(Expression::Identifier("bang")),
                             OpCode::Minus,
-                            Box::new(Item::Identifier("zig")),
+                            Box::new(Expression::Identifier("zig")),
                         )),
                     )),
                 )),
                 OpCode::Plus,
-                Box::new(Item::BinaryOperator(
-                    Box::new(Item::Identifier("his")),
+                Box::new(Expression::BinaryOperator(
+                    Box::new(Expression::Identifier("his")),
                     OpCode::Asterisk,
-                    Box::new(Item::Identifier("fan")),
+                    Box::new(Expression::Identifier("fan")),
                 )),
             )),
             OpCode::Plus,
-            Box::new(Item::BinaryOperator(
-                Box::new(Item::Identifier("se")),
+            Box::new(Expression::BinaryOperator(
+                Box::new(Expression::Identifier("se")),
                 OpCode::Slash,
-                Box::new(Item::BinaryOperator(
-                    Box::new(Item::Identifier("ki")),
+                Box::new(Expression::BinaryOperator(
+                    Box::new(Expression::Identifier("ki")),
                     OpCode::Asterisk,
-                    Box::new(Item::Identifier("kp")),
+                    Box::new(Expression::Identifier("kp")),
                 )),
             )),
         );
