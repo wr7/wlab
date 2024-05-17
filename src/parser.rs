@@ -1,3 +1,5 @@
+use std::process::abort;
+
 use crate::{
     lexer::{BracketType, Token},
     T,
@@ -8,6 +10,7 @@ pub enum Item<'a> {
     Identifier(&'a str),
     BinaryOperator(Box<Self>, OpCode, Box<Self>),
     Function(&'a str, Vec<Item<'a>>),
+    CompoundExpression(Vec<Self>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,7 +45,11 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
             bracket_level -= 1;
             if bracket_level == 0 {
                 assert_eq!(tok, &Token::CloseBracket(*bracket_type));
-                return try_parse_expr(&tokens[1..i]);
+                if *bracket_type == BracketType::Curly {
+                    return Some(Item::CompoundExpression(parse_expr_list(&tokens[1..i])));
+                } else {
+                    return try_parse_expr(&tokens[1..i]);
+                }
             }
         }
     }
@@ -62,13 +69,52 @@ pub fn try_parse_function<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
         panic!("Expected parenthesis");
     };
 
-    let (body_start, bracket) = token_iter.next().unwrap();
-    assert_eq!(bracket, &T!("{"));
+    let (body_start, _) = token_iter.next().unwrap();
 
-    let body = try_parse_bracket_expr(&tokens[body_start..]).unwrap();
-    // TODO: use semicolon-separated expressions, allow empty functions
+    let Item::CompoundExpression(body) = try_parse_bracket_expr(&tokens[body_start..]).unwrap()
+    else {
+        unreachable!()
+    };
 
-    Some(Item::Function(&fn_name, vec![body]))
+    Some(Item::Function(&fn_name, body))
+}
+
+pub fn parse_expr_list<'a>(tokens: &'a [Token<'a>]) -> Vec<Item<'a>> {
+    let mut items = Vec::new();
+
+    let mut bracket_level = 0;
+    let mut statement_start = 0;
+
+    for (i, tok) in tokens.iter().enumerate() {
+        if matches!(tok, Token::OpenBracket(_)) {
+            bracket_level += 1;
+        } else if matches!(tok, Token::CloseBracket(_)) {
+            assert_ne!(bracket_level, 0);
+            bracket_level -= 1;
+        }
+
+        if bracket_level != 0 {
+            continue;
+        }
+
+        if !matches!(tok, &T!(";") | &T!("}")) {
+            continue;
+        }
+
+        if tok == &T!(";") && statement_start != i {
+            items.push(try_parse_expr(&tokens[statement_start..i]).unwrap());
+        } else if tok == &T!("}") {
+            items.push(try_parse_expr(&tokens[statement_start..=i]).unwrap());
+        }
+
+        statement_start = i + 1;
+    }
+
+    if statement_start != tokens.len() {
+        items.push(try_parse_expr(&tokens[statement_start..]).unwrap());
+    }
+
+    items
 }
 
 pub fn try_parse_bin<'a>(
@@ -79,6 +125,9 @@ pub fn try_parse_bin<'a>(
 
     for (i, tok) in tokens.iter().enumerate().rev() {
         if matches!(tok, Token::OpenBracket(_)) {
+            if bracket_level == 0 {
+                abort()
+            }
             assert_ne!(bracket_level, 0);
             bracket_level -= 1;
         } else if matches!(tok, Token::CloseBracket(_)) {
@@ -127,6 +176,7 @@ pub fn try_parse_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
         }
     }
 
+    dbg!(tokens);
     panic!("Invalid syntax")
 }
 
