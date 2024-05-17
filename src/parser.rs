@@ -1,9 +1,13 @@
-use crate::lexer::Token;
+use crate::{
+    lexer::{BracketType, Token},
+    T,
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Item<'a> {
     Identifier(&'a str),
     BinaryOperator(Box<Self>, OpCode, Box<Self>),
+    Function(&'a str, Vec<Item<'a>>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,6 +51,26 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
     panic!("Expected closing bracket, reached end of expression")
 }
 
+pub fn try_parse_function<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
+    let mut token_iter = tokens.iter().enumerate();
+
+    let [&T!("fn"), Token::Identifier(fn_name)] = [token_iter.next()?.1, token_iter.next()?.1]
+    else {
+        return None;
+    };
+    let [T!("("), T!(")")] = [token_iter.next()?.1, token_iter.next()?.1] else {
+        panic!("Expected parenthesis");
+    };
+
+    let (body_start, bracket) = token_iter.next().unwrap();
+    assert_eq!(bracket, &T!("{"));
+
+    let body = try_parse_bracket_expr(&tokens[body_start..]).unwrap();
+    // TODO: use semicolon-separated expressions, allow empty functions
+
+    Some(Item::Function(&fn_name, vec![body]))
+}
+
 pub fn try_parse_bin<'a>(
     tokens: &'a [Token<'a>],
     opcodes: &[(Token<'a>, OpCode)],
@@ -85,21 +109,14 @@ pub fn try_parse_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
     }
 
     let rules = [
+        |tokens| try_parse_function(tokens),
         |tokens| try_parse_ident(tokens),
         |tokens| try_parse_bracket_expr(tokens),
+        |tokens| try_parse_bin(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)]),
         |tokens| {
             try_parse_bin(
                 tokens,
-                &[(Token::Plus, OpCode::Plus), (Token::Minus, OpCode::Minus)],
-            )
-        },
-        |tokens| {
-            try_parse_bin(
-                tokens,
-                &[
-                    (Token::Asterisk, OpCode::Asterisk),
-                    (Token::Slash, OpCode::Slash),
-                ],
+                &[(T!("*"), OpCode::Asterisk), (T!("/"), OpCode::Slash)],
             )
         },
     ];

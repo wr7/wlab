@@ -11,12 +11,61 @@ pub enum Token<'a> {
     Asterisk,
     Slash,
     Dot,
+    Semicolon,
+}
+
+/// Shorthand macro for `Token` literals.
+#[macro_export]
+macro_rules! T {
+    ("->") => {
+        Token::Arrow
+    };
+    ("+") => {
+        Token::Plus
+    };
+    ("-") => {
+        Token::Minus
+    };
+    ("/") => {
+        Token::Slash
+    };
+    ("*") => {
+        Token::Asterisk
+    };
+    (".") => {
+        Token::Dot
+    };
+    ("(") => {
+        Token::OpenBracket(BracketType::Parenthesis)
+    };
+    ("[") => {
+        Token::OpenBracket(BracketType::Square)
+    };
+    ("{") => {
+        Token::OpenBracket(BracketType::Curly)
+    };
+    (")") => {
+        Token::CloseBracket(BracketType::Parenthesis)
+    };
+    ("]") => {
+        Token::CloseBracket(BracketType::Square)
+    };
+    ("}") => {
+        Token::CloseBracket(BracketType::Curly)
+    };
+    (";") => {
+        Token::Semicolon
+    };
+    ($ident:literal) => {
+        Token::Identifier($ident)
+    };
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BracketType {
     Parenthesis,
     Square,
+    Curly,
 }
 
 #[derive(Clone)]
@@ -66,20 +115,23 @@ impl<'a> Iterator for Lexer<'a> {
 
             if char == '-' && self.chars.clone().next().is_some_and(|c| c.1 == '>') {
                 self.chars.next();
-                return Some(Ok(Token::Arrow));
+                return Some(Ok(T!("->")));
             }
 
             if !char.is_ascii_alphabetic() {
                 return Some(Ok(match char {
-                    '+' => Token::Plus,
-                    '-' => Token::Minus,
-                    '*' => Token::Asterisk,
-                    '/' => Token::Slash,
-                    '.' => Token::Dot,
-                    '(' => Token::OpenBracket(BracketType::Parenthesis),
-                    ')' => Token::CloseBracket(BracketType::Parenthesis),
-                    '[' => Token::OpenBracket(BracketType::Square),
-                    ']' => Token::CloseBracket(BracketType::Square),
+                    '+' => T!("+"),
+                    '-' => T!("-"),
+                    '*' => T!("*"),
+                    '/' => T!("/"),
+                    '.' => T!("."),
+                    '(' => T!("("),
+                    ')' => T!(")"),
+                    '[' => T!("["),
+                    ']' => T!("]"),
+                    '{' => T!("{"),
+                    '}' => T!("}"),
+                    ';' => T!(";"),
                     _ => {
                         return Some(Err(LexerError::InvalidToken {
                             input: self.input,

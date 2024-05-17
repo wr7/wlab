@@ -7,9 +7,14 @@ mod lexer;
 mod parser;
 
 fn main() {
-    let tokens: Result<Vec<Token>, LexerError> =
-        Lexer::new("foo + bar/biz*(bang-zig)+(his*fan)/four+se/(ki*kp)").collect();
-    let tokens: Vec<Token> = tokens.unwrap();
+    let test_str = r"
+    fn foo() {
+        biz + bang - fuzz
+    }";
 
-    dbg!(parser::try_parse_expr(&tokens));
+    let tokens: Result<Vec<Token>, LexerError> = Lexer::new(test_str).collect();
+    let tokens = tokens.unwrap();
+
+    let ast = parser::try_parse_expr(&tokens).unwrap();
+    dbg!(ast);
 }
