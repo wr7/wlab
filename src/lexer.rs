@@ -12,6 +12,7 @@ pub enum Token<'a> {
     Slash,
     Dot,
     Semicolon,
+    EqualSign,
 }
 
 /// Shorthand macro for `Token` literals.
@@ -55,6 +56,9 @@ macro_rules! T {
     };
     (";") => {
         Token::Semicolon
+    };
+    ("=") => {
+        Token::EqualSign
     };
     ($ident:literal) => {
         Token::Identifier($ident)
@@ -132,6 +136,7 @@ impl<'a> Iterator for Lexer<'a> {
                     '{' => T!("{"),
                     '}' => T!("}"),
                     ';' => T!(";"),
+                    '=' => T!("="),
                     _ => {
                         return Some(Err(LexerError::InvalidToken {
                             input: self.input,

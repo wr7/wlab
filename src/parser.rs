@@ -11,6 +11,7 @@ pub enum Item<'a> {
     BinaryOperator(Box<Self>, OpCode, Box<Self>),
     Function(&'a str, Vec<Item<'a>>),
     CompoundExpression(Vec<Self>),
+    Let(&'a str, Box<Item<'a>>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,6 +20,7 @@ pub enum OpCode {
     Minus,
     Asterisk,
     Slash,
+    Assign,
 }
 
 pub fn try_parse_ident<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
@@ -79,6 +81,58 @@ pub fn try_parse_function<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
     Some(Item::Function(&fn_name, body))
 }
 
+pub fn try_parse_let<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
+    let mut token_iter = tokens.iter().enumerate();
+
+    let [&T!("let"), Token::Identifier(var_name)] = [token_iter.next()?.1, token_iter.next()?.1]
+    else {
+        return None;
+    };
+
+    let (equal_idx, T!("=")) = token_iter.next().unwrap() else {
+        panic!()
+    };
+
+    let val = try_parse_expr(&tokens[equal_idx + 1..]).unwrap();
+
+    return Some(Item::Let(&var_name, Box::new(val)));
+}
+
+pub fn try_parse_bin<'a>(
+    tokens: &'a [Token<'a>],
+    opcodes: &[(Token<'a>, OpCode)],
+) -> Option<Item<'a>> {
+    let mut bracket_level = 0;
+
+    for (i, tok) in tokens.iter().enumerate().rev() {
+        if matches!(tok, Token::OpenBracket(_)) {
+            if bracket_level == 0 {
+                abort()
+            }
+            assert_ne!(bracket_level, 0);
+            bracket_level -= 1;
+        } else if matches!(tok, Token::CloseBracket(_)) {
+            bracket_level += 1;
+        }
+
+        if bracket_level != 0 {
+            continue;
+        }
+
+        for (ttok, opcode) in opcodes {
+            if tok == ttok {
+                return Some(Item::BinaryOperator(
+                    Box::new(try_parse_expr(&tokens[0..i]).unwrap()),
+                    *opcode,
+                    Box::new(try_parse_expr(&tokens[(i + 1)..]).unwrap()),
+                ));
+            }
+        }
+    }
+
+    return None;
+}
+
 pub fn parse_expr_list<'a>(tokens: &'a [Token<'a>]) -> Vec<Item<'a>> {
     let mut items = Vec::new();
 
@@ -117,41 +171,6 @@ pub fn parse_expr_list<'a>(tokens: &'a [Token<'a>]) -> Vec<Item<'a>> {
     items
 }
 
-pub fn try_parse_bin<'a>(
-    tokens: &'a [Token<'a>],
-    opcodes: &[(Token<'a>, OpCode)],
-) -> Option<Item<'a>> {
-    let mut bracket_level = 0;
-
-    for (i, tok) in tokens.iter().enumerate().rev() {
-        if matches!(tok, Token::OpenBracket(_)) {
-            if bracket_level == 0 {
-                abort()
-            }
-            assert_ne!(bracket_level, 0);
-            bracket_level -= 1;
-        } else if matches!(tok, Token::CloseBracket(_)) {
-            bracket_level += 1;
-        }
-
-        if bracket_level != 0 {
-            continue;
-        }
-
-        for (ttok, opcode) in opcodes {
-            if tok == ttok {
-                return Some(Item::BinaryOperator(
-                    Box::new(try_parse_expr(&tokens[0..i]).unwrap()),
-                    *opcode,
-                    Box::new(try_parse_expr(&tokens[(i + 1)..]).unwrap()),
-                ));
-            }
-        }
-    }
-
-    return None;
-}
-
 pub fn try_parse_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
     if tokens.len() == 0 {
         return None;
@@ -159,8 +178,11 @@ pub fn try_parse_expr<'a>(tokens: &'a [Token<'a>]) -> Option<Item<'a>> {
 
     let rules = [
         |tokens| try_parse_function(tokens),
+        |tokens| try_parse_let(tokens),
         |tokens| try_parse_ident(tokens),
         |tokens| try_parse_bracket_expr(tokens),
+        |tokens| try_parse_bin(tokens, &[(T!("="), OpCode::Assign)]),
+        |tokens| try_parse_bin(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)]),
         |tokens| try_parse_bin(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)]),
         |tokens| {
             try_parse_bin(
