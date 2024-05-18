@@ -1,5 +1,10 @@
 use std::fmt::{Debug, Display};
 
+use crate::{
+    error_handling::{Spanned, WLangError},
+    util::StrExt,
+};
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Token<'a> {
     OpenBracket(BracketType),
@@ -78,22 +83,18 @@ pub struct Lexer<'a> {
     chars: std::str::CharIndices<'a>,
 }
 
-pub enum LexerError<'a> {
-    InvalidToken { input: &'a str, byte_index: usize },
+#[derive(Debug)]
+pub enum LexerError {
+    InvalidToken,
 }
 
-impl<'a> Display for LexerError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let LexerError::InvalidToken { input, byte_index } = self;
-        let char: char = input[*byte_index..].chars().next().unwrap();
-
-        write!(f, "Invalid token {:?} at index {}", char, byte_index)
-    }
-}
-
-impl<'a> Debug for LexerError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        <Self as Display>::fmt(&self, f)
+impl WLangError for LexerError {
+    fn get_msg(error: &Spanned<Self>, code: &str) -> std::borrow::Cow<'static, str> {
+        match error.0 {
+            LexerError::InvalidToken => {
+                format!("invalid token `{}`", &code[error.1.clone()]).into()
+            }
+        }
     }
 }
 
@@ -107,7 +108,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Result<Token<'a>, LexerError<'a>>;
+    type Item = Result<Token<'a>, Spanned<LexerError>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -122,7 +123,7 @@ impl<'a> Iterator for Lexer<'a> {
                 return Some(Ok(T!("->")));
             }
 
-            if !char.is_ascii_alphabetic() {
+            if !(char.is_ascii_alphabetic() || char == '_') {
                 return Some(Ok(match char {
                     '+' => T!("+"),
                     '-' => T!("-"),
@@ -138,10 +139,10 @@ impl<'a> Iterator for Lexer<'a> {
                     ';' => T!(";"),
                     '=' => T!("="),
                     _ => {
-                        return Some(Err(LexerError::InvalidToken {
-                            input: self.input,
-                            byte_index,
-                        }))
+                        return Some(Err(Spanned(
+                            LexerError::InvalidToken,
+                            self.input.char_range(byte_index).unwrap(),
+                        )));
                     }
                 }));
             }

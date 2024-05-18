@@ -1,0 +1,70 @@
+use std::ops::Range;
+
+pub trait StrExt {
+    /// Gets the position of a substring within a string.
+    fn substr_pos(&self, substr: &Self) -> Option<Range<usize>>;
+    /// Gets the length of the character at `byte_index`
+    fn char_length(&self, byte_index: usize) -> Option<usize>;
+    /// Gets the range of the character at `byte_index`
+    fn char_range(&self, byte_index: usize) -> Option<Range<usize>>;
+}
+
+impl StrExt for str {
+    fn substr_pos(&self, substr: &Self) -> Option<Range<usize>> {
+        let self_start = self.as_ptr() as usize;
+        let substr_start = substr.as_ptr() as usize;
+
+        let pos_start = substr_start.wrapping_sub(self_start);
+
+        if pos_start >= self.len() {
+            return None;
+        }
+
+        Some(pos_start..pos_start + substr.len())
+    }
+
+    fn char_length(&self, byte_index: usize) -> Option<usize> {
+        let subsl = self.get(byte_index..)?;
+        let mut iter = subsl.char_indices();
+        iter.next()?;
+
+        Some(iter.next().map(|s| s.0).unwrap_or(subsl.len()))
+    }
+    fn char_range(&self, byte_index: usize) -> Option<Range<usize>> {
+        Some(byte_index..byte_index + self.char_length(byte_index)?)
+    }
+}
+
+/// Gets the line number of a byte in some text
+pub fn line_number(src: &str, byte_position: usize) -> usize {
+    let mut line_no = 1;
+
+    for (i, c) in src.char_indices() {
+        if i >= byte_position {
+            break;
+        } else if c == '\n' {
+            line_no += 1;
+        }
+    }
+
+    return line_no;
+}
+
+/// Gets the column number of a byte in some text
+pub fn column_number(src: &str, byte_position: usize) -> usize {
+    let mut col_no = 1;
+
+    for (i, c) in src.char_indices() {
+        if i >= byte_position {
+            break;
+        }
+
+        if c == '\n' {
+            col_no = 1;
+        } else {
+            col_no += 1;
+        }
+    }
+
+    return col_no;
+}
