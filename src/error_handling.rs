@@ -30,13 +30,19 @@ where
             .take(line_no)
             .skip(line_no.saturating_sub(3))
         {
+            let padding = line_no.ilog10() - (i + 1).ilog10();
+
+            for _ in 0..padding {
+                ret_val += " ";
+            }
+
             ret_val += &(i + 1).to_string();
             ret_val += " | ";
             ret_val += line;
             ret_val += "\n";
         }
 
-        for _ in 0..col_no + 3 {
+        for _ in 0..col_no + 3 + line_no.ilog10() as usize {
             ret_val += " ";
         }
 
