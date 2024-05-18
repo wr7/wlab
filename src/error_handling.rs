@@ -1,4 +1,5 @@
 use core::str;
+use std::borrow::{Borrow, BorrowMut};
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 use std::{borrow::Cow, ops::Range};
@@ -55,6 +56,18 @@ impl<T> AsRef<T> for Spanned<T> {
 impl<T> AsMut<T> for Spanned<T> {
     fn as_mut(&mut self) -> &mut T {
         &mut self.0
+    }
+}
+
+impl<T> Borrow<T> for Spanned<T> {
+    fn borrow(&self) -> &T {
+        self.as_ref()
+    }
+}
+
+impl<T> BorrowMut<T> for Spanned<T> {
+    fn borrow_mut(&mut self) -> &mut T {
+        self.as_mut()
     }
 }
 

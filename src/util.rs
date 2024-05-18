@@ -1,4 +1,33 @@
-use std::ops::Range;
+use std::{mem::MaybeUninit, ops::Range, ptr::addr_of, usize};
+
+pub trait IterExt {
+    type Item;
+
+    /// Gets N items from an iterator and returns them as an array. Otherwise returns `None`.
+    fn collect_n<const N: usize>(&mut self) -> Option<[Self::Item; N]>;
+}
+
+impl<I: Iterator> IterExt for I {
+    type Item = I::Item;
+
+    /// Gets N items from an iterator and returns them as an array. Otherwise returns `None`.
+    fn collect_n<const N: usize>(&mut self) -> Option<[Self::Item; N]> {
+        let mut arr: [MaybeUninit<Self::Item>; N] = unsafe { MaybeUninit::uninit().assume_init() };
+
+        for i in 0..N {
+            let Some(item) = self.next() else {
+                for item in &mut arr[0..i] {
+                    unsafe { item.assume_init_drop() };
+                }
+                return None;
+            };
+
+            arr[i].write(item);
+        }
+
+        Some(unsafe { addr_of!(arr).cast::<[Self::Item; N]>().read() })
+    }
+}
 
 pub trait StrExt {
     /// Gets the position of a substring within a string.

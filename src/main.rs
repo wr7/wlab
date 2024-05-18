@@ -24,8 +24,7 @@ fn main() {
     }
 ";
 
-    let tokens: Result<Vec<Token>, Spanned<LexerError>> =
-        Lexer::new(test_str).map(|t| t.map(|t| t.0)).collect();
+    let tokens: Result<Vec<Spanned<Token>>, Spanned<LexerError>> = Lexer::new(test_str).collect();
     let tokens = match tokens {
         Ok(tokens) => tokens,
         Err(err) => panic!("lexer error: {}", err.render(test_str)),

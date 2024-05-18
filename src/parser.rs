@@ -1,4 +1,4 @@
-use crate::lexer::Token;
+use crate::{error_handling::Spanned, lexer::Token};
 
 mod rules;
 
@@ -31,6 +31,6 @@ pub enum OpCode {
     Slash,
 }
 
-pub fn parse<'a>(tokens: &'a [Token<'a>]) -> Vec<Statement<'a>> {
+pub fn parse<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Vec<Statement<'a>> {
     rules::parse_statement_list(tokens)
 }
