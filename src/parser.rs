@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::{
     error_handling::{Spanned, WLangError},
-    lexer::Token,
+    lexer::{BracketType, Token},
 };
 
 mod rules;
@@ -40,15 +40,24 @@ pub enum OpCode {
 pub enum ParseError {
     InvalidExpression,
     UnmatchedBracket,
+    MismatchedBracket(BracketType), // TODO: include position of opening bracket
 }
 
 impl WLangError for ParseError {
     fn get_msg(error: &Spanned<Self>, code: &str) -> std::borrow::Cow<'static, str> {
         match error.deref() {
-            ParseError::InvalidExpression => "Invalid expression".into(),
+            ParseError::InvalidExpression => {
+                format!("Invalid expression `{}`", &code[error.1.clone()]).into()
+            }
             ParseError::UnmatchedBracket => {
                 format!("unmatched bracket `{}`", &code[error.1.clone()]).into()
             }
+            ParseError::MismatchedBracket(bt) => format!(
+                "mismatched bracket; expected {}, got `{}`",
+                Token::CloseBracket(*bt),
+                &code[error.1.clone()]
+            )
+            .into(),
         }
     }
 }

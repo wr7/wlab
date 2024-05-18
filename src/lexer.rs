@@ -3,72 +3,12 @@ use std::fmt::{Debug, Display};
 use crate::{
     error_handling::{Spanned, WLangError},
     util::StrExt,
+    T,
 };
 
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum Token<'a> {
-    OpenBracket(BracketType),
-    CloseBracket(BracketType),
-    Identifier(&'a str),
-    Arrow,
-    Plus,
-    Minus,
-    Asterisk,
-    Slash,
-    Dot,
-    Semicolon,
-    EqualSign,
-}
+mod token;
 
-/// Shorthand macro for `Token` literals.
-#[macro_export]
-macro_rules! T {
-    ("->") => {
-        $crate::lexer::Token::Arrow
-    };
-    ("+") => {
-        $crate::lexer::Token::Plus
-    };
-    ("-") => {
-        $crate::lexer::Token::Minus
-    };
-    ("/") => {
-        $crate::lexer::Token::Slash
-    };
-    ("*") => {
-        $crate::lexer::Token::Asterisk
-    };
-    (".") => {
-        $crate::lexer::Token::Dot
-    };
-    ("(") => {
-        $crate::lexer::Token::OpenBracket($crate::lexer::BracketType::Parenthesis)
-    };
-    ("[") => {
-        $crate::lexer::Token::OpenBracket($crate::lexer::BracketType::Square)
-    };
-    ("{") => {
-        $crate::lexer::Token::OpenBracket($crate::lexer::BracketType::Curly)
-    };
-    (")") => {
-        $crate::lexer::Token::CloseBracket($crate::lexer::BracketType::Parenthesis)
-    };
-    ("]") => {
-        $crate::lexer::Token::CloseBracket($crate::lexer::BracketType::Square)
-    };
-    ("}") => {
-        $crate::lexer::Token::CloseBracket($crate::lexer::BracketType::Curly)
-    };
-    (";") => {
-        $crate::lexer::Token::Semicolon
-    };
-    ("=") => {
-        $crate::lexer::Token::EqualSign
-    };
-    ($ident:literal) => {
-        $crate::lexer::Token::Identifier($ident)
-    };
-}
+pub use token::Token;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BracketType {

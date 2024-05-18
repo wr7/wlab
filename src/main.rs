@@ -13,12 +13,15 @@ mod parser;
 
 fn main() {
     let test_str = "\
-let foo = thing1;
+let foo = thing1 + f;
 let bar = foo + fizz;
-let x = h/((y+z)*w))+g/b
+let x = h/((y+z)*w)+g/b;
+
 fn foo() {
     fn biz() {
-        hello
+        hello;
+        let message = line_break + (invalid expr) * five;
+
     }
     let bang = do_thing;
     let foo = thing - other_thing;
@@ -27,6 +30,7 @@ fn foo() {
 }
 ";
 
+    // TODO: test `let bang = (foo) hello; bang = x`
     let tokens: Result<Vec<Spanned<Token>>, Spanned<LexerError>> = Lexer::new(test_str).collect();
     let tokens = match tokens {
         Ok(tokens) => tokens,

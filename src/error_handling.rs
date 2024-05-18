@@ -32,7 +32,7 @@ where
         {
             ret_val += &(i + 1).to_string();
             ret_val += " | ";
-            ret_val += line.get(0..80).unwrap_or(line);
+            ret_val += line;
             ret_val += "\n";
         }
 
