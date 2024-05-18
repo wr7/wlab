@@ -1,5 +1,6 @@
 use core::str;
 use std::fmt::Debug;
+use std::ops::{Deref, DerefMut};
 use std::{borrow::Cow, ops::Range};
 
 use crate::util;
@@ -42,5 +43,31 @@ where
         ret_val += "^";
 
         return format!("{ret_val}\n{err_msg} ({line_no}:{col_no})");
+    }
+}
+
+impl<T> AsRef<T> for Spanned<T> {
+    fn as_ref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<T> AsMut<T> for Spanned<T> {
+    fn as_mut(&mut self) -> &mut T {
+        &mut self.0
+    }
+}
+
+impl<T> Deref for Spanned<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
+
+impl<T> DerefMut for Spanned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.as_mut()
     }
 }

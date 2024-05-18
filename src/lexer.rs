@@ -108,7 +108,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Result<Token<'a>, Spanned<LexerError>>;
+    type Item = Result<Spanned<Token<'a>>, Spanned<LexerError>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -120,31 +120,34 @@ impl<'a> Iterator for Lexer<'a> {
 
             if char == '-' && self.chars.clone().next().is_some_and(|c| c.1 == '>') {
                 self.chars.next();
-                return Some(Ok(T!("->")));
+                return Some(Ok(Spanned(T!("->"), byte_index..byte_index + 2)));
             }
 
             if !(char.is_ascii_alphabetic() || char == '_') {
-                return Some(Ok(match char {
-                    '+' => T!("+"),
-                    '-' => T!("-"),
-                    '*' => T!("*"),
-                    '/' => T!("/"),
-                    '.' => T!("."),
-                    '(' => T!("("),
-                    ')' => T!(")"),
-                    '[' => T!("["),
-                    ']' => T!("]"),
-                    '{' => T!("{"),
-                    '}' => T!("}"),
-                    ';' => T!(";"),
-                    '=' => T!("="),
-                    _ => {
-                        return Some(Err(Spanned(
-                            LexerError::InvalidToken,
-                            self.input.char_range(byte_index).unwrap(),
-                        )));
-                    }
-                }));
+                return Some(Ok(Spanned(
+                    match char {
+                        '+' => T!("+"),
+                        '-' => T!("-"),
+                        '*' => T!("*"),
+                        '/' => T!("/"),
+                        '.' => T!("."),
+                        '(' => T!("("),
+                        ')' => T!(")"),
+                        '[' => T!("["),
+                        ']' => T!("]"),
+                        '{' => T!("{"),
+                        '}' => T!("}"),
+                        ';' => T!(";"),
+                        '=' => T!("="),
+                        _ => {
+                            return Some(Err(Spanned(
+                                LexerError::InvalidToken,
+                                self.input.char_range(byte_index).unwrap(),
+                            )));
+                        }
+                    },
+                    byte_index..byte_index + 1,
+                )));
             }
 
             let ident_start = byte_index;
@@ -164,7 +167,10 @@ impl<'a> Iterator for Lexer<'a> {
                 }
             }
 
-            return Some(Ok(Token::Identifier(&self.input[ident_start..ident_end])));
+            return Some(Ok(Spanned(
+                Token::Identifier(&self.input[ident_start..ident_end]),
+                ident_start..ident_end,
+            )));
         }
     }
 }
