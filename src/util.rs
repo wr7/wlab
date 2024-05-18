@@ -64,8 +64,16 @@ impl StrExt for str {
     }
 }
 
+/// Gets the line and column number of a byte in some text
+pub fn line_and_col(src: &str, byte_position: usize) -> (usize, usize) {
+    (
+        line_number(src, byte_position),
+        column_number(src, byte_position),
+    )
+}
+
 /// Gets the line number of a byte in some text
-pub fn line_number(src: &str, byte_position: usize) -> usize {
+fn line_number(src: &str, byte_position: usize) -> usize {
     let mut line_no = 1;
 
     for (i, c) in src.char_indices() {
@@ -80,7 +88,7 @@ pub fn line_number(src: &str, byte_position: usize) -> usize {
 }
 
 /// Gets the column number of a byte in some text
-pub fn column_number(src: &str, byte_position: usize) -> usize {
+fn column_number(src: &str, byte_position: usize) -> usize {
     let mut col_no = 1;
 
     for (i, c) in src.char_indices() {

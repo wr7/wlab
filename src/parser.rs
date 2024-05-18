@@ -50,22 +50,20 @@ pub enum ParseError {
 impl WLangError for ParseError {
     fn get_msg(error: &Spanned<Self>, code: &str) -> std::borrow::Cow<'static, str> {
         match error.deref() {
-            ParseError::InvalidExpression => {
-                format!("Invalid expression `{}`", &code[error.1.clone()]).into()
-            }
+            ParseError::InvalidExpression => "Invalid expression".into(),
             ParseError::UnmatchedBracket => {
-                format!("unmatched bracket `{}`", &code[error.1.clone()]).into()
+                format!("Unmatched bracket `{}`", &code[error.1.clone()]).into()
             }
             ParseError::MismatchedBracket(bt) => format!(
-                "mismatched bracket; expected {}, got `{}`",
+                "Mismatched bracket; expected {}, got `{}`",
                 Token::CloseBracket(*bt),
                 &code[error.1.clone()]
             )
             .into(),
-            ParseError::ExpectedParameters => "expected function parameters `()`".into(),
-            ParseError::ExpectedBody => "expected function body".into(),
-            ParseError::ExpectedExpression => "expected expression".into(),
-            ParseError::ExpectedToken(tok) => format!("expected token {}", tok).into(),
+            ParseError::ExpectedParameters => "Expected function parameters `()`".into(),
+            ParseError::ExpectedBody => "Expected function body".into(),
+            ParseError::ExpectedExpression => "Expected expression".into(),
+            ParseError::ExpectedToken(tok) => format!("Expected token {}", tok).into(),
         }
     }
 }
