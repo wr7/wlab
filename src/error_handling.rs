@@ -40,7 +40,13 @@ where
             ret_val += " ";
         }
 
-        for _ in code[self.1.clone()].chars() {
+        let arrow_width = code
+            .get(self.1.clone())
+            .map(|c| c.chars().count())
+            .unwrap_or(1)
+            .max(1);
+
+        for _ in 0..arrow_width {
             ret_val += "^";
         }
 

@@ -13,16 +13,12 @@ mod parser;
 
 fn main() {
     let test_str = "\
-let foo = thing1 + f;
-let bar = foo + fizz;
-let x = h/((y+z)*w)+g/b;
-
 fn foo() {
     fn biz() {
         hello;
-        let message = line_break + (invalid expr) * five;
-
     }
+
+    let y = ;
     let bang = do_thing;
     let foo = thing - other_thing;
     let bar = hello + _pog * foo;

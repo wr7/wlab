@@ -41,6 +41,10 @@ pub enum ParseError {
     InvalidExpression,
     UnmatchedBracket,
     MismatchedBracket(BracketType), // TODO: include position of opening bracket
+    ExpectedParameters,
+    ExpectedBody,
+    ExpectedExpression,
+    ExpectedToken(Token<'static>),
 }
 
 impl WLangError for ParseError {
@@ -58,6 +62,10 @@ impl WLangError for ParseError {
                 &code[error.1.clone()]
             )
             .into(),
+            ParseError::ExpectedParameters => "expected function parameters `()`".into(),
+            ParseError::ExpectedBody => "expected function body".into(),
+            ParseError::ExpectedExpression => "expected expression".into(),
+            ParseError::ExpectedToken(tok) => format!("expected token {}", tok).into(),
         }
     }
 }

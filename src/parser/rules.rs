@@ -108,23 +108,35 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [Spanned<Token<'a>>]) -> PResult<Optio
 
 /// A function. Eg `fn foo() {let x = ten; x}`
 fn try_parse_function<'a>(tokens: &'a [Spanned<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
-    let mut token_iter = tokens.iter().enumerate();
+    let mut token_idx_iter = tokens.iter().enumerate();
+    let mut token_iter = (&mut token_idx_iter).map(|t| t.1);
 
-    let Some([&T!("fn"), Token::Identifier(fn_name)]) =
-        (&mut token_iter).map(|t| t.1.deref()).collect_n::<2>()
+    let Some([Spanned(T!("fn"), _), Spanned(Token::Identifier(fn_name), name_span)]) =
+        token_iter.collect_n::<2>()
     else {
         return Ok(None);
     };
 
-    let Some([T!("("), T!(")")]) = (&mut token_iter).map(|t| t.1.deref()).collect_n::<2>() else {
-        panic!("Expected parenthesis");
+    let Some([Spanned(T!("("), _), Spanned(T!(")"), rparen)]) = token_iter.collect_n::<2>() else {
+        return Err(Spanned(
+            ParseError::ExpectedParameters,
+            name_span.end..name_span.end + 1,
+        ));
     };
 
-    let (body_start, _) = token_iter.next().unwrap();
+    let Some((body_start, _)) = token_idx_iter.next() else {
+        return Err(Spanned(
+            ParseError::ExpectedBody,
+            rparen.end..rparen.end + 1,
+        ));
+    };
 
     let Some(Expression::CompoundExpression(body)) = try_parse_bracket_expr(&tokens[body_start..])?
     else {
-        panic!("Expected function body")
+        return Err(Spanned(
+            ParseError::ExpectedBody,
+            rparen.end..rparen.end + 1,
+        ));
     };
 
     Ok(Some(Statement::Function(&fn_name, body)))
@@ -149,20 +161,27 @@ fn try_parse_assign<'a>(tokens: &'a [Spanned<Token<'a>>]) -> PResult<Option<Stat
 
 /// A variable initialization. Eg `let foo = bar * (fizz + buzz)`
 fn try_parse_let<'a>(tokens: &'a [Spanned<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
-    let mut token_iter = tokens.iter().enumerate();
+    let mut token_idx_iter = tokens.iter().enumerate();
+    let mut token_iter = (&mut token_idx_iter).map(|t| t.1);
 
-    let Some([&T!("let"), Token::Identifier(var_name)]) =
-        (&mut token_iter).map(|t| t.1.deref()).collect_n::<2>()
+    let Some([Spanned(T!("let"), _), Spanned(Token::Identifier(var_name), name_span)]) =
+        token_iter.collect_n::<2>()
     else {
         return Ok(None);
     };
 
-    let Some((equal_idx, Spanned(T!("="), _))) = token_iter.next() else {
-        panic!("Expected equal sign")
+    let Some((equal_idx, Spanned(T!("="), equal_span))) = token_idx_iter.next() else {
+        return Err(Spanned(
+            ParseError::ExpectedToken(T!("=")),
+            name_span.end..name_span.end + 1,
+        ));
     };
 
     let Some(val) = try_parse_expr(&tokens[equal_idx + 1..])? else {
-        panic!("Expected expression")
+        return Err(Spanned(
+            ParseError::ExpectedExpression,
+            equal_span.end..equal_span.end + 1,
+        ));
     };
 
     return Ok(Some(Statement::Let(&var_name, Box::new(val))));
