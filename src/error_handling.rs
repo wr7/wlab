@@ -36,12 +36,13 @@ where
             ret_val += "\n";
         }
 
-        ret_val += "    ";
-
-        for _ in 1..col_no {
-            ret_val += "~";
+        for _ in 0..col_no + 3 {
+            ret_val += " ";
         }
-        ret_val += "^";
+
+        for _ in code[self.1.clone()].chars() {
+            ret_val += "^";
+        }
 
         return format!("{ret_val}\n{err_msg} ({line_no}:{col_no})");
     }

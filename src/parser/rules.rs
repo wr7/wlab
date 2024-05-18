@@ -7,35 +7,36 @@ use crate::{
     T,
 };
 
-use super::{Expression, OpCode, Statement};
+use super::{Expression, OpCode, ParseError, Statement};
 
-pub fn parse_statement_list<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Vec<Statement<'a>> {
+type PResult<T> = Result<T, Spanned<ParseError>>;
+
+pub fn parse_statement_list<'a>(tokens: &'a [Spanned<Token<'a>>]) -> PResult<Vec<Statement<'a>>> {
     let mut items = Vec::new();
 
-    let mut bracket_level = 0;
+    let mut bracket_level = 0u32;
     let mut statement_start = 0;
 
     for (i, tok) in tokens.iter().enumerate() {
-        let tok = tok.deref();
-
-        if matches!(tok, Token::OpenBracket(_)) {
+        if matches!(tok.deref(), Token::OpenBracket(_)) {
             bracket_level += 1;
-        } else if matches!(tok, Token::CloseBracket(_)) {
-            assert_ne!(bracket_level, 0);
-            bracket_level -= 1;
+        } else if matches!(tok.deref(), Token::CloseBracket(_)) {
+            bracket_level = bracket_level
+                .checked_sub(1)
+                .ok_or(Spanned(ParseError::UnmatchedBracket, tok.1.clone()))?;
         }
 
         if bracket_level != 0 {
             continue;
         }
 
-        if !matches!(tok, &T!(";") | &T!("}")) {
+        if !matches!(tok.deref(), &T!(";") | &T!("}")) {
             continue;
         }
 
-        if tok == &T!(";") && statement_start != i {
+        if tok.deref() == &T!(";") && statement_start != i {
             items.push(try_parse_statement(&tokens[statement_start..i]).unwrap());
-        } else if tok == &T!("}") {
+        } else if tok.deref() == &T!("}") {
             items.push(try_parse_statement(&tokens[statement_start..=i]).unwrap());
         }
 
@@ -46,7 +47,7 @@ pub fn parse_statement_list<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Vec<Stateme
         items.push(try_parse_statement(&tokens[statement_start..]).unwrap());
     }
 
-    items
+    Ok(items)
 }
 
 /// A plain identifier
@@ -78,9 +79,9 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Option<Expres
             if bracket_level == 0 {
                 assert_eq!(tok, &Token::CloseBracket(*bracket_type));
                 if *bracket_type == BracketType::Curly {
-                    return Some(Expression::CompoundExpression(parse_statement_list(
-                        &tokens[1..i],
-                    )));
+                    return Some(Expression::CompoundExpression(
+                        parse_statement_list(&tokens[1..i]).unwrap(),
+                    ));
                 } else {
                     return try_parse_expr(&tokens[1..i]);
                 }

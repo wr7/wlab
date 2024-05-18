@@ -1,4 +1,9 @@
-use crate::{error_handling::Spanned, lexer::Token};
+use std::ops::Deref;
+
+use crate::{
+    error_handling::{Spanned, WLangError},
+    lexer::Token,
+};
 
 mod rules;
 
@@ -31,6 +36,25 @@ pub enum OpCode {
     Slash,
 }
 
-pub fn parse<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Vec<Statement<'a>> {
+#[derive(Debug)]
+pub enum ParseError {
+    InvalidExpression,
+    UnmatchedBracket,
+}
+
+impl WLangError for ParseError {
+    fn get_msg(error: &Spanned<Self>, code: &str) -> std::borrow::Cow<'static, str> {
+        match error.deref() {
+            ParseError::InvalidExpression => "Invalid expression".into(),
+            ParseError::UnmatchedBracket => {
+                format!("unmatched bracket `{}`", &code[error.1.clone()]).into()
+            }
+        }
+    }
+}
+
+pub fn parse<'a>(
+    tokens: &'a [Spanned<Token<'a>>],
+) -> Result<Vec<Statement<'a>>, Spanned<ParseError>> {
     rules::parse_statement_list(tokens)
 }
