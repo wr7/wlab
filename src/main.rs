@@ -1,6 +1,6 @@
 use lexer::{Lexer, LexerError};
 
-use crate::lexer::{BracketType, Token};
+use crate::lexer::Token;
 
 mod lexer;
 
@@ -17,6 +17,6 @@ fn main() {
     let tokens: Result<Vec<Token>, LexerError> = Lexer::new(test_str).collect();
     let tokens = tokens.unwrap();
 
-    let ast = parser::parse_statement_list(&tokens);
+    let ast = parser::parse(&tokens);
     dbg!(ast);
 }

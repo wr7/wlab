@@ -19,49 +19,49 @@ pub enum Token<'a> {
 #[macro_export]
 macro_rules! T {
     ("->") => {
-        Token::Arrow
+        $crate::lexer::Token::Arrow
     };
     ("+") => {
-        Token::Plus
+        $crate::lexer::Token::Plus
     };
     ("-") => {
-        Token::Minus
+        $crate::lexer::Token::Minus
     };
     ("/") => {
-        Token::Slash
+        $crate::lexer::Token::Slash
     };
     ("*") => {
-        Token::Asterisk
+        $crate::lexer::Token::Asterisk
     };
     (".") => {
-        Token::Dot
+        $crate::lexer::Token::Dot
     };
     ("(") => {
-        Token::OpenBracket(BracketType::Parenthesis)
+        $crate::lexer::Token::OpenBracket($crate::lexer::BracketType::Parenthesis)
     };
     ("[") => {
-        Token::OpenBracket(BracketType::Square)
+        $crate::lexer::Token::OpenBracket($crate::lexer::BracketType::Square)
     };
     ("{") => {
-        Token::OpenBracket(BracketType::Curly)
+        $crate::lexer::Token::OpenBracket($crate::lexer::BracketType::Curly)
     };
     (")") => {
-        Token::CloseBracket(BracketType::Parenthesis)
+        $crate::lexer::Token::CloseBracket($crate::lexer::BracketType::Parenthesis)
     };
     ("]") => {
-        Token::CloseBracket(BracketType::Square)
+        $crate::lexer::Token::CloseBracket($crate::lexer::BracketType::Square)
     };
     ("}") => {
-        Token::CloseBracket(BracketType::Curly)
+        $crate::lexer::Token::CloseBracket($crate::lexer::BracketType::Curly)
     };
     (";") => {
-        Token::Semicolon
+        $crate::lexer::Token::Semicolon
     };
     ("=") => {
-        Token::EqualSign
+        $crate::lexer::Token::EqualSign
     };
     ($ident:literal) => {
-        Token::Identifier($ident)
+        $crate::lexer::Token::Identifier($ident)
     };
 }
 
