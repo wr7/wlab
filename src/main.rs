@@ -1,3 +1,4 @@
+use error_handling::WLangError;
 use lexer::{Lexer, LexerError};
 
 use crate::{error_handling::Spanned, lexer::Token};
@@ -24,7 +25,8 @@ fn main() {
 
 fn do_nothing() {}";
 
-    let tokens: Result<Vec<Spanned<Token>>, Spanned<LexerError>> = Lexer::new(test_str).collect();
+    let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();
+
     let tokens = match tokens {
         Ok(tokens) => tokens,
         Err(err) => panic!("lexer error: \n{}", err.render(test_str)),

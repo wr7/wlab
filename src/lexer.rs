@@ -1,7 +1,10 @@
-use std::fmt::{Debug, Display};
+use std::{
+    fmt::{Debug, Display},
+    ops::Range,
+};
 
 use crate::{
-    error_handling::{Spanned, WLangError},
+    error_handling::{Diagnostic, Hint, Spanned, WLangError},
     util::StrExt,
     T,
 };
@@ -24,16 +27,15 @@ pub struct Lexer<'a> {
 }
 
 #[derive(Debug)]
-pub enum LexerError {
-    InvalidToken,
+pub struct LexerError {
+    span: Range<usize>,
 }
 
 impl WLangError for LexerError {
-    fn get_msg(error: &Spanned<Self>, code: &str) -> std::borrow::Cow<'static, str> {
-        match error.0 {
-            LexerError::InvalidToken => {
-                format!("invalid token `{}`", &code[error.1.clone()]).into()
-            }
+    fn get_diagnostic(&self, code: &str) -> Diagnostic {
+        Diagnostic {
+            msg: format!("invalid token `{}`", &code[self.span.clone()]).into(),
+            hints: vec![Hint::new_error("", self.span.clone())],
         }
     }
 }
@@ -48,7 +50,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Result<Spanned<Token<'a>>, Spanned<LexerError>>;
+    type Item = Result<Spanned<Token<'a>>, LexerError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -80,10 +82,9 @@ impl<'a> Iterator for Lexer<'a> {
                         ';' => T!(";"),
                         '=' => T!("="),
                         _ => {
-                            return Some(Err(Spanned(
-                                LexerError::InvalidToken,
-                                self.input.char_range(byte_index).unwrap(),
-                            )));
+                            return Some(Err(LexerError {
+                                span: self.input.char_range(byte_index).unwrap(),
+                            }));
                         }
                     },
                     byte_index..byte_index + 1,

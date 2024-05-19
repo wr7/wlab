@@ -48,7 +48,7 @@ pub enum ParseError {
 }
 
 impl WLangError for ParseError {
-    fn get_msg(error: &Spanned<Self>, code: &str) -> std::borrow::Cow<'static, str> {
+    fn get_diagnostic(error: &Spanned<Self>, code: &str) -> std::borrow::Cow<'static, str> {
         match error.deref() {
             ParseError::InvalidExpression => "Invalid expression".into(),
             ParseError::UnmatchedBracket => {

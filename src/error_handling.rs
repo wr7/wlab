@@ -7,7 +7,10 @@ use std::{borrow::Cow, ops::Range};
 use crate::util::{self, RangeExt, StrExt};
 
 pub trait WLangError: Sized {
-    fn get_msg(error: &Spanned<Self>, code: &str) -> Cow<'static, str>;
+    fn get_diagnostic(&self, code: &str) -> Diagnostic;
+    fn render(&self, code: &str) -> String {
+        return self.get_diagnostic(code).render(code);
+    }
 }
 
 /// Includes information about where something appears in a source file
@@ -15,17 +18,17 @@ pub trait WLangError: Sized {
 pub struct Spanned<T>(pub T, pub Range<usize>);
 
 pub struct Hint {
-    pub msg: Cow<'static, str>,
-    pub span: Range<usize>,
-    pub pointer_char: char,
+    msg: Cow<'static, str>,
+    span: Range<usize>,
+    pointer_char: char,
 }
 
-pub struct Diagnostic<const N: usize> {
+pub struct Diagnostic {
     pub msg: Cow<'static, str>,
-    pub hints: [Hint; N],
+    pub hints: Vec<Hint>,
 }
 
-impl<const N: usize> Diagnostic<N> {
+impl Diagnostic {
     pub fn render(&self, code: &str) -> String {
         let mut ret_val = "\n ".to_owned();
 
@@ -49,6 +52,16 @@ impl<const N: usize> Diagnostic<N> {
 }
 
 impl Hint {
+    pub fn new_error<M>(msg: M, span: Range<usize>) -> Self
+    where
+        M: Into<Cow<'static, str>>,
+    {
+        Self {
+            msg: msg.into(),
+            span,
+            pointer_char: '^',
+        }
+    }
     fn render_snippet(&self, code: &str) -> String {
         let (line_st, col_st) = util::line_and_col(code, self.span.start);
         let (line_end, col_end) = util::line_and_col(code, self.span.end.saturating_sub(1));
@@ -106,33 +119,16 @@ impl Hint {
             ret_val += "\n";
         }
 
-        // Print message //
-        for _ in 0..line_end.ilog10() + 1 {
-            ret_val += " ";
+        if !self.msg.is_empty() {
+            // Print message //
+            for _ in 0..line_end.ilog10() + 1 {
+                ret_val += " ";
+            }
+            ret_val += " | ";
+            ret_val += &self.msg;
         }
-        ret_val += " | ";
-        ret_val += &self.msg;
 
         return ret_val;
-    }
-}
-
-impl<T> Spanned<T>
-where
-    T: WLangError,
-{
-    pub fn render(&self, code: &str) -> String {
-        let msg = WLangError::get_msg(&self, code);
-
-        let hint = Hint {
-            msg: msg.clone(),
-            span: self.1.clone(),
-            pointer_char: '^',
-        };
-
-        let diagnostic = Diagnostic { msg, hints: [hint] };
-
-        return diagnostic.render(code);
     }
 }
 
