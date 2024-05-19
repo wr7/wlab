@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::ops::{Deref, DerefMut, RangeBounds};
 use std::{borrow::Cow, ops::Range};
 
-use crate::util;
+use crate::util::{self, RangeExt, StrExt};
 
 pub trait WLangError: Sized {
     fn get_msg(error: &Spanned<Self>, code: &str) -> Cow<'static, str>;
@@ -14,41 +14,71 @@ pub trait WLangError: Sized {
 #[derive(Debug)]
 pub struct Spanned<T>(pub T, pub Range<usize>);
 
-impl<T> Spanned<T>
-where
-    T: WLangError,
-{
+pub struct Hint {
+    pub msg: Cow<'static, str>,
+    pub span: Range<usize>,
+    pub pointer_char: char,
+}
+
+pub struct Diagnostic<const N: usize> {
+    pub msg: Cow<'static, str>,
+    pub hints: [Hint; N],
+}
+
+impl<const N: usize> Diagnostic<N> {
     pub fn render(&self, code: &str) -> String {
-        let err_msg = WLangError::get_msg(&self, code);
+        let mut ret_val = "\n ".to_owned();
 
-        let (line_st, col_st) = util::line_and_col(code, self.1.start);
-        let (line_end, col_end) = util::line_and_col(code, self.1.end.saturating_sub(1));
+        ret_val += &self.msg;
+        ret_val.push('\n');
 
-        let mut ret_val = "\n".to_owned();
+        for _ in 0..ret_val.len() {
+            ret_val.push('-');
+        }
+
+        ret_val.push('\n');
+
+        for hint in &self.hints {
+            ret_val += &hint.render_snippet(code);
+        }
+
+        ret_val.push('\n');
+
+        return ret_val;
+    }
+}
+
+impl Hint {
+    fn render_snippet(&self, code: &str) -> String {
+        let (line_st, col_st) = util::line_and_col(code, self.span.start);
+        let (line_end, col_end) = util::line_and_col(code, self.span.end.saturating_sub(1));
+
+        let mut ret_val = String::new();
 
         for (i, line) in code
             .lines()
             .enumerate()
+            .map(|(i, l)| (i + 1, l))
             .take(line_end)
             .skip(line_st.saturating_sub(3))
         {
             // Print line number, line, and gutter //
-            let padding = line_end.ilog10() - (i + 1).ilog10();
+            let padding = line_end.ilog10() - i.ilog10();
 
             for _ in 0..padding {
                 ret_val += " ";
             }
 
-            ret_val += &(i + 1).to_string();
+            ret_val += &i.to_string();
             ret_val += " | ";
             ret_val += line;
             ret_val += "\n";
 
-            if !(line_st..=line_end).contains(&(i + 1)) || line.is_empty() {
+            if !(line_st..=line_end).contains(&i) || line.is_empty() {
                 continue;
             }
 
-            // Print pointer //
+            // Print pointer gutter //
 
             for _ in 0..line_end.ilog10() + 1 {
                 ret_val += " ";
@@ -56,8 +86,10 @@ where
 
             ret_val += " | ";
 
-            let arrow_st = if i + 1 == line_st { col_st } else { 1 };
-            let arrow_end = if i + 1 == line_end {
+            // Print pointer
+
+            let arrow_st = if i == line_st { col_st } else { 1 };
+            let arrow_end = if i == line_end {
                 col_end
             } else {
                 line.chars().count()
@@ -68,19 +100,39 @@ where
             }
 
             for _ in arrow_st..arrow_end.max(arrow_st) + 1 {
-                ret_val += "^"
+                ret_val.push(self.pointer_char)
             }
 
             ret_val += "\n";
         }
 
+        // Print message //
         for _ in 0..line_end.ilog10() + 1 {
             ret_val += " ";
         }
         ret_val += " | ";
-        ret_val += &err_msg;
+        ret_val += &self.msg;
 
         return ret_val;
+    }
+}
+
+impl<T> Spanned<T>
+where
+    T: WLangError,
+{
+    pub fn render(&self, code: &str) -> String {
+        let msg = WLangError::get_msg(&self, code);
+
+        let hint = Hint {
+            msg: msg.clone(),
+            span: self.1.clone(),
+            pointer_char: '^',
+        };
+
+        let diagnostic = Diagnostic { msg, hints: [hint] };
+
+        return diagnostic.render(code);
     }
 }
 

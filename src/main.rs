@@ -18,8 +18,8 @@ mod parser;
 fn main() {
     let test_str = "\
 fn main() {
-    let x = y + z;
-    x
+    let x = y + z
+    let y = hi;
 }
 
 fn do_nothing() {}";
@@ -27,13 +27,13 @@ fn do_nothing() {}";
     let tokens: Result<Vec<Spanned<Token>>, Spanned<LexerError>> = Lexer::new(test_str).collect();
     let tokens = match tokens {
         Ok(tokens) => tokens,
-        Err(err) => panic!("lexer error: {}", err.render(test_str)),
+        Err(err) => panic!("lexer error: \n{}", err.render(test_str)),
     };
 
     let ast = parser::parse(&tokens);
     let ast = match ast {
         Ok(ast) => ast,
-        Err(e) => panic!("parse error: {}", e.render(test_str)),
+        Err(e) => panic!("parse error: \n{}", e.render(test_str)),
     };
 
     dbg!(ast);

@@ -1,4 +1,22 @@
-use std::{mem::MaybeUninit, ops::Range, ptr::addr_of, usize};
+use std::{
+    mem::MaybeUninit,
+    ops::{Range, RangeBounds},
+    ptr::addr_of,
+    usize,
+};
+
+pub trait RangeExt {
+    fn overlaps_with(&self, other: &Self) -> bool;
+}
+
+impl RangeExt for Range<usize> {
+    fn overlaps_with(&self, other: &Self) -> bool {
+        self.contains(&other.start)
+            || self.contains(&(other.end - 1))
+            || other.contains(&self.start)
+            || other.contains(&(self.end - 1))
+    }
+}
 
 pub trait IterExt {
     type Item;
