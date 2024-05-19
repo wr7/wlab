@@ -10,6 +10,7 @@ pub trait WLangError: Sized {
     fn get_msg(error: &Spanned<Self>, code: &str) -> Cow<'static, str>;
 }
 
+/// Includes information about where something appears in a source file
 #[derive(Debug)]
 pub struct Spanned<T>(pub T, pub Range<usize>);
 

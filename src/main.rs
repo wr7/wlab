@@ -22,8 +22,6 @@ fn main() {
 }
 
 let foo = bar;
-foo = foo + y
-x = d
 
 let x = y + z;";
 
