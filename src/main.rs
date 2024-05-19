@@ -9,21 +9,20 @@ mod util;
 
 mod parser;
 
-/* TODO
+/* Parser TODO
  *  - Allow multiple spans in errors
  *  - Add more error handling (including for binary operators)
- *  - Test `let bang = (foo) hello; bang = x` to see if it properly triggers an error.
+ *  - Create distinction between Compound Statements and Compound Expressions (maybe have compound expression return implicit unit?)
  */
 
 fn main() {
     let test_str = "\
 fn main() {
-    hello
+    let x = y + z;
+    x
 }
 
-let foo = bar;
-
-let x = y + z;";
+fn do_nothing() {}";
 
     let tokens: Result<Vec<Spanned<Token>>, Spanned<LexerError>> = Lexer::new(test_str).collect();
     let tokens = match tokens {

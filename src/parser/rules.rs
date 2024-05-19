@@ -3,7 +3,6 @@ use std::ops::Deref;
 use crate::{
     error_handling::Spanned as S,
     lexer::{BracketType, Token},
-    util::IterExt,
     T,
 };
 
@@ -34,16 +33,19 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<State
             continue;
         }
 
-        if tok.deref() == &T!(";") && statement_start != i {
-            items.push(try_parse_statement(&tokens[statement_start..i])?.unwrap());
-        } else if tok.deref() == &T!("}") {
-            items.push(try_parse_statement(&tokens[statement_start..=i])?.unwrap());
-        }
+        let statement = match tok.deref() {
+            T!(";") => &tokens[statement_start..i],
+            T!("}") => &tokens[statement_start..=i],
+            _ => continue,
+        };
+
+        try_parse_statement(statement)?.map(|s| items.push(s));
 
         statement_start = i + 1;
     }
 
-    if statement_start != tokens.len() {
+    // Parse trailing statement without semicolon
+    if statement_start < tokens.len() {
         items.push(try_parse_statement(&tokens[statement_start..])?.unwrap());
     }
 
@@ -52,10 +54,8 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<State
 
 /// A plain identifier
 fn try_parse_ident<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
-    if let Some(S(Token::Identifier(ident), _)) = tokens.first() {
-        if tokens.len() == 1 {
-            return Ok(Some(Expression::Identifier(ident)));
-        }
+    if let [S(Token::Identifier(ident), _)] = tokens {
+        return Ok(Some(Expression::Identifier(ident)));
     }
 
     Ok(None)
@@ -90,6 +90,10 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expr
             ));
         }
 
+        if tokens.len() > i + 1 {
+            return Ok(None);
+        }
+
         if *bracket_type == BracketType::Curly {
             return Ok(Some(Expression::CompoundExpression(parse_statement_list(
                 &tokens[1..i],
@@ -108,29 +112,22 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expr
 
 /// A function. Eg `fn foo() {let x = ten; x}`
 fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
-    let mut token_idx_iter = tokens.iter().enumerate();
-    let mut token_iter = (&mut token_idx_iter).map(|t| t.1);
-
-    let Some([S(T!("fn"), _), S(Token::Identifier(fn_name), name_span)]) =
-        token_iter.collect_n::<2>()
+    let Some(([S(T!("fn"), _), S(Token::Identifier(fn_name), name_span)], tokens)) =
+        tokens.split_first_chunk::<2>()
     else {
         return Ok(None);
     };
 
-    let Some([S(T!("("), _), S(T!(")"), rparen)]) = token_iter.collect_n::<2>() else {
+    let Some(([S(T!("("), _), S(T!(")"), rparen)], tokens)) = tokens.split_first_chunk::<2>()
+    else {
         return Err(S(
             ParseError::ExpectedParameters,
-            name_span.end..name_span.end + 1,
+            name_span.end..name_span.end,
         ));
     };
 
-    let Some((body_start, _)) = token_idx_iter.next() else {
-        return Err(S(ParseError::ExpectedBody, rparen.end..rparen.end + 1));
-    };
-
-    let Some(Expression::CompoundExpression(body)) = try_parse_bracket_expr(&tokens[body_start..])?
-    else {
-        return Err(S(ParseError::ExpectedBody, rparen.end..rparen.end + 1));
+    let Some(Expression::CompoundExpression(body)) = try_parse_bracket_expr(tokens)? else {
+        return Err(S(ParseError::ExpectedBody, rparen.end..rparen.end));
     };
 
     Ok(Some(Statement::Function(&fn_name, body)))
@@ -138,43 +135,41 @@ fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statemen
 
 /// A variable assignment. Eg `foo = bar * (fizz + buzz)`
 fn try_parse_assign<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
-    let Some([Token::Identifier(var_name), T!("=")]) =
-        tokens.iter().map(|t| t.deref()).collect_n::<2>()
+    let Some(([S(Token::Identifier(var_name), _), S(T!("="), equal_span)], tokens)) =
+        tokens.split_first_chunk::<2>()
     else {
         return Ok(None);
     };
 
-    if tokens.len() <= 2 {
-        panic!()
-    }
+    let Some(val) = try_parse_expr(&tokens)? else {
+        return Err(S(
+            ParseError::ExpectedExpression,
+            equal_span.end..equal_span.end,
+        ));
+    };
 
-    let val = try_parse_expr(&tokens[2..])?;
-
-    Ok(Some(Statement::Assign(&var_name, Box::new(val.unwrap()))))
+    Ok(Some(Statement::Assign(&var_name, Box::new(val))))
 }
 
 /// A variable initialization. Eg `let foo = bar * (fizz + buzz)`
 fn try_parse_let<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
-    let mut token_idx_iter = tokens.iter().enumerate();
-    let mut token_iter = (&mut token_idx_iter).map(|t| t.1);
-
-    let Some([S(T!("let"), _), S(Token::Identifier(var_name), name_span)]) =
-        token_iter.collect_n::<2>()
+    let Some(([S(T!("let"), _), S(Token::Identifier(var_name), name_span)], tokens)) =
+        tokens.split_first_chunk::<2>()
     else {
         return Ok(None);
     };
 
-    let Some((equal_idx, S(T!("="), equal_span))) = token_idx_iter.next() else {
+    let Some((S(T!("="), equal_span), tokens)) = tokens.split_first() else {
         return Err(S(
             ParseError::ExpectedToken(T!("=")),
-            name_span.end..name_span.end + 1,
+            name_span.end..name_span.end,
         ));
     };
 
-    let Some(val) = try_parse_expr(&tokens[equal_idx + 1..])? else {
+    let Some(val) = try_parse_expr(&tokens)? else {
         return Err(S(
             ParseError::ExpectedExpression,
-            equal_span.end..equal_span.end + 1,
+            equal_span.end..equal_span.end,
         ));
     };
 

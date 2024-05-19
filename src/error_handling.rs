@@ -22,7 +22,7 @@ where
         let err_msg = WLangError::get_msg(&self, code);
 
         let (line_st, col_st) = util::line_and_col(code, self.1.start);
-        let (line_end, col_end) = util::line_and_col(code, self.1.end);
+        let (line_end, col_end) = util::line_and_col(code, self.1.end.saturating_sub(1));
 
         let mut ret_val = "\n".to_owned();
 
@@ -60,14 +60,14 @@ where
             let arrow_end = if i + 1 == line_end {
                 col_end
             } else {
-                line.chars().count() + 1
+                line.chars().count()
             };
 
             for _ in 0..arrow_st - 1 {
                 ret_val += " ";
             }
 
-            for _ in arrow_st..arrow_end {
+            for _ in arrow_st..arrow_end.max(arrow_st) + 1 {
                 ret_val += "^"
             }
 
