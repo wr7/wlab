@@ -84,7 +84,10 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expr
         }
 
         if tok.deref() != &Token::CloseBracket(*bracket_type) {
-            return Err(ParseError::MismatchedBracket(tok.1.clone(), *bracket_type));
+            return Err(ParseError::MismatchedBrackets(
+                open_bracket_pos.clone(),
+                tok.1.clone(),
+            ));
         }
 
         if tokens.len() > i + 1 {

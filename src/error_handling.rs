@@ -41,8 +41,12 @@ impl Diagnostic {
 
         ret_val.push('\n');
 
-        for hint in &self.hints {
+        for (i, hint) in self.hints.iter().enumerate() {
             ret_val += &hint.render_snippet(code);
+
+            if i != self.hints.len() - 1 {
+                ret_val += "\n ...\n";
+            }
         }
 
         ret_val.push('\n');
