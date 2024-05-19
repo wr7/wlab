@@ -8,7 +8,7 @@ use crate::{
 
 use super::{Expression, OpCode, ParseError, Statement};
 
-type PResult<T> = Result<T, S<ParseError>>;
+type PResult<T> = Result<T, ParseError>;
 
 pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Statement<'a>>> {
     let mut items = Vec::new();
@@ -22,7 +22,7 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<State
         } else if matches!(tok.deref(), Token::CloseBracket(_)) {
             bracket_level = bracket_level
                 .checked_sub(1)
-                .ok_or(S(ParseError::UnmatchedBracket, tok.1.clone()))?;
+                .ok_or(ParseError::UnmatchedBracket(tok.1.clone()))?;
         }
 
         if bracket_level != 0 {
@@ -84,10 +84,7 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expr
         }
 
         if tok.deref() != &Token::CloseBracket(*bracket_type) {
-            return Err(S(
-                ParseError::MismatchedBracket(*bracket_type),
-                tok.1.clone(),
-            ));
+            return Err(ParseError::MismatchedBracket(tok.1.clone(), *bracket_type));
         }
 
         if tokens.len() > i + 1 {
@@ -103,11 +100,10 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expr
         }
     }
 
-    Err(S(
+    Err(
         // TODO: enforce certain mismatched brackets before this
-        ParseError::UnmatchedBracket,
-        open_bracket_pos.clone(),
-    ))
+        ParseError::UnmatchedBracket(open_bracket_pos.clone()),
+    )
 }
 
 /// A function. Eg `fn foo() {let x = ten; x}`
@@ -120,14 +116,11 @@ fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statemen
 
     let Some(([S(T!("("), _), S(T!(")"), rparen)], tokens)) = tokens.split_first_chunk::<2>()
     else {
-        return Err(S(
-            ParseError::ExpectedParameters,
-            name_span.end..name_span.end,
-        ));
+        return Err(ParseError::ExpectedParameters(name_span.end..name_span.end));
     };
 
     let Some(Expression::CompoundExpression(body)) = try_parse_bracket_expr(tokens)? else {
-        return Err(S(ParseError::ExpectedBody, rparen.end..rparen.end));
+        return Err(ParseError::ExpectedBody(rparen.end..rparen.end));
     };
 
     Ok(Some(Statement::Function(&fn_name, body)))
@@ -142,8 +135,7 @@ fn try_parse_assign<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<
     };
 
     let Some(val) = try_parse_expr(&tokens)? else {
-        return Err(S(
-            ParseError::ExpectedExpression,
+        return Err(ParseError::ExpectedExpression(
             equal_span.end..equal_span.end,
         ));
     };
@@ -160,15 +152,14 @@ fn try_parse_let<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>
     };
 
     let Some((S(T!("="), equal_span), tokens)) = tokens.split_first() else {
-        return Err(S(
-            ParseError::ExpectedToken(T!("=")),
+        return Err(ParseError::ExpectedToken(
             name_span.end..name_span.end,
+            T!("="),
         ));
     };
 
     let Some(val) = try_parse_expr(&tokens)? else {
-        return Err(S(
-            ParseError::ExpectedExpression,
+        return Err(ParseError::ExpectedExpression(
             equal_span.end..equal_span.end,
         ));
     };
@@ -186,7 +177,7 @@ fn try_parse_bin<'a>(
     for (i, tok) in tokens.iter().enumerate().rev() {
         if matches!(tok.deref(), Token::OpenBracket(_)) {
             if bracket_level == 0 {
-                return Err(S(ParseError::UnmatchedBracket, tok.1.clone()));
+                return Err(ParseError::UnmatchedBracket(tok.1.clone()));
             }
             bracket_level -= 1;
         } else if matches!(tok.deref(), Token::CloseBracket(_)) {
@@ -262,8 +253,7 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
         }
     }
 
-    Err(S(
-        ParseError::InvalidExpression,
+    Err(ParseError::InvalidExpression(
         tokens.first().unwrap().1.start..tokens.last().unwrap().1.end,
     ))
 }

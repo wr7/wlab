@@ -11,7 +11,6 @@ mod util;
 mod parser;
 
 /* Parser TODO
- *  - Allow multiple spans in errors
  *  - Add more error handling (including for binary operators)
  *  - Create distinction between Compound Statements and Compound Expressions (maybe have compound expression return implicit unit?)
  */
