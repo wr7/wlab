@@ -10,7 +10,7 @@ pub enum Statement<'a> {
     Expression(Expression<'a>),
     Let(&'a str, Box<Expression<'a>>),
     Assign(&'a str, Box<Expression<'a>>),
-    Function(&'a str, Vec<Statement<'a>>),
+    Function(&'a str, Vec<&'a str>, Vec<Statement<'a>>),
 }
 
 impl<'a> From<Expression<'a>> for Statement<'a> {

@@ -63,7 +63,7 @@ impl<'a> CodeGenerator<'a> {
                 // TODO: assign to variable
             }
             Statement::Assign(_, _) => todo!(),
-            Statement::Function(_, _) => todo!(),
+            Statement::Function(_, _, _) => todo!(),
         }
         Ok(())
     }
@@ -91,7 +91,7 @@ pub fn generate_code(ast: &[Statement]) {
     let generator = CodeGenerator::new(&context);
 
     for s in ast {
-        let Statement::Function(fn_name, body) = s else {
+        let Statement::Function(fn_name, _, body) = s else {
             todo!()
         };
 
