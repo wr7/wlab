@@ -193,13 +193,18 @@ fn try_parse_bin<'a>(
 
         for (ttok, opcode) in opcodes {
             if tok.deref() == ttok {
-                let x = try_parse_expr(&tokens[0..i])?;
-                let y = try_parse_expr(&tokens[(i + 1)..])?;
+                let x = try_parse_expr(&tokens[0..i])?.ok_or(ParseError::ExpectedExpression(
+                    tokens[i].1.start - 1..tokens[i].1.start - 1,
+                ))?;
+
+                let y = try_parse_expr(&tokens[i + 1..])?.ok_or(ParseError::ExpectedExpression(
+                    tokens[i].1.end..tokens[i].1.end,
+                ))?;
 
                 return Ok(Some(Expression::BinaryOperator(
-                    Box::new(x.unwrap()), // TODO error
+                    Box::new(x),
                     *opcode,
-                    Box::new(y.unwrap()), // TODO error
+                    Box::new(y),
                 )));
             }
         }
