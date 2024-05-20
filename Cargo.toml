@@ -2,3 +2,6 @@
 name = "wlab"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+inkwell = { version = "0.4.0", features = ["llvm17-0"] }

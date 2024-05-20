@@ -5,6 +5,7 @@ use crate::{error_handling::Spanned, lexer::Token};
 
 mod lexer;
 
+mod codegen;
 mod error_handling;
 mod util;
 
@@ -19,14 +20,6 @@ fn main() {
 fn do_nothing() {}
 
 fn main() {
-    let x = y;
-    let z = w;
-
-    let foo = foo + bar;
-    let b = ((w*(x + y))-h;
-
-    x = z + w;
-    z = a;
 }";
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();
@@ -48,5 +41,7 @@ fn main() {
         }
     };
 
-    dbg!(ast);
+    // dbg!(ast);
+
+    codegen::generate_code(&ast);
 }
