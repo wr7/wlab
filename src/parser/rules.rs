@@ -1,3 +1,5 @@
+//! Contains rules for the parser. Note: inputs are assumed to not have mismatched/unclosed brackets (these checks should be done in advance).
+
 use std::ops::Deref;
 
 use crate::{
@@ -20,9 +22,7 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<State
         if matches!(tok.deref(), Token::OpenBracket(_)) {
             bracket_level += 1;
         } else if matches!(tok.deref(), Token::CloseBracket(_)) {
-            bracket_level = bracket_level
-                .checked_sub(1)
-                .ok_or(ParseError::UnmatchedBracket(tok.1.clone()))?;
+            bracket_level -= 1;
         }
 
         if bracket_level != 0 {
@@ -63,7 +63,7 @@ fn try_parse_ident<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<
 
 /// A statement surrounded in brackets eg `(foo + bar)` or `{biz+bang; do_thing*f}`. The latter case is a compound statement
 fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
-    let Some(S(Token::OpenBracket(bracket_type), open_bracket_pos)) = tokens.first() else {
+    let Some(S(Token::OpenBracket(bracket_type), _)) = tokens.first() else {
         return Ok(None);
     };
 
@@ -83,13 +83,6 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expr
             continue;
         }
 
-        if tok.deref() != &Token::CloseBracket(*bracket_type) {
-            return Err(ParseError::MismatchedBrackets(
-                open_bracket_pos.clone(),
-                tok.1.clone(),
-            ));
-        }
-
         if tokens.len() > i + 1 {
             return Ok(None);
         }
@@ -103,10 +96,7 @@ fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expr
         }
     }
 
-    Err(
-        // TODO: enforce certain mismatched brackets before this
-        ParseError::UnmatchedBracket(open_bracket_pos.clone()),
-    )
+    unreachable!();
 }
 
 /// A function. Eg `fn foo() {let x = ten; x}`
@@ -179,9 +169,6 @@ fn try_parse_bin<'a>(
 
     for (i, tok) in tokens.iter().enumerate().rev() {
         if matches!(tok.deref(), Token::OpenBracket(_)) {
-            if bracket_level == 0 {
-                return Err(ParseError::UnmatchedBracket(tok.1.clone()));
-            }
             bracket_level -= 1;
         } else if matches!(tok.deref(), Token::CloseBracket(_)) {
             bracket_level += 1;

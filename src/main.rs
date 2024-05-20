@@ -11,7 +11,6 @@ mod util;
 mod parser;
 
 /* Parser TODO
- *  - Add more error handling (including for binary operators)
  *  - Create distinction between Compound Statements and Compound Expressions (maybe have compound expression return implicit unit?)
  */
 
@@ -22,8 +21,12 @@ fn do_nothing() {}
 fn main() {
     let x = y;
     let z = w;
+
     let foo = foo + bar;
-    let b = ((x + y)*z+w)-h;
+    let b = ((w*(x + y))-h;
+
+    x = z + w;
+    z = a;
 }";
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();
