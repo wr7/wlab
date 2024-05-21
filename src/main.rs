@@ -21,6 +21,7 @@ fn do_nothing() {}
 
 fn main(foo, bar) {
     let x = foo + bar;
+    let y = x + bar + bar;
 }";
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();
@@ -42,7 +43,7 @@ fn main(foo, bar) {
         }
     };
 
-    dbg!(&ast);
+    // dbg!(&ast);
 
-    // codegen::generate_code(&ast);
+    codegen::generate_code(&ast);
 }
