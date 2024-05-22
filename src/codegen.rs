@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, mem};
 
 use inkwell::{
     builder::Builder,
@@ -63,9 +63,15 @@ impl<'ctx> CodegenUnit<'ctx> {
                     crate::parser::OpCode::Plus => {
                         Ok(self.builder.build_int_add(a, b, "").unwrap())
                     }
-                    crate::parser::OpCode::Minus => todo!(),
-                    crate::parser::OpCode::Asterisk => todo!(),
-                    crate::parser::OpCode::Slash => todo!(),
+                    crate::parser::OpCode::Minus => {
+                        Ok(self.builder.build_int_sub(a, b, "").unwrap())
+                    }
+                    crate::parser::OpCode::Asterisk => {
+                        Ok(self.builder.build_int_mul(a, b, "").unwrap())
+                    }
+                    crate::parser::OpCode::Slash => {
+                        Ok(self.builder.build_int_unsigned_div(a, b, "").unwrap())
+                    }
                 }
             }
             Expression::CompoundExpression(_) => todo!(),
@@ -78,7 +84,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         statement: &Statement<'a>,
     ) -> Result<(), CodegenError<'a>> {
         match statement {
-            Statement::Expression(_) => todo!(),
+            Statement::Expression(expr) => mem::drop(self.generate_expression(expr, scope)?),
             Statement::Let(varname, val) => {
                 let val = self.generate_expression(val, scope)?;
                 scope.create_variable(varname, val);

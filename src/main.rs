@@ -20,9 +20,7 @@ fn main() {
 fn do_nothing() {}
 
 fn main(foo, bar) {
-    let x = foo + bar;
-    let y = x + b;
-    let b = x + bar;
+    let x = foo + bar*(bar-bar)+foo;
 }";
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();
