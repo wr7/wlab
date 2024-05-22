@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use inkwell::{
-    builder::{Builder, BuilderError},
+    builder::Builder,
     context::Context,
     module::Module,
     types::{BasicMetadataTypeEnum, IntType, StructType},
@@ -10,8 +10,9 @@ use inkwell::{
 
 use crate::parser::{Expression, Statement};
 
-use self::scope::Scope;
+use self::{error::CodegenError, scope::Scope};
 
+mod error;
 mod scope;
 
 struct CoreTypes<'ctx> {
@@ -45,20 +46,23 @@ impl<'ctx> CodegenUnit<'ctx> {
         }
     }
 
-    pub fn generate_expression(
+    pub fn generate_expression<'a: 'ctx>(
         &self,
-        expression: &Expression,
+        expression: &Expression<'a>,
         scope: &mut Scope<'ctx>,
-    ) -> Result<IntValue<'ctx>, BuilderError> {
+    ) -> Result<IntValue<'ctx>, CodegenError<'a>> {
         match expression {
-            // TODO: handle undefined ident
-            Expression::Identifier(ident) => Ok(scope.get_variable(ident).unwrap()),
+            Expression::Identifier(ident) => scope
+                .get_variable(ident)
+                .ok_or(CodegenError::UndefinedVariable(ident)),
             Expression::BinaryOperator(a, operator, b) => {
                 let a = self.generate_expression(a, scope)?;
                 let b = self.generate_expression(b, scope)?;
 
                 match operator {
-                    crate::parser::OpCode::Plus => self.builder.build_int_add(a, b, ""),
+                    crate::parser::OpCode::Plus => {
+                        Ok(self.builder.build_int_add(a, b, "").unwrap())
+                    }
                     crate::parser::OpCode::Minus => todo!(),
                     crate::parser::OpCode::Asterisk => todo!(),
                     crate::parser::OpCode::Slash => todo!(),
@@ -68,11 +72,11 @@ impl<'ctx> CodegenUnit<'ctx> {
         }
     }
 
-    pub fn generate_statement(
+    pub fn generate_statement<'a: 'ctx>(
         &self,
         scope: &mut Scope<'ctx>,
-        statement: &Statement<'ctx>,
-    ) -> Result<(), BuilderError> {
+        statement: &Statement<'a>,
+    ) -> Result<(), CodegenError<'a>> {
         match statement {
             Statement::Expression(_) => todo!(),
             Statement::Let(varname, val) => {
@@ -85,12 +89,12 @@ impl<'ctx> CodegenUnit<'ctx> {
         Ok(())
     }
 
-    pub fn generate_function(
+    pub fn generate_function<'a: 'ctx>(
         &self,
         fn_name: &str,
         params: &[&str],
-        body: &[Statement<'ctx>],
-    ) -> Result<(), BuilderError> {
+        body: &[Statement<'a>],
+    ) -> Result<(), CodegenError<'a>> {
         let fn_type_params: Vec<BasicMetadataTypeEnum<'ctx>> =
             std::iter::repeat(BasicMetadataTypeEnum::IntType(self.context.i32_type()))
                 .take(params.len())
@@ -119,7 +123,7 @@ impl<'ctx> CodegenUnit<'ctx> {
     }
 }
 
-pub fn generate_code(ast: &[Statement]) {
+pub fn generate_code<'a>(ast: &[Statement<'a>]) -> Result<(), CodegenError<'a>> {
     let context = Context::create();
     let generator = CodegenUnit::new(&context);
 
@@ -128,8 +132,10 @@ pub fn generate_code(ast: &[Statement]) {
             todo!()
         };
 
-        generator.generate_function(fn_name, params, body).unwrap();
+        generator.generate_function(fn_name, params, body)?;
     }
 
     println!("{}", generator.module.to_string());
+
+    Ok(())
 }
