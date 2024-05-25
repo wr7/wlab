@@ -8,6 +8,7 @@ pub enum CodegenError<'a> {
     UndefinedVariable(&'a str),
     UndefinedFunction(&'a str),
     InvalidParameters(&'a str, usize, usize), // TODO: add span of function definition
+    InvalidNumber(&'a str),
 }
 
 impl<'a> WLangError for CodegenError<'a> {
@@ -27,6 +28,10 @@ impl<'a> WLangError for CodegenError<'a> {
                     "Function called here",
                     code.substr_pos(name).unwrap(),
                 )],
+            },
+            Self::InvalidNumber(num) => d! {
+                format!("Invalid numberical literal `{num}`"),
+                [Hint::new_error("Literal used here", code.substr_pos(num).unwrap())]
             },
         }
     }

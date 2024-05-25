@@ -4,7 +4,7 @@ use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
-    types::{BasicMetadataTypeEnum, StructType},
+    types::{BasicMetadataTypeEnum, StringRadix, StructType},
     values::{BasicMetadataValueEnum, IntValue},
 };
 
@@ -57,6 +57,11 @@ impl<'ctx> CodegenUnit<'ctx> {
                 .get_variable(ident)
                 .cloned()
                 .ok_or(CodegenError::UndefinedVariable(ident)),
+            Expression::Literal(lit) => self
+                .context
+                .i32_type()
+                .const_int_from_string(lit, StringRadix::Decimal)
+                .ok_or(CodegenError::InvalidNumber(lit)),
             Expression::BinaryOperator(a, operator, b) => {
                 let a = self.generate_expression(a, scope)?;
                 let b = self.generate_expression(b, scope)?;
@@ -144,7 +149,7 @@ impl<'ctx> CodegenUnit<'ctx> {
             None,
         );
 
-        let main_block = self.context.append_basic_block(function, "entry");
+        let main_block = self.context.append_basic_block(function, "");
         self.builder.position_at_end(main_block);
 
         let zero = self.core_types.unit.const_zero();

@@ -22,6 +22,7 @@ impl<'a> From<Expression<'a>> for Statement<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Expression<'a> {
     Identifier(&'a str),
+    Literal(&'a str),
     BinaryOperator(Box<Self>, OpCode, Box<Self>),
     CompoundExpression(Vec<Statement<'a>>),
     FunctionCall(&'a str, Vec<Expression<'a>>),

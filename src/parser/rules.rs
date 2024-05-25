@@ -14,9 +14,20 @@ mod function;
 pub use bracket_expr::parse_statement_list;
 
 /// A plain identifier
-fn try_parse_ident<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+fn try_parse_identifier<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
     if let [S(Token::Identifier(ident), _)] = tokens {
         return Ok(Some(Expression::Identifier(ident)));
+    }
+
+    Ok(None)
+}
+
+/// A literal
+fn try_parse_literal<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+    if let [S(Token::Identifier(ident), _)] = tokens {
+        if matches!(ident.chars().next().unwrap(), '0'..='9') {
+            return Ok(Some(Expression::Literal(ident)));
+        }
     }
 
     Ok(None)
@@ -129,7 +140,8 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
     }
 
     let rules = [
-        |tokens| try_parse_ident(tokens),
+        |tokens| try_parse_literal(tokens),
+        |tokens| try_parse_identifier(tokens),
         |tokens| bracket_expr::try_parse_bracket_expr(tokens),
         |tokens| function::try_parse_function_call(tokens),
         |tokens| try_parse_bin(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)]),

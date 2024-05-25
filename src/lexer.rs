@@ -61,7 +61,7 @@ impl<'a> Iterator for Lexer<'a> {
                 return Some(Ok(Spanned(T!("->"), Span::at(byte_index).with_len(2))));
             }
 
-            if !(char.is_ascii_alphabetic() || char == '_') {
+            if !(char.is_ascii_alphanumeric() || char == '_') {
                 return Some(Ok(Spanned(
                     match char {
                         '+' => T!("+"),
