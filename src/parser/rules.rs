@@ -80,7 +80,7 @@ fn try_parse_bin<'a>(
         for (ttok, opcode) in opcodes {
             if tok.deref() == ttok {
                 let x = try_parse_expr(&tokens[0..i])?.ok_or(ParseError::ExpectedExpression(
-                    Span::at(tokens[i].1.start - 1),
+                    Span::at(tokens[i].1.start.saturating_sub(1)),
                 ))?;
 
                 let y = try_parse_expr(&tokens[i + 1..])?
