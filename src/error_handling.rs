@@ -4,7 +4,7 @@ use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 use std::{borrow::Cow, ops::Range};
 
-use crate::util;
+use crate::util::{self, Span};
 
 pub trait WLangError: Sized {
     fn get_diagnostic(&self, code: &str) -> Diagnostic;
@@ -15,7 +15,14 @@ pub trait WLangError: Sized {
 
 /// Includes information about where something appears in a source file
 #[derive(Debug, Clone)]
-pub struct Spanned<T>(pub T, pub Range<usize>);
+pub struct Spanned<T>(pub T, pub Span);
+
+#[macro_export]
+macro_rules! spanned {
+    ($thing:expr, ($start:expr)..($end:expr) $(,)?) => {
+        Spanned($thing, ($start..$end).into())
+    };
+}
 
 impl<T: PartialEq> PartialEq for Spanned<T> {
     fn eq(&self, other: &Self) -> bool {
@@ -70,13 +77,13 @@ impl Diagnostic {
 }
 
 impl Hint {
-    pub fn new_error<M>(msg: M, span: Range<usize>) -> Self
+    pub fn new_error<M>(msg: M, span: Span) -> Self
     where
         M: Into<Cow<'static, str>>,
     {
         Self {
             msg: msg.into(),
-            span,
+            span: span.into(),
             pointer_char: '^',
         }
     }

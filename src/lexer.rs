@@ -1,9 +1,8 @@
-use std::ops::Range;
-
 use crate::{
     diagnostic,
     error_handling::{Diagnostic, Hint, Spanned, WLangError},
-    util::StrExt,
+    spanned,
+    util::{Span, StrExt},
     T,
 };
 
@@ -26,14 +25,14 @@ pub struct Lexer<'a> {
 
 #[derive(Debug)]
 pub struct LexerError {
-    span: Range<usize>,
+    span: Span,
 }
 
 impl WLangError for LexerError {
     fn get_diagnostic(&self, code: &str) -> Diagnostic {
         diagnostic! {
             format!("invalid token `{}`", &code[self.span.clone()]),
-            [Hint::new_error("", self.span.clone())],
+            [Hint::new_error("", self.span)],
         }
     }
 }
@@ -60,11 +59,11 @@ impl<'a> Iterator for Lexer<'a> {
 
             if char == '-' && self.chars.clone().next().is_some_and(|c| c.1 == '>') {
                 self.chars.next();
-                return Some(Ok(Spanned(T!("->"), byte_index..byte_index + 2)));
+                return Some(Ok(spanned!(T!("->"), (byte_index)..(byte_index + 2))));
             }
 
             if !(char.is_ascii_alphabetic() || char == '_') {
-                return Some(Ok(Spanned(
+                return Some(Ok(spanned!(
                     match char {
                         '+' => T!("+"),
                         '-' => T!("-"),
@@ -86,7 +85,7 @@ impl<'a> Iterator for Lexer<'a> {
                             }));
                         }
                     },
-                    byte_index..byte_index + 1,
+                    (byte_index)..(byte_index + 1),
                 )));
             }
 
@@ -107,9 +106,9 @@ impl<'a> Iterator for Lexer<'a> {
                 }
             }
 
-            return Some(Ok(Spanned(
+            return Some(Ok(spanned!(
                 Token::Identifier(&self.input[ident_start..ident_end]),
-                ident_start..ident_end,
+                (ident_start)..(ident_end),
             )));
         }
     }

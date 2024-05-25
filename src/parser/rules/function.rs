@@ -1,9 +1,10 @@
-use std::ops::{Deref, Range};
+use std::ops::Deref;
 
 use crate::{
     error_handling::Spanned as S,
     lexer::Token,
     parser::{rules::try_parse_expr, Expression, ParseError, Statement},
+    util::Span,
     T,
 };
 
@@ -17,14 +18,14 @@ pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stat
         return Ok(None);
     };
 
-    let (params, tokens) = parse_fn_params(tokens, name_span.clone())?;
+    let (params, tokens) = parse_fn_params(tokens, *name_span)?;
 
     let Some((S(T!(")"), right_paren), tokens)) = tokens.split_first() else {
         unreachable!()
     };
 
     let Some(Expression::CompoundExpression(body)) = try_parse_bracket_expr(tokens)? else {
-        return Err(ParseError::ExpectedBody(right_paren.end..right_paren.end));
+        return Err(ParseError::ExpectedBody(right_paren.span_after()));
     };
 
     Ok(Some(Statement::Function(fn_name, params, body)))
@@ -66,7 +67,7 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expressi
         if tok == &T!(",") {
             expressions.push(
                 try_parse_expr(&tokens[expr_start..i])?
-                    .ok_or(ParseError::ExpectedExpression(span.start..span.start))?,
+                    .ok_or(ParseError::ExpectedExpression(span.span_at()))?,
             ); // TODO
             expr_start = i + 1;
         }
@@ -81,13 +82,13 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expressi
 
 fn parse_fn_params<'a>(
     tokens: &'a [S<Token<'a>>],
-    name_span: Range<usize>,
+    name_span: Span,
 ) -> PResult<(Vec<&'a str>, &'a [S<Token<'a>>])> {
     let mut params = Vec::new();
 
     let Some((S(T!("("), _), mut tokens)) = tokens.split_first() else {
         return Err(ParseError::ExpectedToken(
-            name_span.end..name_span.end,
+            name_span.span_after(),
             &[T!("(")],
         ));
     };

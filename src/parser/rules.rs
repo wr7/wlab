@@ -2,7 +2,7 @@
 
 use std::ops::Deref;
 
-use crate::{error_handling::Spanned as S, lexer::Token, T};
+use crate::{error_handling::Spanned as S, lexer::Token, util::Span, T};
 
 use super::{Expression, OpCode, ParseError, Statement};
 
@@ -31,9 +31,7 @@ fn try_parse_assign<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<
     };
 
     let Some(val) = try_parse_expr(&tokens)? else {
-        return Err(ParseError::ExpectedExpression(
-            equal_span.end..equal_span.end,
-        ));
+        return Err(ParseError::ExpectedExpression(equal_span.span_after()));
     };
 
     Ok(Some(Statement::Assign(&var_name, Box::new(val))))
@@ -49,15 +47,13 @@ fn try_parse_let<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>
 
     let Some((S(T!("="), equal_span), tokens)) = tokens.split_first() else {
         return Err(ParseError::ExpectedToken(
-            name_span.end..name_span.end,
+            name_span.span_after(),
             &[T!("=")],
         ));
     };
 
     let Some(val) = try_parse_expr(&tokens)? else {
-        return Err(ParseError::ExpectedExpression(
-            equal_span.end..equal_span.end,
-        ));
+        return Err(ParseError::ExpectedExpression(equal_span.span_after()));
     };
 
     return Ok(Some(Statement::Let(&var_name, Box::new(val))));
@@ -84,12 +80,11 @@ fn try_parse_bin<'a>(
         for (ttok, opcode) in opcodes {
             if tok.deref() == ttok {
                 let x = try_parse_expr(&tokens[0..i])?.ok_or(ParseError::ExpectedExpression(
-                    tokens[i].1.start - 1..tokens[i].1.start - 1,
+                    Span::at(tokens[i].1.start - 1),
                 ))?;
 
-                let y = try_parse_expr(&tokens[i + 1..])?.ok_or(ParseError::ExpectedExpression(
-                    tokens[i].1.end..tokens[i].1.end,
-                ))?;
+                let y = try_parse_expr(&tokens[i + 1..])?
+                    .ok_or(ParseError::ExpectedExpression(tokens[i].1.span_after()))?;
 
                 return Ok(Some(Expression::BinaryOperator(
                     Box::new(x),
@@ -153,6 +148,6 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
     }
 
     Err(ParseError::InvalidExpression(
-        tokens.first().unwrap().1.start..tokens.last().unwrap().1.end,
+        (tokens.first().unwrap().1.start..tokens.last().unwrap().1.end).into(),
     ))
 }

@@ -1,13 +1,12 @@
-use std::{fmt::Write as _, ops::Range};
+use std::fmt::Write as _;
 
 use crate::{
     error_handling::{Diagnostic, Hint, Spanned, WLangError},
     lexer::{BracketType, Token},
+    util::Span,
 };
 
 use crate::diagnostic as d;
-
-type Span = Range<usize>;
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -25,19 +24,19 @@ impl WLangError for ParseError {
         let mut diagnostic = match self {
             ParseError::InvalidExpression(span) => d! {
                 "invalid expression",
-                [Hint::new_error("", span.clone())],
+                [Hint::new_error("", *span)],
             },
             ParseError::UnmatchedBracket(span) => d! {
-                format!("unmatched bracket `{}`", &code[span.clone()]),
-                [Hint::new_error("", span.clone())],
+                format!("unmatched bracket `{}`", &code[*span]),
+                [Hint::new_error("", *span)],
             },
             ParseError::ExpectedBody(span) => d! {
                 "expected function body",
-                [Hint::new_error("", span.clone())],
+                [Hint::new_error("", *span)],
             },
             ParseError::ExpectedExpression(span) => d! {
                 "expected expression",
-                [Hint::new_error("", span.clone())],
+                [Hint::new_error("", *span)],
             },
             ParseError::ExpectedToken(span, tokens) => {
                 let mut msg = "expected token".to_owned();

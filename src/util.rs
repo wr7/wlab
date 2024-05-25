@@ -1,19 +1,11 @@
 #![allow(dead_code)]
 
-use std::{mem::MaybeUninit, ops::Range, ptr::addr_of, usize};
+use std::{mem::MaybeUninit, ptr::addr_of, usize};
 
-pub trait RangeExt {
-    fn overlaps_with(&self, other: &Self) -> bool;
-}
+mod span;
 
-impl RangeExt for Range<usize> {
-    fn overlaps_with(&self, other: &Self) -> bool {
-        self.contains(&other.start)
-            || self.contains(&(other.end - 1))
-            || other.contains(&self.start)
-            || other.contains(&(self.end - 1))
-    }
-}
+#[allow(unused_imports)]
+pub use span::Span;
 
 pub trait IterExt {
     type Item;
@@ -46,15 +38,15 @@ impl<I: Iterator> IterExt for I {
 
 pub trait StrExt {
     /// Gets the position of a substring within a string.
-    fn substr_pos(&self, substr: &Self) -> Option<Range<usize>>;
+    fn substr_pos(&self, substr: &Self) -> Option<Span>;
     /// Gets the length of the character at `byte_index`
     fn char_length(&self, byte_index: usize) -> Option<usize>;
     /// Gets the range of the character at `byte_index`
-    fn char_range(&self, byte_index: usize) -> Option<Range<usize>>;
+    fn char_range(&self, byte_index: usize) -> Option<Span>;
 }
 
 impl StrExt for str {
-    fn substr_pos(&self, substr: &Self) -> Option<Range<usize>> {
+    fn substr_pos(&self, substr: &Self) -> Option<Span> {
         let self_start = self.as_ptr() as usize;
         let substr_start = substr.as_ptr() as usize;
 
@@ -64,7 +56,7 @@ impl StrExt for str {
             return None;
         }
 
-        Some(pos_start..pos_start + substr.len())
+        Some((pos_start..pos_start + substr.len()).into())
     }
 
     fn char_length(&self, byte_index: usize) -> Option<usize> {
@@ -74,8 +66,10 @@ impl StrExt for str {
 
         Some(iter.next().map(|s| s.0).unwrap_or(subsl.len()))
     }
-    fn char_range(&self, byte_index: usize) -> Option<Range<usize>> {
-        Some(byte_index..byte_index + self.char_length(byte_index)?)
+    fn char_range(&self, byte_index: usize) -> Option<Span> {
+        Some(Span::from(
+            byte_index..byte_index + self.char_length(byte_index)?,
+        ))
     }
 }
 
