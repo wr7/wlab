@@ -1,16 +1,19 @@
-use std::{borrow::Borrow, mem};
+use std::mem;
 
 use inkwell::{
     builder::Builder,
     context::Context,
     module::Module,
-    types::{BasicMetadataTypeEnum, IntType, StructType},
-    values::IntValue,
+    types::{BasicMetadataTypeEnum, StructType},
+    values::{BasicMetadataValueEnum, IntValue},
 };
 
 use crate::parser::{Expression, Statement};
 
-use self::{error::CodegenError, scope::Scope};
+use self::{
+    error::CodegenError,
+    scope::{FunctionInfo, Scope},
+};
 
 mod error;
 mod scope;
@@ -32,7 +35,6 @@ struct CodegenUnit<'ctx> {
     builder: Builder<'ctx>,
     core_types: CoreTypes<'ctx>,
     module: Module<'ctx>,
-    global_scope: Scope<'ctx>,
 }
 
 impl<'ctx> CodegenUnit<'ctx> {
@@ -42,18 +44,18 @@ impl<'ctx> CodegenUnit<'ctx> {
             module: context.create_module("my_module"),
             builder: context.create_builder(),
             core_types: CoreTypes::new(context),
-            global_scope: Scope::new(),
         }
     }
 
     pub fn generate_expression<'a: 'ctx>(
         &self,
         expression: &Expression<'a>,
-        scope: &mut Scope<'ctx>,
+        scope: &mut Scope<'_, 'ctx>,
     ) -> Result<IntValue<'ctx>, CodegenError<'a>> {
         match expression {
             Expression::Identifier(ident) => scope
                 .get_variable(ident)
+                .cloned()
                 .ok_or(CodegenError::UndefinedVariable(ident)),
             Expression::BinaryOperator(a, operator, b) => {
                 let a = self.generate_expression(a, scope)?;
@@ -75,12 +77,41 @@ impl<'ctx> CodegenUnit<'ctx> {
                 }
             }
             Expression::CompoundExpression(_) => todo!(),
+            Expression::FunctionCall(fn_name, arguments) => {
+                let function = scope
+                    .get_function(fn_name)
+                    .cloned()
+                    .ok_or(CodegenError::UndefinedFunction(fn_name))?;
+
+                if arguments.len() != function.num_params {
+                    return Err(CodegenError::InvalidParameters(
+                        fn_name,
+                        function.num_params,
+                        arguments.len(),
+                    ));
+                }
+
+                let arguments: Result<Vec<_>, _> = arguments
+                    .iter()
+                    .map(|e| self.generate_expression(e, scope))
+                    .map(|v| Ok(BasicMetadataValueEnum::IntValue(v?)))
+                    .collect();
+
+                let arguments: Vec<BasicMetadataValueEnum> = arguments?;
+
+                let _ret_val = self // TODO: return value
+                    .builder
+                    .build_direct_call(function.function.clone(), &arguments, "")
+                    .unwrap();
+
+                Ok(self.context.i32_type().const_zero())
+            }
         }
     }
 
     pub fn generate_statement<'a: 'ctx>(
         &self,
-        scope: &mut Scope<'ctx>,
+        scope: &mut Scope<'_, 'ctx>,
         statement: &Statement<'a>,
     ) -> Result<(), CodegenError<'a>> {
         match statement {
@@ -100,6 +131,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         fn_name: &str,
         params: &[&str],
         body: &[Statement<'a>],
+        scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), CodegenError<'a>> {
         let fn_type_params: Vec<BasicMetadataTypeEnum<'ctx>> =
             std::iter::repeat(BasicMetadataTypeEnum::IntType(self.context.i32_type()))
@@ -107,7 +139,7 @@ impl<'ctx> CodegenUnit<'ctx> {
                 .collect();
 
         let function = self.module.add_function(
-            fn_name,
+            &fn_name,
             self.core_types.unit.fn_type(&fn_type_params, false),
             None,
         );
@@ -117,13 +149,23 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         let zero = self.core_types.unit.const_zero();
 
-        let mut scope = Scope::new().with_params(params, &function);
+        let mut fn_scope = Scope::new(&scope).with_params(params, &function);
 
         for statement in body {
-            self.generate_statement(&mut scope, statement)?;
+            self.generate_statement(&mut fn_scope, statement)?;
         }
 
         self.builder.build_return(Some(&zero)).unwrap();
+
+        // TODO: function already defined error?
+
+        scope.create_function(
+            fn_name,
+            FunctionInfo {
+                num_params: params.len(),
+                function,
+            },
+        );
 
         Ok(())
     }
@@ -132,13 +174,14 @@ impl<'ctx> CodegenUnit<'ctx> {
 pub fn generate_code<'a>(ast: &[Statement<'a>]) -> Result<(), CodegenError<'a>> {
     let context = Context::create();
     let generator = CodegenUnit::new(&context);
+    let mut scope = Scope::new_global();
 
     for s in ast {
         let Statement::Function(fn_name, params, body) = s else {
             todo!()
         };
 
-        generator.generate_function(fn_name, params, body)?;
+        generator.generate_function(fn_name, params, body, &mut scope)?;
     }
 
     println!("{}", generator.module.to_string());

@@ -3,7 +3,7 @@ use std::ops::{Deref, Range};
 use crate::{
     error_handling::Spanned as S,
     lexer::Token,
-    parser::{Expression, ParseError, Statement},
+    parser::{rules::try_parse_expr, Expression, ParseError, Statement},
     T,
 };
 
@@ -27,7 +27,56 @@ pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stat
         return Err(ParseError::ExpectedBody(right_paren.end..right_paren.end));
     };
 
-    Ok(Some(Statement::Function(&fn_name, params, body)))
+    Ok(Some(Statement::Function(fn_name, params, body)))
+}
+
+pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+    let Some(([S(Token::Identifier(fn_name), _), S(T!("("), _)], tokens)) =
+        tokens.split_first_chunk()
+    else {
+        return Ok(None);
+    };
+
+    let Some((S(T!(")"), _), tokens)) = tokens.split_last() else {
+        return Ok(None); // Will yield an invalidexpression error eventually
+    };
+
+    let params = parse_expression_list(tokens)?;
+
+    Ok(Some(Expression::FunctionCall(&fn_name, params)))
+}
+
+fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expression<'a>>> {
+    let mut expressions = Vec::new();
+
+    let mut bracket_level = 0;
+    let mut expr_start = 0;
+
+    for (i, S(tok, span)) in tokens.iter().enumerate() {
+        if matches!(tok, Token::OpenBracket(_)) {
+            bracket_level += 1;
+        } else if matches!(tok, Token::CloseBracket(_)) {
+            bracket_level -= 1;
+        }
+
+        if bracket_level != 0 {
+            continue;
+        }
+
+        if tok == &T!(",") {
+            expressions.push(
+                try_parse_expr(&tokens[expr_start..i])?
+                    .ok_or(ParseError::ExpectedExpression(span.start..span.start))?,
+            ); // TODO
+            expr_start = i + 1;
+        }
+    }
+
+    if expr_start != tokens.len() {
+        expressions.push(try_parse_expr(&tokens[expr_start..])?.unwrap());
+    }
+
+    Ok(expressions)
 }
 
 fn parse_fn_params<'a>(

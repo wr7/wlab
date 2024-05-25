@@ -1,12 +1,8 @@
 //! Contains rules for the parser. Note: inputs are assumed to not have mismatched/unclosed brackets (these checks should be done in advance).
 
-use std::ops::{Deref, Range};
+use std::ops::Deref;
 
-use crate::{
-    error_handling::Spanned as S,
-    lexer::{BracketType, Token},
-    T,
-};
+use crate::{error_handling::Spanned as S, lexer::Token, T};
 
 use super::{Expression, OpCode, ParseError, Statement};
 
@@ -140,6 +136,7 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
     let rules = [
         |tokens| try_parse_ident(tokens),
         |tokens| bracket_expr::try_parse_bracket_expr(tokens),
+        |tokens| function::try_parse_function_call(tokens),
         |tokens| try_parse_bin(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)]),
         |tokens| {
             try_parse_bin(

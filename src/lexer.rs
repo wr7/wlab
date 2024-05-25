@@ -1,7 +1,4 @@
-use std::{
-    fmt::{Debug, Display},
-    ops::Range,
-};
+use std::ops::Range;
 
 use crate::{
     error_handling::{Diagnostic, Hint, Spanned, WLangError},

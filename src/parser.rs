@@ -24,6 +24,7 @@ pub enum Expression<'a> {
     Identifier(&'a str),
     BinaryOperator(Box<Self>, OpCode, Box<Self>),
     CompoundExpression(Vec<Statement<'a>>),
+    FunctionCall(&'a str, Vec<Expression<'a>>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

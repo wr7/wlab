@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Display};
+use std::fmt::Display;
 
 use super::BracketType;
 

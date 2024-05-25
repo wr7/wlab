@@ -1,9 +1,6 @@
-use std::{
-    mem::MaybeUninit,
-    ops::{Range, RangeBounds},
-    ptr::addr_of,
-    usize,
-};
+#![allow(dead_code)]
+
+use std::{mem::MaybeUninit, ops::Range, ptr::addr_of, usize};
 
 pub trait RangeExt {
     fn overlaps_with(&self, other: &Self) -> bool;

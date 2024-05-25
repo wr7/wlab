@@ -17,10 +17,12 @@ mod parser;
 
 fn main() {
     let test_str = "\
-fn do_nothing() {}
+fn do_nothing(a) {
+    
+}
 
 fn main(foo, bar) {
-    let x = foo + bar*(bar-bar)+foo;
+    let x = do_nothing(foo + bar);
 }";
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();
@@ -42,7 +44,7 @@ fn main(foo, bar) {
         }
     };
 
-    // dbg!(&ast);
+    dbg!(&ast);
 
     if let Err(err) = codegen::generate_code(&ast) {
         eprintln!("\n{}", err.render(test_str));

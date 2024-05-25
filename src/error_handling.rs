@@ -1,10 +1,10 @@
 use core::str;
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt::Debug;
-use std::ops::{Deref, DerefMut, RangeBounds};
+use std::ops::{Deref, DerefMut};
 use std::{borrow::Cow, ops::Range};
 
-use crate::util::{self, RangeExt, StrExt};
+use crate::util;
 
 pub trait WLangError: Sized {
     fn get_diagnostic(&self, code: &str) -> Diagnostic;
@@ -14,8 +14,14 @@ pub trait WLangError: Sized {
 }
 
 /// Includes information about where something appears in a source file
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Spanned<T>(pub T, pub Range<usize>);
+
+impl<T: PartialEq> PartialEq for Spanned<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
 
 pub struct Hint {
     msg: Cow<'static, str>,

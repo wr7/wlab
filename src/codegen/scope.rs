@@ -1,18 +1,35 @@
-use std::{cell::RefCell, collections::HashMap, marker::PhantomData, mem, ptr::NonNull, rc::Rc};
+use std::collections::HashMap;
 
-use inkwell::{
-    builder::Builder,
-    values::{BasicValueEnum, FunctionValue, IntValue},
-};
+use inkwell::values::{BasicValueEnum, FunctionValue, IntValue};
 
-pub struct Scope<'ctx> {
-    variables: HashMap<String, IntValue<'ctx>>,
+#[derive(Clone)]
+pub struct FunctionInfo<'ctx> {
+    pub num_params: usize,
+    pub function: FunctionValue<'ctx>,
 }
 
-impl<'ctx> Scope<'ctx> {
-    pub fn new() -> Self {
+pub struct Scope<'p, 'ctx> {
+    parent: Option<&'p Scope<'p, 'ctx>>,
+    variables: HashMap<String, IntValue<'ctx>>,
+    functions: HashMap<String, FunctionInfo<'ctx>>,
+}
+
+impl<'ctx> Scope<'static, 'ctx> {
+    pub fn new_global() -> Self {
         Self {
+            parent: None,
             variables: HashMap::new(),
+            functions: HashMap::new(),
+        }
+    }
+}
+
+impl<'p, 'ctx> Scope<'p, 'ctx> {
+    pub fn new(parent: &'p Scope<'_, 'ctx>) -> Self {
+        Self {
+            parent: Some(parent),
+            variables: HashMap::new(),
+            functions: HashMap::new(),
         }
     }
 
@@ -33,10 +50,20 @@ impl<'ctx> Scope<'ctx> {
     }
 
     pub fn create_variable(&mut self, name: &str, val: IntValue<'ctx>) {
-        self.variables.insert(name.to_string(), val);
+        self.variables.insert(name.to_owned(), val);
     }
 
-    pub fn get_variable(&self, name: &str) -> Option<IntValue<'ctx>> {
-        self.variables.get(name).cloned()
+    pub fn create_function(&mut self, name: &'_ str, function: FunctionInfo<'ctx>) {
+        self.functions.insert(name.to_owned(), function);
+    }
+
+    pub fn get_variable<'a>(&'a self, name: &'_ str) -> Option<&'a IntValue<'ctx>> {
+        self.variables.get(name)
+    }
+
+    pub fn get_function<'a>(&'a self, name: &'_ str) -> Option<&'a FunctionInfo<'ctx>> {
+        self.functions
+            .get(name)
+            .or_else(|| self.parent.and_then(|p| p.get_function(name)))
     }
 }
