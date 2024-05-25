@@ -42,7 +42,7 @@ pub trait StrExt {
     /// Gets the length of the character at `byte_index`
     fn char_length(&self, byte_index: usize) -> Option<usize>;
     /// Gets the range of the character at `byte_index`
-    fn char_range(&self, byte_index: usize) -> Option<Span>;
+    fn char_span(&self, byte_index: usize) -> Option<Span>;
 }
 
 impl StrExt for str {
@@ -56,7 +56,7 @@ impl StrExt for str {
             return None;
         }
 
-        Some((pos_start..pos_start + substr.len()).into())
+        Some(Span::at(pos_start).with_len(substr.len()))
     }
 
     fn char_length(&self, byte_index: usize) -> Option<usize> {
@@ -66,10 +66,9 @@ impl StrExt for str {
 
         Some(iter.next().map(|s| s.0).unwrap_or(subsl.len()))
     }
-    fn char_range(&self, byte_index: usize) -> Option<Span> {
-        Some(Span::from(
-            byte_index..byte_index + self.char_length(byte_index)?,
-        ))
+
+    fn char_span(&self, byte_index: usize) -> Option<Span> {
+        Some(Span::at(byte_index).with_len(self.char_length(byte_index)?))
     }
 }
 

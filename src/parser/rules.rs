@@ -148,6 +148,6 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
     }
 
     Err(ParseError::InvalidExpression(
-        (tokens.first().unwrap().1.start..tokens.last().unwrap().1.end).into(),
+        Span::at(tokens.first().unwrap().1.start).with_end(tokens.last().unwrap().1.end),
     ))
 }

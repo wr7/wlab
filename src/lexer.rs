@@ -1,7 +1,6 @@
 use crate::{
     diagnostic,
     error_handling::{Diagnostic, Hint, Spanned, WLangError},
-    spanned,
     util::{Span, StrExt},
     T,
 };
@@ -59,11 +58,11 @@ impl<'a> Iterator for Lexer<'a> {
 
             if char == '-' && self.chars.clone().next().is_some_and(|c| c.1 == '>') {
                 self.chars.next();
-                return Some(Ok(spanned!(T!("->"), (byte_index)..(byte_index + 2))));
+                return Some(Ok(Spanned(T!("->"), Span::at(byte_index).with_len(2))));
             }
 
             if !(char.is_ascii_alphabetic() || char == '_') {
-                return Some(Ok(spanned!(
+                return Some(Ok(Spanned(
                     match char {
                         '+' => T!("+"),
                         '-' => T!("-"),
@@ -81,11 +80,11 @@ impl<'a> Iterator for Lexer<'a> {
                         '=' => T!("="),
                         _ => {
                             return Some(Err(LexerError {
-                                span: self.input.char_range(byte_index).unwrap(),
+                                span: self.input.char_span(byte_index).unwrap(),
                             }));
                         }
                     },
-                    (byte_index)..(byte_index + 1),
+                    Span::at(byte_index).with_len(1),
                 )));
             }
 
@@ -106,9 +105,9 @@ impl<'a> Iterator for Lexer<'a> {
                 }
             }
 
-            return Some(Ok(spanned!(
+            return Some(Ok(Spanned(
                 Token::Identifier(&self.input[ident_start..ident_end]),
-                (ident_start)..(ident_end),
+                Span::at(ident_start).with_end(ident_end),
             )));
         }
     }

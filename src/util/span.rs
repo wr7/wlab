@@ -11,14 +11,27 @@ pub struct Span {
 }
 
 impl Span {
+    /// A zero-width span at the end of a span
     pub fn span_after(self) -> Self {
         (self.end..self.end).into()
     }
 
+    /// A zero-width span at the start of a span
     pub fn span_at(self) -> Self {
         (self.start..self.start).into()
     }
 
+    /// Sets the length of a span without changing its start
+    pub fn with_len(self, len: usize) -> Self {
+        (self.start..self.start + len).into()
+    }
+
+    /// Sets the end of a span without changing its start
+    pub fn with_end(self, end: usize) -> Self {
+        (self.start..end).into()
+    }
+
+    /// A zero-width span at a certain position
     pub fn at(pos: usize) -> Self {
         (pos..pos).into()
     }

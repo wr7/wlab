@@ -17,13 +17,6 @@ pub trait WLangError: Sized {
 #[derive(Debug, Clone)]
 pub struct Spanned<T>(pub T, pub Span);
 
-#[macro_export]
-macro_rules! spanned {
-    ($thing:expr, ($start:expr)..($end:expr) $(,)?) => {
-        Spanned($thing, ($start..$end).into())
-    };
-}
-
 impl<T: PartialEq> PartialEq for Spanned<T> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0

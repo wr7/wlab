@@ -16,6 +16,7 @@ mod parser;
 
 /* Parser TODO
  *  - Create distinction between Compound Statements and Compound Expressions (maybe have compound expression return implicit unit?)
+ *  - Fix crash when code is "+a;"
  */
 
 fn main() {
