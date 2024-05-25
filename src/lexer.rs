@@ -1,6 +1,7 @@
 use std::ops::Range;
 
 use crate::{
+    diagnostic,
     error_handling::{Diagnostic, Hint, Spanned, WLangError},
     util::StrExt,
     T,
@@ -30,9 +31,9 @@ pub struct LexerError {
 
 impl WLangError for LexerError {
     fn get_diagnostic(&self, code: &str) -> Diagnostic {
-        Diagnostic {
-            msg: format!("invalid token `{}`", &code[self.span.clone()]).into(),
-            hints: vec![Hint::new_error("", self.span.clone())],
+        diagnostic! {
+            format!("invalid token `{}`", &code[self.span.clone()]),
+            [Hint::new_error("", self.span.clone())],
         }
     }
 }

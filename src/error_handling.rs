@@ -34,6 +34,14 @@ pub struct Diagnostic {
     pub hints: Vec<Hint>,
 }
 
+/// Creates a diagnostic with a message and set of hints
+#[macro_export]
+macro_rules! diagnostic {
+    ($msg:expr, [$($hint:expr),* $(,)?] $(,)?) => {
+        $crate::error_handling::Diagnostic {msg: $msg.into(), hints: ::std::vec![$($hint),*]}
+    };
+}
+
 impl Diagnostic {
     pub fn render(&self, code: &str) -> String {
         let mut ret_val = "\n ".to_owned();

@@ -6,7 +6,10 @@ use crate::{error_handling::Spanned, lexer::Token};
 mod lexer;
 
 mod codegen;
+
+#[macro_use]
 mod error_handling;
+
 mod util;
 
 mod parser;

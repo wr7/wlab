@@ -5,6 +5,8 @@ use crate::{
     lexer::{BracketType, Token},
 };
 
+use crate::diagnostic as d;
+
 type Span = Range<usize>;
 
 #[derive(Debug)]
@@ -21,21 +23,21 @@ pub enum ParseError {
 impl WLangError for ParseError {
     fn get_diagnostic(&self, code: &str) -> Diagnostic {
         let mut diagnostic = match self {
-            ParseError::InvalidExpression(span) => Diagnostic {
-                msg: "invalid expression".into(),
-                hints: vec![Hint::new_error("", span.clone())],
+            ParseError::InvalidExpression(span) => d! {
+                "invalid expression",
+                [Hint::new_error("", span.clone())],
             },
-            ParseError::UnmatchedBracket(span) => Diagnostic {
-                msg: format!("unmatched bracket `{}`", &code[span.clone()]).into(),
-                hints: vec![Hint::new_error("", span.clone())],
+            ParseError::UnmatchedBracket(span) => d! {
+                format!("unmatched bracket `{}`", &code[span.clone()]),
+                [Hint::new_error("", span.clone())],
             },
-            ParseError::ExpectedBody(span) => Diagnostic {
-                msg: "expected function body".into(),
-                hints: vec![Hint::new_error("", span.clone())],
+            ParseError::ExpectedBody(span) => d! {
+                "expected function body",
+                [Hint::new_error("", span.clone())],
             },
-            ParseError::ExpectedExpression(span) => Diagnostic {
-                msg: "expected expression".into(),
-                hints: vec![Hint::new_error("", span.clone())],
+            ParseError::ExpectedExpression(span) => d! {
+                "expected expression",
+                [Hint::new_error("", span.clone())],
             },
             ParseError::ExpectedToken(span, tokens) => {
                 let mut msg = "expected token".to_owned();
@@ -50,18 +52,18 @@ impl WLangError for ParseError {
                     write!(&mut msg, "{tok}").unwrap();
                 }
 
-                Diagnostic {
-                    msg: msg.into(),
-                    hints: vec![Hint::new_error("", span.clone())],
+                d! {
+                    msg,
+                    [Hint::new_error("", span.clone())],
                 }
             }
-            ParseError::ExpectedIdentifier(span) => Diagnostic {
-                msg: "expected identifier".into(),
-                hints: vec![Hint::new_error("", span.clone())],
+            ParseError::ExpectedIdentifier(span) => d! {
+                "expected identifier",
+                [Hint::new_error("", span.clone())],
             },
-            ParseError::MismatchedBrackets(opening, closing) => Diagnostic {
-                msg: "mismatched brackets".into(),
-                hints: vec![
+            ParseError::MismatchedBrackets(opening, closing) => d! {
+                "mismatched brackets",
+                [
                     Hint::new_error("opening bracket here", opening.clone()),
                     Hint::new_error("closing bracket here", closing.clone()),
                 ],
