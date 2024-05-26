@@ -13,6 +13,63 @@ mod function;
 
 pub use bracket_expr::parse_statement_list;
 
+fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+    if tokens.len() == 0 {
+        return Ok(None);
+    }
+
+    let rules = [
+        |tokens| try_parse_literal(tokens),
+        |tokens| try_parse_identifier(tokens),
+        |tokens| bracket_expr::try_parse_bracket_expr(tokens),
+        |tokens| function::try_parse_function_call(tokens),
+        |tokens| {
+            try_parse_binary_operator(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)])
+        },
+        |tokens| {
+            try_parse_binary_operator(
+                tokens,
+                &[(T!("*"), OpCode::Asterisk), (T!("/"), OpCode::Slash)],
+            )
+        },
+    ];
+
+    for rule in rules {
+        if let Some(item) = rule(tokens)? {
+            return Ok(Some(item));
+        }
+    }
+
+    Err(ParseError::InvalidExpression(
+        Span::at(tokens.first().unwrap().1.start).with_end(tokens.last().unwrap().1.end),
+    ))
+}
+
+/// A statement. This can be either an expression or a few other things.
+fn try_parse_statement<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
+    if tokens.len() == 0 {
+        return Ok(None);
+    }
+
+    let rules = [
+        |tokens| function::try_parse_function(tokens),
+        |tokens| try_parse_let(tokens),
+        |tokens| try_parse_assign(tokens),
+    ];
+
+    for rule in rules {
+        if let Some(statement) = rule(tokens)? {
+            return Ok(Some(statement));
+        }
+    }
+
+    if let Some(expr) = try_parse_expr(tokens)? {
+        Ok(Some(expr.into()))
+    } else {
+        return Ok(None);
+    }
+}
+
 /// A plain identifier
 fn try_parse_identifier<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
     if let [S(Token::Identifier(ident), _)] = tokens {
@@ -71,7 +128,7 @@ fn try_parse_let<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>
 }
 
 /// A binary expression. Eg `a + b`
-fn try_parse_bin<'a>(
+fn try_parse_binary_operator<'a>(
     tokens: &'a [S<Token<'a>>],
     opcodes: &[(Token<'a>, OpCode)],
 ) -> PResult<Option<Expression<'a>>> {
@@ -107,59 +164,4 @@ fn try_parse_bin<'a>(
     }
 
     return Ok(None);
-}
-
-/// A statement. This can be either an expression or a few other things.
-fn try_parse_statement<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
-    if tokens.len() == 0 {
-        return Ok(None);
-    }
-
-    let rules = [
-        |tokens| function::try_parse_function(tokens),
-        |tokens| try_parse_let(tokens),
-        |tokens| try_parse_assign(tokens),
-    ];
-
-    for rule in rules {
-        if let Some(statement) = rule(tokens)? {
-            return Ok(Some(statement));
-        }
-    }
-
-    if let Some(expr) = try_parse_expr(tokens)? {
-        Ok(Some(expr.into()))
-    } else {
-        return Ok(None);
-    }
-}
-
-fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
-    if tokens.len() == 0 {
-        return Ok(None);
-    }
-
-    let rules = [
-        |tokens| try_parse_literal(tokens),
-        |tokens| try_parse_identifier(tokens),
-        |tokens| bracket_expr::try_parse_bracket_expr(tokens),
-        |tokens| function::try_parse_function_call(tokens),
-        |tokens| try_parse_bin(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)]),
-        |tokens| {
-            try_parse_bin(
-                tokens,
-                &[(T!("*"), OpCode::Asterisk), (T!("/"), OpCode::Slash)],
-            )
-        },
-    ];
-
-    for rule in rules {
-        if let Some(item) = rule(tokens)? {
-            return Ok(Some(item));
-        }
-    }
-
-    Err(ParseError::InvalidExpression(
-        Span::at(tokens.first().unwrap().1.start).with_end(tokens.last().unwrap().1.end),
-    ))
 }

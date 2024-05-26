@@ -16,6 +16,7 @@ mod parser;
 
 /* Parser TODO
  *  - Create distinction between Compound Statements and Compound Expressions (maybe have compound expression return implicit unit?)
+ *  - Allow out-of-order and recursive functions
  *  - Clean up parse_statement_list
  */
 

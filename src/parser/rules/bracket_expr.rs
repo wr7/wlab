@@ -1,9 +1,7 @@
-use std::ops::Deref as _;
-
 use crate::{
     error_handling::Spanned as S,
     lexer::{BracketType, Token},
-    parser::{rules::try_parse_expr, Expression, Statement},
+    parser::{error::check_brackets, rules::try_parse_expr, Expression, Statement},
     T,
 };
 
@@ -11,40 +9,24 @@ use super::{try_parse_statement, PResult};
 
 /// A statement surrounded in brackets eg `(foo + bar)` or `{biz+bang; do_thing*f}`. The latter case is a compound statement
 pub fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
-    let Some(S(Token::OpenBracket(bracket_type), _)) = tokens.first() else {
+    let Some((S(Token::OpenBracket(opening_type), _), tokens)) = tokens.split_first() else {
         return Ok(None);
     };
 
-    let mut bracket_level = 0;
+    let Some((S(Token::CloseBracket(closing_type), _), tokens)) = tokens.split_last() else {
+        return Ok(None);
+    };
 
-    for (i, tok) in tokens.iter().enumerate() {
-        if matches!(tok.deref(), Token::OpenBracket(_)) {
-            bracket_level += 1;
-            continue;
-        }
-        if !matches!(tok.deref(), Token::CloseBracket(_)) {
-            continue;
-        }
-
-        bracket_level -= 1;
-        if bracket_level != 0 {
-            continue;
-        }
-
-        if tokens.len() > i + 1 {
-            return Ok(None);
-        }
-
-        if *bracket_type == BracketType::Curly {
-            return Ok(Some(Expression::CompoundExpression(parse_statement_list(
-                &tokens[1..i],
-            )?)));
-        } else {
-            return try_parse_expr(&tokens[1..i]);
-        }
+    if opening_type != closing_type || check_brackets(tokens).is_err() {
+        return Ok(None);
     }
 
-    unreachable!();
+    if *opening_type == BracketType::Curly {
+        let statements = parse_statement_list(tokens)?;
+        Ok(Some(Expression::CompoundExpression(statements)))
+    } else {
+        Ok(try_parse_expr(tokens)?)
+    }
 }
 
 pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Statement<'a>>> {
@@ -53,10 +35,10 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<State
     let mut bracket_level = 0u32;
     let mut statement_start = 0;
 
-    for (i, tok) in tokens.iter().enumerate() {
-        if matches!(tok.deref(), Token::OpenBracket(_)) {
+    for (i, S(tok, _)) in tokens.iter().enumerate() {
+        if matches!(tok, Token::OpenBracket(_)) {
             bracket_level += 1;
-        } else if matches!(tok.deref(), Token::CloseBracket(_)) {
+        } else if matches!(tok, Token::CloseBracket(_)) {
             bracket_level -= 1;
         }
 
@@ -64,11 +46,11 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<State
             continue;
         }
 
-        if !matches!(tok.deref(), &T!(";") | &T!("}")) {
+        if !matches!(tok, &T!(";") | &T!("}")) {
             continue;
         }
 
-        let statement = match tok.deref() {
+        let statement = match tok {
             T!(";") => &tokens[statement_start..i],
             T!("}") => &tokens[statement_start..=i],
             _ => continue,
