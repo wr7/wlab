@@ -2,6 +2,7 @@ use crate::{error_handling::Spanned, lexer::Token};
 
 mod error;
 mod rules;
+mod util;
 
 pub use error::ParseError;
 

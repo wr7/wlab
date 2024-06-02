@@ -1,7 +1,10 @@
 use crate::{
     error_handling::Spanned as S,
     lexer::{BracketType, Token},
-    parser::{error::check_brackets, rules::try_parse_expr, Expression, Statement},
+    parser::{
+        error::check_brackets, rules::try_parse_expr, util::NonBracketedIter, Expression, Statement,
+    },
+    util::SliceExt,
     T,
 };
 
@@ -32,19 +35,10 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<
 pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Statement<'a>>> {
     let mut items = Vec::new();
 
-    let mut bracket_level = 0u32;
     let mut statement_start = 0;
 
-    for (i, S(tok, _)) in tokens.iter().enumerate() {
-        if matches!(tok, Token::OpenBracket(_)) {
-            bracket_level += 1;
-        } else if matches!(tok, Token::CloseBracket(_)) {
-            bracket_level -= 1;
-        }
-
-        if bracket_level != 0 {
-            continue;
-        }
+    for t @ S(tok, _) in NonBracketedIter::new(tokens) {
+        let i = tokens.elem_offset(t).unwrap();
 
         if !matches!(tok, &T!(";") | &T!("}")) {
             continue;

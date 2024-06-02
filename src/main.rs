@@ -14,10 +14,11 @@ mod util;
 
 mod parser;
 
-/* Parser TODO
+/* TODO
  *  - Create distinction between Compound Statements and Compound Expressions (maybe have compound expression return implicit unit?)
  *  - Allow out-of-order and recursive functions
- *  - Clean up parse_statement_list
+ *  - Add unit tests for parser
+ *  - Add types
  */
 
 fn main() {
@@ -27,7 +28,8 @@ fn do_nothing(a) {
 }
 
 fn main(foo, bar) {
-    let x = do_nothing(foo + bar / 42069);
+    let x = do_nothing(foo + bar / 42069 - 5);
+    let y = 9 + 10;
 }";
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();

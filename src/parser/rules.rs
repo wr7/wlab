@@ -2,9 +2,9 @@
 
 use std::ops::Deref;
 
-use crate::{error_handling::Spanned as S, lexer::Token, T};
+use crate::{error_handling::Spanned as S, lexer::Token, util::SliceExt, T};
 
-use super::{Expression, OpCode, ParseError, Statement};
+use super::{util::NonBracketedIter, Expression, OpCode, ParseError, Statement};
 
 type PResult<T> = Result<T, ParseError>;
 
@@ -133,27 +133,17 @@ fn try_parse_binary_operator<'a>(
     tokens: &'a [S<Token<'a>>],
     opcodes: &[(Token<'a>, OpCode)],
 ) -> PResult<Option<Expression<'a>>> {
-    let mut bracket_level = 0;
+    for tok in NonBracketedIter::new(tokens).rev() {
+        let i = tokens.elem_offset(tok).unwrap();
 
-    for (i, tok) in tokens.iter().enumerate().rev() {
-        if matches!(tok.deref(), Token::OpenBracket(_)) {
-            bracket_level -= 1;
-        } else if matches!(tok.deref(), Token::CloseBracket(_)) {
-            bracket_level += 1;
-        }
-
-        if bracket_level != 0 {
-            continue;
-        }
-
-        for (ttok, opcode) in opcodes {
-            if tok.deref() == ttok {
-                let x = try_parse_expr(&tokens[0..i])?.ok_or(ParseError::ExpectedExpression(
-                    Span::at(tokens[i].1.start.saturating_sub(1)),
-                ))?;
+        for (op_tok, opcode) in opcodes {
+            if tok.deref() == op_tok {
+                let x = try_parse_expr(&tokens[0..i])?.ok_or_else(|| {
+                    ParseError::ExpectedExpression(Span::at(tokens[i].1.start.saturating_sub(1)))
+                })?;
 
                 let y = try_parse_expr(&tokens[i + 1..])?
-                    .ok_or(ParseError::ExpectedExpression(tokens[i].1.span_after()))?;
+                    .ok_or_else(|| ParseError::ExpectedExpression(tokens[i].1.span_after()))?;
 
                 return Ok(Some(Expression::BinaryOperator(
                     Box::new(x),

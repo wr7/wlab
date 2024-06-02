@@ -5,7 +5,8 @@ use wutil::Span;
 use crate::{
     error_handling::Spanned as S,
     lexer::Token,
-    parser::{rules::try_parse_expr, Expression, ParseError, Statement},
+    parser::{rules::try_parse_expr, util::NonBracketedIter, Expression, ParseError, Statement},
+    util::SliceExt,
     T,
 };
 
@@ -51,25 +52,16 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
 fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expression<'a>>> {
     let mut expressions = Vec::new();
 
-    let mut bracket_level = 0;
     let mut expr_start = 0;
 
-    for (i, S(tok, span)) in tokens.iter().enumerate() {
-        if matches!(tok, Token::OpenBracket(_)) {
-            bracket_level += 1;
-        } else if matches!(tok, Token::CloseBracket(_)) {
-            bracket_level -= 1;
-        }
-
-        if bracket_level != 0 {
-            continue;
-        }
+    for t @ S(tok, span) in NonBracketedIter::new(tokens) {
+        let i = tokens.elem_offset(t).unwrap();
 
         if tok == &T!(",") {
             expressions.push(
                 try_parse_expr(&tokens[expr_start..i])?
                     .ok_or(ParseError::ExpectedExpression(span.span_at()))?,
-            ); // TODO
+            );
             expr_start = i + 1;
         }
     }
