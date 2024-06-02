@@ -4,7 +4,9 @@ use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 use std::{borrow::Cow, ops::Range};
 
-use crate::util::{self, Span};
+use wutil::Span;
+
+use crate::util;
 
 pub trait WLangError: Sized {
     fn get_diagnostic(&self, code: &str) -> Diagnostic;

@@ -1,13 +1,15 @@
 use crate::{
     diagnostic,
     error_handling::{Diagnostic, Hint, Spanned, WLangError},
-    util::{Span, StrExt},
     T,
 };
+
+use wutil::prelude::*;
 
 mod token;
 
 pub use token::Token;
+use wutil::Span;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum BracketType {

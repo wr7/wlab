@@ -1,9 +1,10 @@
 use std::fmt::Write as _;
 
+use wutil::Span;
+
 use crate::{
     error_handling::{Diagnostic, Hint, Spanned, WLangError},
     lexer::{BracketType, Token},
-    util::Span,
 };
 
 use crate::diagnostic as d;

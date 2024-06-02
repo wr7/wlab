@@ -149,4 +149,11 @@ name = "wlab"
 version = "0.1.0"
 dependencies = [
  "inkwell",
+ "wutil",
 ]
+
+[[package]]
+name = "wutil"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ccaddcf8abe616eecafb16896a5d83c12f37613ee2d0fed45b724017b6485a2c"

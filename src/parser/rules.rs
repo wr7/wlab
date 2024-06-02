@@ -2,7 +2,7 @@
 
 use std::ops::Deref;
 
-use crate::{error_handling::Spanned as S, lexer::Token, util::Span, T};
+use crate::{error_handling::Spanned as S, lexer::Token, T};
 
 use super::{Expression, OpCode, ParseError, Statement};
 
@@ -12,6 +12,7 @@ mod bracket_expr;
 mod function;
 
 pub use bracket_expr::parse_statement_list;
+use wutil::Span;
 
 fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
     if tokens.len() == 0 {

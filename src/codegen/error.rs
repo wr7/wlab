@@ -1,8 +1,9 @@
 use crate::{
     diagnostic as d,
     error_handling::{Hint, WLangError},
-    util::StrExt,
 };
+
+use wutil::prelude::*;
 
 pub enum CodegenError<'a> {
     UndefinedVariable(&'a str),

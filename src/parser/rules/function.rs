@@ -1,10 +1,11 @@
 use std::ops::Deref;
 
+use wutil::Span;
+
 use crate::{
     error_handling::Spanned as S,
     lexer::Token,
     parser::{rules::try_parse_expr, Expression, ParseError, Statement},
-    util::Span,
     T,
 };
 
