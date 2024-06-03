@@ -5,4 +5,4 @@ edition = "2021"
 
 [dependencies]
 inkwell = { version = "0.4.0", features = ["llvm17-0"] }
-wutil = "0.0.5"
+wutil = "0.0.6"
