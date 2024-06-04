@@ -1,3 +1,5 @@
+use wutil::iter::IterCloneExt;
+
 use crate::{
     error_handling::Spanned as S,
     lexer::{BracketType, Token},
@@ -35,29 +37,21 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<
 pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Statement<'a>>> {
     let mut items = Vec::new();
 
-    let mut statement_start = 0;
-
-    for t @ S(tok, _) in NonBracketedIter::new(tokens) {
-        let i = tokens.elem_offset(t).unwrap();
-
-        if !matches!(tok, &T!(";") | &T!("}")) {
+    for expr in
+        NonBracketedIter::new(tokens).split_inclusive(|t| matches!(&t.0, &T!(";") | &T!("}")))
+    {
+        let Some(expr) = tokens.range_of(expr) else {
             continue;
-        }
-
-        let statement = match tok {
-            T!(";") => &tokens[statement_start..i],
-            T!("}") => &tokens[statement_start..=i],
-            _ => continue,
         };
 
-        try_parse_statement(statement)?.map(|s| items.push(s));
+        let mut expr = &tokens[expr];
+        if matches!(expr.last(), Some(&S(T!(";"), _))) {
+            expr = &expr[..expr.len() - 1]; // strip trailing semicolon
+        }
 
-        statement_start = i + 1;
-    }
-
-    // Parse trailing statement without semicolon
-    if statement_start < tokens.len() {
-        items.push(try_parse_statement(&tokens[statement_start..])?.unwrap());
+        if let Some(statement) = try_parse_statement(expr)? {
+            items.push(statement)
+        }
     }
 
     Ok(items)

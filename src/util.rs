@@ -11,6 +11,9 @@ pub trait SliceExt {
     type Item;
     fn subslice_range(&self, item: &[Self::Item]) -> Option<Range<usize>>;
     fn elem_offset(&self, item: &Self::Item) -> Option<usize>;
+    fn range_of<'a, I>(&'a self, iter: I) -> Option<Range<usize>>
+    where
+        I: Iterator<Item = &'a Self::Item>;
 }
 
 impl StrExt for str {
@@ -65,6 +68,20 @@ impl<T> SliceExt for [T] {
         } else {
             None
         }
+    }
+
+    fn range_of<'a, I>(&self, mut iter: I) -> Option<Range<usize>>
+    where
+        I: Iterator<Item = &'a T>,
+        T: 'a,
+    {
+        let first_elem = iter.next()?;
+        let last_elem = iter.last().unwrap_or(first_elem);
+
+        let start = self.elem_offset(first_elem)?;
+        let end = self.elem_offset(last_elem)? + 1;
+
+        Some(start..end)
     }
 }
 

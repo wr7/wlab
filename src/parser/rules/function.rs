@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use wutil::Span;
+use wutil::{iter::IterCloneExt, Span};
 
 use crate::{
     error_handling::Spanned as S,
@@ -52,27 +52,28 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
 fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expression<'a>>> {
     let mut expressions = Vec::new();
 
-    let mut expr_start = 0;
+    // For reporting errors
+    let Some(mut last_good_span) = tokens.first().map(|t| t.1) else {
+        return Ok(expressions);
+    };
 
-    for t @ S(tok, span) in NonBracketedIter::new(tokens) {
-        let i = tokens.elem_offset(t).unwrap();
+    for expr in NonBracketedIter::new(tokens).split(|t| matches!(&t.0, &T!(","))) {
+        let expr_range: Span = tokens.range_of(expr).unwrap_or(0..0).into();
 
-        if tok == &T!(",") {
-            expressions.push(
-                try_parse_expr(&tokens[expr_start..i])?
-                    .ok_or(ParseError::ExpectedExpression(span.span_at()))?,
-            );
-            expr_start = i + 1;
+        let expr = try_parse_expr(&tokens[expr_range])?
+            .ok_or(ParseError::ExpectedExpression(last_good_span.span_after()))?;
+
+        if let Some(tok) = tokens.get(expr_range.end) {
+            last_good_span = tok.1.span_after();
         }
-    }
 
-    if expr_start != tokens.len() {
-        expressions.push(try_parse_expr(&tokens[expr_start..])?.unwrap());
+        expressions.push(expr);
     }
 
     Ok(expressions)
 }
 
+// TODO: use iterator split
 fn parse_fn_params<'a>(
     tokens: &'a [S<Token<'a>>],
     name_span: Span,
