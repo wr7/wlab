@@ -1,5 +1,3 @@
-use wutil::Span;
-
 use crate::{
     error_handling::Spanned as S,
     lexer::Token,
@@ -22,14 +20,29 @@ pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stat
         return Ok(None);
     };
 
-    let (params, tokens) = parse_fn_params(tokens, *name_span)?;
+    let mut nb_iter = NonBracketedIter::new(tokens);
 
-    let Some((S(T!(")"), right_paren), tokens)) = tokens.split_first() else {
-        unreachable!()
+    let left_paren = nb_iter.next();
+    let Some(left_paren @ S(T!("("), _)) = left_paren else {
+        let span = left_paren.map(|t| t.1).unwrap_or(name_span.span_after());
+
+        return Err(ParseError::ExpectedToken(span, &[T!("(")]));
     };
 
-    let Some(Expression::CompoundExpression(body)) = try_parse_bracket_expr(tokens)? else {
-        return Err(ParseError::ExpectedBody(right_paren.span_after()));
+    let Some(right_paren @ S(T!(")"), _)) = nb_iter.next() else {
+        unreachable!();
+    };
+
+    let left_paren_idx = tokens.elem_offset(left_paren).unwrap();
+    let right_paren_idx = tokens.elem_offset(right_paren).unwrap();
+
+    let params = left_paren_idx + 1..right_paren_idx;
+    let params = parse_fn_params(&tokens[params])?;
+
+    let Some(Expression::CompoundExpression(body)) =
+        try_parse_bracket_expr(&tokens[right_paren_idx + 1..])?
+    else {
+        return Err(ParseError::ExpectedBody(right_paren.1.span_after()));
     };
 
     Ok(Some(Statement::Function(fn_name, params, body)))
@@ -69,30 +82,11 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expressi
     Ok(expressions)
 }
 
-/// Parses function parameters from the front of a token list. Returns `(arguments, remaining_tokens)`
-fn parse_fn_params<'a>(
-    tokens: &'a [S<Token<'a>>],
-    name_span: Span,
-) -> PResult<(Vec<(&'a str, &'a str)>, &'a [S<Token<'a>>])> {
+/// Parses function parameters eg `foo: i32, bar: usize`.
+fn parse_fn_params<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<(&'a str, &'a str)>> {
     let mut params = Vec::new();
 
-    let mut nb_tokens = NonBracketedIter::new(tokens);
-
-    let Some(open_paren @ S(T!("("), _)) = nb_tokens.next() else {
-        return Err(ParseError::ExpectedToken(
-            name_span.span_after(),
-            &[T!("(")],
-        ));
-    };
-
-    let Some(close_paren @ S(T!(")"), _)) = nb_tokens.next() else {
-        unreachable!()
-    };
-
-    let param_range =
-        tokens.elem_offset(open_paren).unwrap() + 1..tokens.elem_offset(close_paren).unwrap();
-
-    for (param, separator) in TokenSplit::new(&tokens[param_range], |t| t == &T!(",")) {
+    for (param, separator) in TokenSplit::new(&tokens, |t| t == &T!(",")) {
         let Some(param) = parse_fn_param(param)? else {
             let Some(separator) = separator else {
                 break; // Ignore trailing comma
@@ -104,7 +98,7 @@ fn parse_fn_params<'a>(
         params.push(param)
     }
 
-    Ok((params, &tokens[tokens.elem_offset(close_paren).unwrap()..]))
+    Ok(params)
 }
 
 /// Parses a function parameter (eg `foo: u32`)
