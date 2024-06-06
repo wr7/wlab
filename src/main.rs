@@ -23,11 +23,11 @@ mod parser;
 
 fn main() {
     let test_str = "\
-fn do_nothing(alpha, beta, gamma) {
+fn do_nothing(alpha: i32, beta: i32, gamma: i32) {
     
 }
 
-fn main(foo, bar) {
+fn main(foo: i32, bar: i32) {
     let x = do_nothing(
         foo + bar,
         (9 + 10) - 21,

@@ -35,7 +35,7 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
 
     pub fn with_params<'a>(
         mut self,
-        params: &'a [&'a str],
+        params: &'a [(&'a str, &'a str)],
         function: &FunctionValue<'ctx>,
     ) -> Self {
         for (i, param) in params.into_iter().enumerate() {
@@ -43,7 +43,8 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
                 unreachable!();
             };
 
-            self.create_variable(param, val);
+            // TODO: use type
+            self.create_variable(param.0, val);
         }
 
         self

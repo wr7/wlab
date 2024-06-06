@@ -73,7 +73,7 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expressi
 fn parse_fn_params<'a>(
     tokens: &'a [S<Token<'a>>],
     name_span: Span,
-) -> PResult<(Vec<&'a str>, &'a [S<Token<'a>>])> {
+) -> PResult<(Vec<(&'a str, &'a str)>, &'a [S<Token<'a>>])> {
     let mut params = Vec::new();
 
     let mut nb_tokens = NonBracketedIter::new(tokens);
@@ -93,22 +93,51 @@ fn parse_fn_params<'a>(
         tokens.elem_offset(open_paren).unwrap() + 1..tokens.elem_offset(close_paren).unwrap();
 
     for (param, separator) in TokenSplit::new(&tokens[param_range], |t| t == &T!(",")) {
-        let &[S(Token::Identifier(param), _)] = &param else {
-            return Err(if param.is_empty() {
-                let Some(separator) = separator else {
-                    break;
-                };
+        let Some(param) = parse_fn_param(param)? else {
+            let Some(separator) = separator else {
+                break; // Ignore trailing comma
+            };
 
-                ParseError::ExpectedParameter(separator.1.span_at())
-            } else {
-                ParseError::InvalidParameter(
-                    (param.first().unwrap().1.start..param.last().unwrap().1.end).into(),
-                )
-            });
+            return Err(ParseError::ExpectedParameter(separator.1.span_at()));
         };
 
-        params.push(*param)
+        params.push(param)
     }
 
     Ok((params, &tokens[tokens.elem_offset(close_paren).unwrap()..]))
+}
+
+/// Parses a function parameter (eg `foo: u32`)
+fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, &'a str)>> {
+    let Some((S(Token::Identifier(name), name_span), tokens)) = tokens.split_first() else {
+        let Some(tok) = tokens.first() else {
+            return Ok(None);
+        };
+
+        return Err(ParseError::ExpectedParamName(tok.1));
+    };
+
+    let Some((S(T!(":"), colon_span), tokens)) = tokens.split_first() else {
+        let span = tokens
+            .first()
+            .map(|t| t.1)
+            .unwrap_or(name_span.span_after());
+
+        return Err(ParseError::ExpectedToken(span, &[T!(":")]));
+    };
+
+    let Some((S(Token::Identifier(type_), _), tokens)) = tokens.split_first() else {
+        let span = tokens
+            .first()
+            .map(|t| t.1)
+            .unwrap_or(colon_span.span_after());
+
+        return Err(ParseError::ExpectedType(span));
+    };
+
+    if let Some(tok) = tokens.first() {
+        return Err(ParseError::ExpectedToken(tok.1, &[T!(","), T!(")")]));
+    }
+
+    Ok(Some((name, type_)))
 }

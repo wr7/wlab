@@ -14,6 +14,7 @@ pub enum Token<'a> {
     Slash,
     Dot,
     Comma,
+    Colon,
     Semicolon,
     EqualSign,
 }
@@ -60,6 +61,9 @@ macro_rules! T {
     ("}") => {
         $crate::lexer::Token::CloseBracket($crate::lexer::BracketType::Curly)
     };
+    (":") => {
+        $crate::lexer::Token::Colon
+    };
     (";") => {
         $crate::lexer::Token::Semicolon
     };
@@ -88,6 +92,7 @@ impl<'a> Token<'a> {
             T!("]") => "]",
             T!("{") => "{",
             T!("}") => "}",
+            T!(":") => ":",
             T!(";") => ";",
             T!("=") => "=",
         }

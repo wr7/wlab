@@ -134,7 +134,7 @@ impl<'ctx> CodegenUnit<'ctx> {
     pub fn generate_function<'a: 'ctx>(
         &self,
         fn_name: &str,
-        params: &[&str],
+        params: &[(&str, &str)],
         body: &[Statement<'a>],
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), CodegenError<'a>> {

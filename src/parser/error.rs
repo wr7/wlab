@@ -12,11 +12,12 @@ use crate::diagnostic as d;
 #[derive(Debug)]
 pub enum ParseError {
     InvalidExpression(Span),
-    InvalidParameter(Span),
     UnmatchedBracket(Span),
     ExpectedParameter(Span),
     ExpectedBody(Span),
     ExpectedExpression(Span),
+    ExpectedParamName(Span),
+    ExpectedType(Span),
     ExpectedToken(Span, &'static [Token<'static>]),
     MismatchedBrackets(Span, Span),
 }
@@ -26,10 +27,6 @@ impl WLangError for ParseError {
         let mut diagnostic = match self {
             ParseError::InvalidExpression(span) => d! {
                 "invalid expression",
-                [Hint::new_error("", *span)],
-            },
-            ParseError::InvalidParameter(span) => d! {
-                "invalid parameter",
                 [Hint::new_error("", *span)],
             },
             ParseError::UnmatchedBracket(span) => d! {
@@ -48,6 +45,14 @@ impl WLangError for ParseError {
                 "expected expression",
                 [Hint::new_error("", *span)],
             },
+            ParseError::ExpectedParamName(span) => d! {
+                format!("expected function parameter name, got `{}`", &code[*span]),
+                [Hint::new_error("expected name here", *span)],
+            },
+            ParseError::ExpectedType(span) => d! {
+                format!("expected type got `{}`", &code[*span]),
+                [Hint::new_error("", *span)],
+            },
             ParseError::ExpectedToken(span, tokens) => {
                 let mut msg = "expected token".to_owned();
                 for (i, tok) in tokens.iter().enumerate() {
@@ -55,7 +60,7 @@ impl WLangError for ParseError {
                         msg += ","
                     }
                     msg += " ";
-                    if i == tokens.len() - 1 {
+                    if i == tokens.len() - 1 && tokens.len() > 1 {
                         msg += "or "
                     }
                     write!(&mut msg, "{tok}").unwrap();
