@@ -13,10 +13,13 @@ use crate::parser::{Expression, Statement};
 use self::{
     error::CodegenError,
     scope::{FunctionInfo, Scope},
+    types::{Type, TypedValue},
 };
 
 mod error;
 mod scope;
+
+mod types;
 
 struct CoreTypes<'ctx> {
     unit: StructType<'ctx>,
@@ -51,35 +54,26 @@ impl<'ctx> CodegenUnit<'ctx> {
         &self,
         expression: &Expression<'a>,
         scope: &mut Scope<'_, 'ctx>,
-    ) -> Result<IntValue<'ctx>, CodegenError<'a>> {
+    ) -> Result<TypedValue<'ctx>, CodegenError<'a>> {
         match expression {
             Expression::Identifier(ident) => scope
                 .get_variable(ident)
                 .cloned()
                 .ok_or(CodegenError::UndefinedVariable(ident)),
-            Expression::Literal(lit) => self
-                .context
-                .i32_type()
-                .const_int_from_string(lit, StringRadix::Decimal)
-                .ok_or(CodegenError::InvalidNumber(lit)),
+            Expression::Literal(lit) => Ok(TypedValue {
+                val: self
+                    .context
+                    .i32_type()
+                    .const_int_from_string(lit, StringRadix::Decimal)
+                    .ok_or(CodegenError::InvalidNumber(lit))?
+                    .into(),
+                type_: Type::i32,
+            }),
             Expression::BinaryOperator(a, operator, b) => {
                 let a = self.generate_expression(a, scope)?;
                 let b = self.generate_expression(b, scope)?;
 
-                match operator {
-                    crate::parser::OpCode::Plus => {
-                        Ok(self.builder.build_int_add(a, b, "").unwrap())
-                    }
-                    crate::parser::OpCode::Minus => {
-                        Ok(self.builder.build_int_sub(a, b, "").unwrap())
-                    }
-                    crate::parser::OpCode::Asterisk => {
-                        Ok(self.builder.build_int_mul(a, b, "").unwrap())
-                    }
-                    crate::parser::OpCode::Slash => {
-                        Ok(self.builder.build_int_unsigned_div(a, b, "").unwrap())
-                    }
-                }
+                a.generate_operation(&self.builder, *operator, b)
             }
             Expression::CompoundExpression(_) => todo!(),
             Expression::FunctionCall(fn_name, arguments) => {
@@ -99,7 +93,7 @@ impl<'ctx> CodegenUnit<'ctx> {
                 let arguments: Result<Vec<_>, _> = arguments
                     .iter()
                     .map(|e| self.generate_expression(e, scope))
-                    .map(|v| Ok(BasicMetadataValueEnum::IntValue(v?)))
+                    .map(|v| Ok(v?.val.into()))
                     .collect();
 
                 let arguments: Vec<BasicMetadataValueEnum> = arguments?;
@@ -109,7 +103,10 @@ impl<'ctx> CodegenUnit<'ctx> {
                     .build_direct_call(function.function.clone(), &arguments, "")
                     .unwrap();
 
-                Ok(self.context.i32_type().const_zero())
+                Ok(TypedValue {
+                    val: self.context.i32_type().const_zero().into(),
+                    type_: Type::i32,
+                })
             }
         }
     }
@@ -134,18 +131,24 @@ impl<'ctx> CodegenUnit<'ctx> {
     pub fn generate_function<'a: 'ctx>(
         &self,
         fn_name: &str,
-        params: &[(&str, &str)],
+        params: &[(&'a str, &'a str)],
         body: &[Statement<'a>],
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), CodegenError<'a>> {
-        let fn_type_params: Vec<BasicMetadataTypeEnum<'ctx>> =
-            std::iter::repeat(BasicMetadataTypeEnum::IntType(self.context.i32_type()))
-                .take(params.len())
-                .collect();
+        let params: Result<Vec<(&'a str, Type)>, _> = params
+            .iter()
+            .map(|(n, t)| Ok((*n, Type::new(t)?)))
+            .collect();
+        let params = params?;
+
+        let llvm_param_types: Vec<BasicMetadataTypeEnum<'ctx>> = params
+            .iter()
+            .map(|(_, type_)| type_.get_llvm_type(self.context).into())
+            .collect();
 
         let function = self.module.add_function(
             &fn_name,
-            self.core_types.unit.fn_type(&fn_type_params, false),
+            self.core_types.unit.fn_type(&llvm_param_types, false),
             None,
         );
 
@@ -154,7 +157,7 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         let zero = self.core_types.unit.const_zero();
 
-        let mut fn_scope = Scope::new(&scope).with_params(params, &function);
+        let mut fn_scope = Scope::new(&scope).with_params(&params, &function);
 
         for statement in body {
             self.generate_statement(&mut fn_scope, statement)?;

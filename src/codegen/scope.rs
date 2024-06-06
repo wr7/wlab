@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use inkwell::values::{BasicValueEnum, FunctionValue, IntValue};
 
+use super::types::{Type, TypedValue};
+
 #[derive(Clone)]
 pub struct FunctionInfo<'ctx> {
     pub num_params: usize,
@@ -10,7 +12,7 @@ pub struct FunctionInfo<'ctx> {
 
 pub struct Scope<'p, 'ctx> {
     parent: Option<&'p Scope<'p, 'ctx>>,
-    variables: HashMap<String, IntValue<'ctx>>,
+    variables: HashMap<String, TypedValue<'ctx>>,
     functions: HashMap<String, FunctionInfo<'ctx>>,
 }
 
@@ -35,22 +37,27 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
 
     pub fn with_params<'a>(
         mut self,
-        params: &'a [(&'a str, &'a str)],
+        params: &'a [(&'a str, Type)],
         function: &FunctionValue<'ctx>,
     ) -> Self {
         for (i, param) in params.into_iter().enumerate() {
-            let Some(BasicValueEnum::IntValue(val)) = function.get_nth_param(i as u32) else {
+            let Some(val) = function.get_nth_param(i as u32) else {
                 unreachable!();
             };
 
-            // TODO: use type
-            self.create_variable(param.0, val);
+            self.create_variable(
+                param.0,
+                TypedValue {
+                    val,
+                    type_: param.1.clone(),
+                },
+            );
         }
 
         self
     }
 
-    pub fn create_variable(&mut self, name: &str, val: IntValue<'ctx>) {
+    pub fn create_variable(&mut self, name: &str, val: TypedValue<'ctx>) {
         self.variables.insert(name.to_owned(), val);
     }
 
@@ -58,7 +65,7 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         self.functions.insert(name.to_owned(), function);
     }
 
-    pub fn get_variable<'a>(&'a self, name: &'_ str) -> Option<&'a IntValue<'ctx>> {
+    pub fn get_variable<'a>(&'a self, name: &'_ str) -> Option<&'a TypedValue<'ctx>> {
         self.variables.get(name)
     }
 
