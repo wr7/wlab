@@ -2,23 +2,27 @@ use std::ops::Deref;
 
 use crate::{error_handling::Spanned, lexer::Token};
 
+mod split;
+
+pub use split::*;
+
 /// Iterates over tokens that are not surrounded by brackets.
 /// # Example
 /// # use wutil::lexer::Lexer;
 /// let tokens = lexer::new
 #[derive(Clone)]
 pub struct NonBracketedIter<'a> {
+    remaining: &'a [Spanned<Token<'a>>],
     bracket_level_start: usize,
     bracket_level_end: usize,
-    remaining: &'a [Spanned<Token<'a>>],
 }
 
 impl<'a> NonBracketedIter<'a> {
     pub(super) fn new(slc: &'a [Spanned<Token<'a>>]) -> Self {
         Self {
+            remaining: slc,
             bracket_level_start: 0,
             bracket_level_end: 0,
-            remaining: slc,
         }
     }
 }

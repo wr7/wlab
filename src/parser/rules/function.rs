@@ -1,11 +1,13 @@
-use std::ops::Deref;
-
-use wutil::{iter::IterCloneExt, Span};
+use wutil::Span;
 
 use crate::{
     error_handling::Spanned as S,
     lexer::Token,
-    parser::{rules::try_parse_expr, util::NonBracketedIter, Expression, ParseError, Statement},
+    parser::{
+        rules::try_parse_expr,
+        util::{NonBracketedIter, TokenSplit},
+        Expression, ParseError, Statement,
+    },
     util::SliceExt,
     T,
 };
@@ -52,20 +54,14 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
 fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expression<'a>>> {
     let mut expressions = Vec::new();
 
-    // For reporting errors
-    let Some(mut last_good_span) = tokens.first().map(|t| t.1) else {
-        return Ok(expressions);
-    };
+    for (expr, separator) in TokenSplit::new(tokens, |t| t == &T!(",")) {
+        let Some(expr) = try_parse_expr(expr)? else {
+            let Some(separator) = separator else {
+                break;
+            };
 
-    for expr in NonBracketedIter::new(tokens).split(|t| matches!(&t.0, &T!(","))) {
-        let expr_range: Span = tokens.range_of(expr).unwrap_or(0..0).into();
-
-        let expr = try_parse_expr(&tokens[expr_range])?
-            .ok_or(ParseError::ExpectedExpression(last_good_span.span_after()))?;
-
-        if let Some(tok) = tokens.get(expr_range.end) {
-            last_good_span = tok.1.span_after();
-        }
+            return Err(ParseError::ExpectedExpression(separator.1.span_at()));
+        };
 
         expressions.push(expr);
     }
@@ -73,50 +69,46 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expressi
     Ok(expressions)
 }
 
-// TODO: use iterator split
+/// Parses function parameters from the front of a token list. Returns `(arguments, remaining_tokens)`
 fn parse_fn_params<'a>(
     tokens: &'a [S<Token<'a>>],
     name_span: Span,
 ) -> PResult<(Vec<&'a str>, &'a [S<Token<'a>>])> {
     let mut params = Vec::new();
 
-    let Some((S(T!("("), _), mut tokens)) = tokens.split_first() else {
+    let mut nb_tokens = NonBracketedIter::new(tokens);
+
+    let Some(open_paren @ S(T!("("), _)) = nb_tokens.next() else {
         return Err(ParseError::ExpectedToken(
             name_span.span_after(),
             &[T!("(")],
         ));
     };
 
-    while let Some((param, tokens_)) = tokens.split_first() {
-        if param.deref() == &T!(")") {
-            return Ok((params, tokens));
-        }
+    let Some(close_paren @ S(T!(")"), _)) = nb_tokens.next() else {
+        unreachable!()
+    };
 
-        tokens = tokens_;
+    let param_range =
+        tokens.elem_offset(open_paren).unwrap() + 1..tokens.elem_offset(close_paren).unwrap();
 
-        let Token::Identifier(param) = param.deref() else {
-            return Err(ParseError::ExpectedIdentifier(param.1.clone()));
+    for (param, separator) in TokenSplit::new(&tokens[param_range], |t| t == &T!(",")) {
+        let &[S(Token::Identifier(param), _)] = &param else {
+            return Err(if param.is_empty() {
+                let Some(separator) = separator else {
+                    break;
+                };
+
+                ParseError::ExpectedParameter(separator.1.span_at())
+            } else {
+                ParseError::InvalidParameter(
+                    (param.first().unwrap().1.start..param.last().unwrap().1.end).into(),
+                )
+            });
         };
 
-        params.push(*param);
-
-        let Some((next_tok, tokens_)) = tokens.split_first() else {
-            unreachable!()
-        };
-
-        match next_tok.deref() {
-            T!(")") => return Ok((params, tokens)),
-            T!(",") => (),
-            _ => {
-                return Err(ParseError::ExpectedToken(
-                    next_tok.1.clone(),
-                    &[T!(")"), T!(",")],
-                ))
-            }
-        }
-
-        tokens = tokens_;
+        params.push(*param)
     }
 
-    unreachable!()
+    Ok((params, &tokens[tokens.elem_offset(close_paren).unwrap()..]))
 }

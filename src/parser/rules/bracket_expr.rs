@@ -1,10 +1,8 @@
-use wutil::iter::IterCloneExt;
-
 use crate::{
     error_handling::Spanned as S,
     lexer::{BracketType, Token},
     parser::{
-        error::check_brackets, rules::try_parse_expr, util::NonBracketedIter, Expression, Statement,
+        error::check_brackets, rules::try_parse_expr, util::TokenSplit, Expression, Statement,
     },
     util::SliceExt,
     T,
@@ -37,19 +35,13 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<
 pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Statement<'a>>> {
     let mut items = Vec::new();
 
-    for expr in
-        NonBracketedIter::new(tokens).split_inclusive(|t| matches!(&t.0, &T!(";") | &T!("}")))
-    {
-        let Some(expr) = tokens.range_of(expr) else {
-            continue;
-        };
-
-        let mut expr = &tokens[expr];
-        if matches!(expr.last(), Some(&S(T!(";"), _))) {
-            expr = &expr[..expr.len() - 1]; // strip trailing semicolon
+    for (mut stmnt, separator) in TokenSplit::new(tokens, |t| matches!(&t, &T!(";") | &T!("}"))) {
+        if matches!(separator, Some(S(T!("}"), _))) {
+            let stmnt_idx = tokens.subslice_range(stmnt).unwrap();
+            stmnt = &tokens[stmnt_idx.start..stmnt_idx.end + 1]; // Include closing bracket
         }
 
-        if let Some(statement) = try_parse_statement(expr)? {
+        if let Some(statement) = try_parse_statement(stmnt)? {
             items.push(statement)
         }
     }

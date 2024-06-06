@@ -23,13 +23,16 @@ mod parser;
 
 fn main() {
     let test_str = "\
-fn do_nothing(a) {
+fn do_nothing(alpha, beta, gamma) {
     
 }
 
 fn main(foo, bar) {
-    let x = do_nothing(foo + bar / 42069 - 5);
-    let y = 9 + 10;
+    let x = do_nothing(
+        foo + bar,
+        (9 + 10) - 21,
+        42069,
+    );
 }";
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();

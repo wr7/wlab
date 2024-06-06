@@ -12,11 +12,12 @@ use crate::diagnostic as d;
 #[derive(Debug)]
 pub enum ParseError {
     InvalidExpression(Span),
+    InvalidParameter(Span),
     UnmatchedBracket(Span),
+    ExpectedParameter(Span),
     ExpectedBody(Span),
     ExpectedExpression(Span),
     ExpectedToken(Span, &'static [Token<'static>]),
-    ExpectedIdentifier(Span),
     MismatchedBrackets(Span, Span),
 }
 
@@ -27,8 +28,16 @@ impl WLangError for ParseError {
                 "invalid expression",
                 [Hint::new_error("", *span)],
             },
+            ParseError::InvalidParameter(span) => d! {
+                "invalid parameter",
+                [Hint::new_error("", *span)],
+            },
             ParseError::UnmatchedBracket(span) => d! {
                 format!("unmatched bracket `{}`", &code[*span]),
+                [Hint::new_error("", *span)],
+            },
+            ParseError::ExpectedParameter(span) => d! {
+                "expected function parameter",
                 [Hint::new_error("", *span)],
             },
             ParseError::ExpectedBody(span) => d! {
@@ -57,10 +66,6 @@ impl WLangError for ParseError {
                     [Hint::new_error("", span.clone())],
                 }
             }
-            ParseError::ExpectedIdentifier(span) => d! {
-                "expected identifier",
-                [Hint::new_error("", span.clone())],
-            },
             ParseError::MismatchedBrackets(opening, closing) => d! {
                 "mismatched brackets",
                 [
