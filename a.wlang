@@ -1,0 +1,8 @@
+fn print(val: str) {
+    write(1, val);
+}
+
+fn _start() {
+    print("hello from wlang!");
+    exit(0);
+}

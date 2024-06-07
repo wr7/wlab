@@ -61,7 +61,9 @@ pub fn generate_code<'a>(ast: &[Statement<'a>]) -> Result<(), CodegenError<'a>> 
         generator.generate_function(fn_name, params, body, &mut scope)?;
     }
 
-    println!("{}", generator.module.to_string());
+    let llvm_ir = generator.module.to_string();
+
+    std::fs::write("./a.llvm", llvm_ir).unwrap();
 
     generator
         .target

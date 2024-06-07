@@ -1,3 +1,5 @@
+use std::{io::Write as _, process};
+
 use error_handling::WLangError;
 use lexer::{Lexer, LexerError};
 
@@ -22,39 +24,35 @@ mod parser;
  */
 
 fn main() {
-    let test_str = r#"
-fn print(val: str) {
-    write(1, val);
-}
+    let input: &str = &String::from_utf8(std::fs::read("./a.wlang").unwrap()).unwrap();
 
-fn _start(foo: i32, bar: i32) {
-    print("hello world!");
-    exit(0);
-}"#;
-
-    let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();
+    let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(input).collect();
 
     let tokens = match tokens {
         Ok(tokens) => tokens,
         Err(err) => {
-            eprintln!("\n{}", err.render(test_str));
-            return;
+            eprintln!("\n{}", err.render(input));
+            process::exit(1);
         }
     };
+
+    let mut lex_file = std::fs::File::create("./a.lex").unwrap();
+    write!(&mut lex_file, "{tokens:#?}").unwrap();
 
     let ast = parser::parse(&tokens);
     let ast = match ast {
         Ok(ast) => ast,
         Err(err) => {
-            eprintln!("\n{}", err.render(test_str));
-            return;
+            eprintln!("\n{}", err.render(input));
+            process::exit(1);
         }
     };
 
-    dbg!(&ast);
+    let mut ast_file = std::fs::File::create("./a.ast").unwrap();
+    write!(&mut ast_file, "{ast:#?}").unwrap();
 
     if let Err(err) = codegen::generate_code(&ast) {
-        eprintln!("\n{}", err.render(test_str));
-        return;
+        eprintln!("\n{}", err.render(input));
+        process::exit(1);
     };
 }
