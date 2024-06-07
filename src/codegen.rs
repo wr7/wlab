@@ -11,6 +11,7 @@ use self::{error::CodegenError, scope::Scope};
 
 mod codegen_unit;
 mod error;
+mod intrinsics;
 mod scope;
 
 mod types;
@@ -47,6 +48,8 @@ pub fn generate_code<'a>(ast: &[Statement<'a>]) -> Result<(), CodegenError<'a>> 
     let context = Context::create();
     let generator = CodegenUnit::new(&context);
     let mut scope = Scope::new_global();
+
+    intrinsics::add_intrinsics(&generator, &mut scope);
 
     for s in ast {
         let Statement::Function(fn_name, params, body) = s else {

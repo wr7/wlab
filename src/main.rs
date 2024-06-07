@@ -23,12 +23,12 @@ mod parser;
 
 fn main() {
     let test_str = r#"
-fn do_nothing(val: str) {
-    
+fn print(val: str) {
+    write(1, val);
 }
 
 fn main(foo: i32, bar: i32) {
-    do_nothing("hello world!");
+    print("hello world!");
 }"#;
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();

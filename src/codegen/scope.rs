@@ -62,6 +62,7 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
     }
 
     pub fn create_function(&mut self, name: &'_ str, function: FunctionInfo<'ctx>) {
+        // TODO: enforce param types when calling
         self.functions.insert(name.to_owned(), function);
     }
 
