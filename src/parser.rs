@@ -21,9 +21,15 @@ impl<'a> From<Expression<'a>> for Statement<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum Literal<'a> {
+    Number(&'a str),
+    String(&'a str),
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Expression<'a> {
     Identifier(&'a str),
-    Literal(&'a str),
+    Literal(Literal<'a>),
     BinaryOperator(Box<Self>, OpCode, Box<Self>),
     CompoundExpression(Vec<Statement<'a>>),
     FunctionCall(&'a str, Vec<Expression<'a>>),

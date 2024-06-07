@@ -4,7 +4,7 @@ use std::ops::Deref;
 
 use crate::{error_handling::Spanned as S, lexer::Token, util::SliceExt, T};
 
-use super::{util::NonBracketedIter, Expression, OpCode, ParseError, Statement};
+use super::{util::NonBracketedIter, Expression, Literal, OpCode, ParseError, Statement};
 
 type PResult<T> = Result<T, ParseError>;
 
@@ -82,10 +82,16 @@ fn try_parse_identifier<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expres
 
 /// A literal
 fn try_parse_literal<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
-    if let [S(Token::Identifier(ident), _)] = tokens {
-        if matches!(ident.chars().next().unwrap(), '0'..='9') {
-            return Ok(Some(Expression::Literal(ident)));
+    match tokens {
+        [S(Token::Identifier(ident), _)] => {
+            if matches!(ident.chars().next().unwrap(), '0'..='9') {
+                return Ok(Some(Expression::Literal(Literal::Number(ident))));
+            }
         }
+        [S(Token::StringLiteral(lit), _)] => {
+            return Ok(Some(Expression::Literal(Literal::String(lit))));
+        }
+        _ => {}
     }
 
     Ok(None)

@@ -1,5 +1,5 @@
 use crate::{
-    diagnostic,
+    diagnostic as d,
     error_handling::{Diagnostic, Hint, Spanned, WLangError},
     T,
 };
@@ -25,15 +25,22 @@ pub struct Lexer<'a> {
 }
 
 #[derive(Debug)]
-pub struct LexerError {
-    span: Span,
+pub enum LexerError {
+    InvalidToken(Span),
+    UnclosedString(Span),
 }
 
 impl WLangError for LexerError {
     fn get_diagnostic(&self, code: &str) -> Diagnostic {
-        diagnostic! {
-            format!("invalid token `{}`", &code[self.span.clone()]),
-            [Hint::new_error("", self.span)],
+        match self {
+            LexerError::InvalidToken(span) => d! {
+                format!("invalid token `{}`", &code[*span]),
+                [Hint::new_error("", *span)],
+            },
+            LexerError::UnclosedString(span) => d! {
+                "unclosed string",
+                [Hint::new_error("string starts here", *span)],
+            },
         }
     }
 }
@@ -58,60 +65,102 @@ impl<'a> Iterator for Lexer<'a> {
                 continue;
             }
 
-            if char == '-' && self.chars.clone().next().is_some_and(|c| c.1 == '>') {
-                self.chars.next();
-                return Some(Ok(Spanned(T!("->"), Span::at(byte_index).with_len(2))));
-            }
+            if char.is_ascii_alphanumeric() || char == '_' {
+                let ident_span = self.lex_ident(byte_index);
 
-            if !(char.is_ascii_alphanumeric() || char == '_') {
                 return Some(Ok(Spanned(
-                    match char {
-                        '+' => T!("+"),
-                        '-' => T!("-"),
-                        '*' => T!("*"),
-                        '/' => T!("/"),
-                        '.' => T!("."),
-                        ',' => T!(","),
-                        '(' => T!("("),
-                        ')' => T!(")"),
-                        '[' => T!("["),
-                        ']' => T!("]"),
-                        '{' => T!("{"),
-                        '}' => T!("}"),
-                        ':' => T!(":"),
-                        ';' => T!(";"),
-                        '=' => T!("="),
-                        _ => {
-                            return Some(Err(LexerError {
-                                span: self.input.char_span(byte_index).unwrap(),
-                            }));
-                        }
-                    },
-                    Span::at(byte_index).with_len(1),
+                    Token::Identifier(&self.input[ident_span]),
+                    ident_span,
                 )));
             }
 
-            let ident_start = byte_index;
-            let ident_end;
-
-            loop {
-                let Some((byte_index, char)) = self.chars.clone().next() else {
-                    ident_end = self.input.len();
-                    break;
-                };
-
-                if char.is_ascii_alphanumeric() || char == '_' {
-                    self.chars.next();
-                } else {
-                    ident_end = byte_index;
-                    break;
-                }
+            if char == '"' {
+                return Some(self.lex_string(byte_index));
             }
 
-            return Some(Ok(Spanned(
-                Token::Identifier(&self.input[ident_start..ident_end]),
-                Span::at(ident_start).with_end(ident_end),
-            )));
+            return Some(self.lex_symbol(byte_index, char));
         }
+    }
+}
+
+impl<'a> Lexer<'a> {
+    fn lex_ident(&mut self, ident_start: usize) -> Span {
+        let ident_end;
+
+        loop {
+            let Some((byte_index, char)) = self.chars.clone().next() else {
+                ident_end = self.input.len();
+                break;
+            };
+
+            if char.is_ascii_alphanumeric() || char == '_' {
+                self.chars.next();
+            } else {
+                ident_end = byte_index;
+                break;
+            }
+        }
+
+        return (ident_start..ident_end).into();
+    }
+
+    fn lex_string(&mut self, string_start: usize) -> Result<Spanned<Token<'a>>, LexerError> {
+        let string_start = string_start;
+        let string_end;
+
+        loop {
+            let Some((byte_index, char)) = self.chars.next() else {
+                return Err(LexerError::UnclosedString(Span::at(string_start)));
+            };
+
+            if char == '"' {
+                // TODO: backslash escaping
+                string_end = byte_index;
+                break;
+            }
+        }
+
+        let string = &self.input[string_start + 1..string_end];
+        return Ok(Spanned(
+            Token::StringLiteral(string),
+            Span::at(string_start).with_end(string_end + 1),
+        ));
+    }
+
+    fn lex_symbol(
+        &mut self,
+        byte_index: usize,
+        char: char,
+    ) -> Result<Spanned<Token<'a>>, LexerError> {
+        if char == '-' && self.chars.clone().next().is_some_and(|c| c.1 == '>') {
+            self.chars.next();
+            return Ok(Spanned(T!("->"), Span::at(byte_index).with_len(2)));
+        }
+
+        Ok(Spanned(
+            match char {
+                '+' => T!("+"),
+                '-' => T!("-"),
+                '*' => T!("*"),
+                '/' => T!("/"),
+                '.' => T!("."),
+                ',' => T!(","),
+                '(' => T!("("),
+                ')' => T!(")"),
+                '[' => T!("["),
+                ']' => T!("]"),
+                '{' => T!("{"),
+                '}' => T!("}"),
+                ':' => T!(":"),
+                ';' => T!(";"),
+                '=' => T!("="),
+                _ => {
+                    return Err(LexerError::InvalidToken(
+                        self.input.char_span(byte_index).unwrap(),
+                    ));
+                }
+            },
+            Span::at(byte_index).with_len(1),
+        ))
     }
 }

@@ -7,6 +7,7 @@ pub enum Token<'a> {
     OpenBracket(BracketType),
     CloseBracket(BracketType),
     Identifier(&'a str),
+    StringLiteral(&'a str),
     Arrow,
     Plus,
     Minus,
@@ -79,6 +80,7 @@ impl<'a> Token<'a> {
     pub fn as_str(&self) -> &str {
         match self {
             Token::Identifier(ident) => ident,
+            Token::StringLiteral(lit) => lit,
             T!("->") => "->",
             T!("+") => "+",
             T!("-") => "-",

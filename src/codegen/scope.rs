@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use inkwell::values::{BasicValueEnum, FunctionValue, IntValue};
+use inkwell::values::FunctionValue;
 
 use super::types::{Type, TypedValue};
 

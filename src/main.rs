@@ -22,18 +22,14 @@ mod parser;
  */
 
 fn main() {
-    let test_str = "\
-fn do_nothing(alpha: i32, beta: i32, gamma: i32) {
+    let test_str = r#"
+fn do_nothing(val: str) {
     
 }
 
 fn main(foo: i32, bar: i32) {
-    let x = do_nothing(
-        foo + bar,
-        (9 + 10) - 21,
-        42069,
-    );
-}";
+    do_nothing("hello world!");
+}"#;
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();
 

@@ -1,14 +1,16 @@
 use std::fmt::Display;
 
-use inkwell::{builder::Builder, context::Context, types::BasicTypeEnum, values::BasicValueEnum};
+use inkwell::{builder::Builder, types::BasicTypeEnum, values::BasicValueEnum};
 
 use crate::parser::OpCode;
 
-use super::error::CodegenError;
+use super::{error::CodegenError, CodegenUnit};
 
 #[derive(PartialEq, Eq, Clone)]
+#[allow(non_camel_case_types)]
 pub enum Type {
     i32,
+    str,
 }
 
 #[derive(Clone)]
@@ -21,6 +23,7 @@ impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::i32 => write!(f, "i32"),
+            Type::str => write!(f, "str"),
         }
     }
 }
@@ -29,13 +32,15 @@ impl Type {
     pub fn new<'a>(type_: &'a str) -> Result<Self, CodegenError<'a>> {
         Ok(match type_ {
             "i32" => Self::i32,
+            "str" => Self::str,
             _ => return Err(CodegenError::UndefinedType(type_)),
         })
     }
 
-    pub fn get_llvm_type<'ctx>(&self, context: &'ctx Context) -> BasicTypeEnum<'ctx> {
+    pub fn get_llvm_type<'ctx>(&self, generator: &CodegenUnit<'ctx>) -> BasicTypeEnum<'ctx> {
         match self {
-            Type::i32 => context.i32_type().into(),
+            Type::i32 => generator.core_types.i32.clone().into(),
+            Type::str => generator.core_types.str.clone().into(),
         }
     }
 }
@@ -72,6 +77,7 @@ impl<'ctx> TypedValue<'ctx> {
                     val: val.unwrap().into(),
                 })
             }
+            Type::str => todo!(), // Span is also required for an error here
         }
     }
 }
