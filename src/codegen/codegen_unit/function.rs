@@ -53,7 +53,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         scope.create_function(
             fn_name,
             FunctionInfo {
-                num_params: params.len(),
+                params: params.into_iter().map(|(_, t)| t).collect(),
                 function,
             },
         );

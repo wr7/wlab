@@ -91,25 +91,19 @@ impl<'ctx> CodegenUnit<'ctx> {
             .cloned()
             .ok_or(CodegenError::UndefinedFunction(fn_name))?;
 
-        if arguments.len() != function.num_params {
-            return Err(CodegenError::InvalidParameters(
-                fn_name,
-                function.num_params,
-                arguments.len(),
-            ));
+        let mut metadata_arguments: Vec<BasicMetadataValueEnum> =
+            Vec::with_capacity(arguments.len());
+
+        for (i, arg) in arguments.iter().enumerate() {
+            let arg = self.generate_expression(arg, scope)?;
+
+            metadata_arguments.push(arg.val.into());
+            assert_eq!(function.params[i], arg.type_); // TODO mismatched_types: return error instead of panicking
         }
-
-        let arguments: Result<Vec<_>, _> = arguments
-            .iter()
-            .map(|e| self.generate_expression(e, scope))
-            .map(|v| Ok(v?.val.into()))
-            .collect();
-
-        let arguments: Vec<BasicMetadataValueEnum> = arguments?;
 
         let _ret_val = self // TODO: return value
             .builder
-            .build_direct_call(function.function.clone(), &arguments, "")
+            .build_direct_call(function.function.clone(), &metadata_arguments, "")
             .unwrap();
 
         Ok(TypedValue {

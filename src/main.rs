@@ -29,6 +29,7 @@ fn print(val: str) {
 
 fn main(foo: i32, bar: i32) {
     print("hello world!");
+    exit(0);
 }"#;
 
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(test_str).collect();

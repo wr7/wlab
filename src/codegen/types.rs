@@ -6,7 +6,7 @@ use crate::parser::OpCode;
 
 use super::{error::CodegenError, CodegenUnit};
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 #[allow(non_camel_case_types)]
 pub enum Type {
     i32,

@@ -6,7 +6,7 @@ use super::types::{Type, TypedValue};
 
 #[derive(Clone)]
 pub struct FunctionInfo<'ctx> {
-    pub num_params: usize,
+    pub params: Vec<Type>,
     pub function: FunctionValue<'ctx>,
 }
 

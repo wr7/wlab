@@ -1,14 +1,17 @@
-use inkwell::{
-    context,
-    values::{FunctionValue, IntValue, StructValue},
-};
+use inkwell::values::{IntValue, StructValue};
 
 use super::{
     scope::{FunctionInfo, Scope},
+    types::Type,
     CodegenUnit,
 };
 
 pub fn add_intrinsics<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
+    add_write(unit, scope);
+    add_exit(unit, scope);
+}
+
+fn add_write<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
     let i64 = unit.context.i64_type();
     let i32 = unit.core_types.i32;
     let str = unit.core_types.str;
@@ -95,8 +98,67 @@ pub fn add_intrinsics<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx
     scope.create_function(
         "write",
         FunctionInfo {
-            num_params: 2,
+            params: vec![Type::i32, Type::str],
             function: write,
+        },
+    );
+}
+
+fn add_exit<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
+    let i64 = unit.context.i64_type();
+    let i32 = unit.core_types.i32;
+
+    let exit = unit.module.add_function(
+        "exit",
+        unit.core_types.unit.fn_type(&[i32.into()], false),
+        None,
+    );
+
+    let main_block = unit.context.append_basic_block(exit, "");
+    unit.builder.position_at_end(main_block);
+
+    let syscall_type = i64.fn_type(&[i64.into(), i64.into()], false);
+
+    let syscall = unit.context.create_inline_asm(
+        syscall_type,
+        "syscall".into(),
+        "=r,{rax},{rdi}".into(),
+        true,
+        false,
+        None,
+        false,
+    );
+
+    // params //
+
+    let exit_code = unit
+        .builder
+        .build_int_z_extend(
+            IntValue::try_from(exit.get_nth_param(0).unwrap()).unwrap(),
+            i64,
+            "",
+        )
+        .unwrap();
+
+    // do call //
+
+    unit.builder
+        .build_indirect_call(
+            syscall_type,
+            syscall,
+            &[i64.const_int(60, false).into(), exit_code.into()],
+            "",
+        )
+        .unwrap();
+
+    let zero = unit.core_types.unit.const_zero();
+    unit.builder.build_return(Some(&zero)).unwrap();
+
+    scope.create_function(
+        "exit",
+        FunctionInfo {
+            params: vec![Type::i32],
+            function: exit,
         },
     );
 }
