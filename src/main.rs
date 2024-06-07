@@ -27,7 +27,7 @@ fn print(val: str) {
     write(1, val);
 }
 
-fn main(foo: i32, bar: i32) {
+fn _start(foo: i32, bar: i32) {
     print("hello world!");
     exit(0);
 }"#;

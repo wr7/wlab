@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use inkwell::{
     context::Context,
     targets::TargetMachine,
@@ -60,6 +62,24 @@ pub fn generate_code<'a>(ast: &[Statement<'a>]) -> Result<(), CodegenError<'a>> 
     }
 
     println!("{}", generator.module.to_string());
+
+    generator
+        .target
+        .write_to_file(
+            &generator.module,
+            inkwell::targets::FileType::Object,
+            Path::new("./a.o"),
+        )
+        .unwrap();
+
+    generator
+        .target
+        .write_to_file(
+            &generator.module,
+            inkwell::targets::FileType::Assembly,
+            Path::new("./a.asm"),
+        )
+        .unwrap();
 
     Ok(())
 }
