@@ -16,11 +16,12 @@ mod util;
 
 mod parser;
 
-/* TODO
- *  - Create distinction between Compound Statements and Compound Expressions (maybe have compound expression return implicit unit?)
+/* Long term TODO list
+ *  - Add function return values and compound expressions
+ *  - Add function definition to errors
+ *  - Add a "function already defined" error
  *  - Allow out-of-order and recursive functions
  *  - Add unit tests for parser
- *  - Add types
  */
 
 fn main() {

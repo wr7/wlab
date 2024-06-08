@@ -38,13 +38,13 @@ impl<'a> WLangError for CodegenError<'a> {
                 [Hint::new_error(format!("Value here is of type `{type_}`"), *span)],
             },
             CodegenError::UnexpectedType(span, expected, got) => {
-                d! { // TODO: add function definition location when not operator
+                d! {
                     format!("Unexpected type: expected `{expected}`; got `{got}`"),
                     [Hint::new_error(format!("value here of type `{got}`"), *span)]
                 }
             }
             CodegenError::InvalidParamCount(span, expected, got) => {
-                d! { // TODO: add function definition location
+                d! {
                     format!("Incorrect number of parameters: expected {expected}, got {got}"),
                     [Hint::new_error("Function called here", *span)]
                 }

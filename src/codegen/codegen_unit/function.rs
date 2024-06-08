@@ -49,8 +49,6 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         self.builder.build_return(Some(&zero)).unwrap();
 
-        // TODO: function already defined error?
-
         scope.create_function(
             fn_name,
             FunctionInfo {

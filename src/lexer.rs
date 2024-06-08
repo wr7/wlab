@@ -114,7 +114,6 @@ impl<'a> Lexer<'a> {
             };
 
             if char == '"' {
-                // TODO: backslash escaping
                 string_end = byte_index;
                 break;
             }

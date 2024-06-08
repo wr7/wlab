@@ -122,7 +122,7 @@ impl<'ctx> CodegenUnit<'ctx> {
             }
         }
 
-        let _ret_val = self // TODO: return value
+        let _ret_val = self
             .builder
             .build_direct_call(function.function.clone(), &metadata_arguments, "")
             .unwrap();
