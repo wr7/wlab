@@ -24,11 +24,11 @@ impl<'ctx> CodegenUnit<'ctx> {
                 .ok_or(CodegenError::UndefinedVariable(ident)),
             Expression::Literal(Literal::Number(lit)) => self.generate_number_literal(lit),
             Expression::Literal(Literal::String(lit)) => self.generate_string_literal(lit),
-            Expression::BinaryOperator(a, operator, b) => {
-                let a = self.generate_expression(a, scope)?;
-                let b = self.generate_expression(b, scope)?;
+            Expression::BinaryOperator(a_expr, operator, b_expr) => {
+                let a = self.generate_expression(a_expr, scope)?;
+                let b = self.generate_expression(b_expr, scope)?;
 
-                a.generate_operation(&self.builder, *operator, b)
+                a.generate_operation(&self.builder, a_expr.1, *operator, S(b, b_expr.1))
             }
             Expression::CompoundExpression(_) => todo!(),
             Expression::FunctionCall(fn_name, arguments) => {
@@ -92,6 +92,10 @@ impl<'ctx> CodegenUnit<'ctx> {
             .cloned()
             .ok_or(CodegenError::UndefinedFunction(fn_name))?;
 
+        if arguments.len() != function.params.len() {
+            // return CodegenError::InvalidParamCount(, , ) TODO
+        }
+
         let mut metadata_arguments: Vec<BasicMetadataValueEnum> =
             Vec::with_capacity(arguments.len());
 
@@ -99,7 +103,15 @@ impl<'ctx> CodegenUnit<'ctx> {
             let arg = self.generate_expression(arg, scope)?;
 
             metadata_arguments.push(arg.val.into());
-            assert_eq!(function.params[i], arg.type_); // TODO mismatched_types: return error instead of panicking
+
+            let expected_type = &function.params[i];
+            if expected_type != &arg.type_ {
+                return Err(CodegenError::UnexpectedType(
+                    arguments[i].1,
+                    expected_type.to_string().into(),
+                    arg.type_.to_string().into(),
+                ));
+            }
         }
 
         let _ret_val = self // TODO: return value

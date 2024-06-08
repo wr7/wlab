@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{error_handling::Spanned, lexer::Token};
 
 mod error;
@@ -45,6 +47,19 @@ pub enum OpCode {
     Minus,
     Asterisk,
     Slash,
+}
+
+impl Display for OpCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = match self {
+            OpCode::Plus => "+",
+            OpCode::Minus => "-",
+            OpCode::Asterisk => "-",
+            OpCode::Slash => "/",
+        };
+
+        write!(f, "{}", str)
+    }
 }
 
 pub fn parse<'a>(

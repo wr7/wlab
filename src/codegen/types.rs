@@ -1,8 +1,9 @@
 use std::fmt::Display;
 
 use inkwell::{builder::Builder, types::BasicTypeEnum, values::BasicValueEnum};
+use wutil::Span;
 
-use crate::parser::OpCode;
+use crate::{error_handling::Spanned, parser::OpCode};
 
 use super::{error::CodegenError, CodegenUnit};
 
@@ -49,14 +50,18 @@ impl<'ctx> TypedValue<'ctx> {
     pub fn generate_operation(
         &self,
         builder: &Builder<'ctx>,
+        lhs_span: Span,
         opcode: OpCode,
-        rhs: Self,
+        rhs: Spanned<Self>,
     ) -> Result<Self, CodegenError<'static>> {
         match self.type_ {
             Type::i32 => {
                 if rhs.type_ != Type::i32 {
-                    // Incorrect type
-                    todo!() // rhs span is required for error. Parser support is needed
+                    return Err(CodegenError::UnexpectedType(
+                        rhs.1,
+                        "i32".into(),
+                        rhs.type_.to_string(),
+                    ));
                 }
 
                 let (BasicValueEnum::IntValue(lhs), BasicValueEnum::IntValue(rhs)) =
@@ -77,7 +82,11 @@ impl<'ctx> TypedValue<'ctx> {
                     val: val.unwrap().into(),
                 })
             }
-            Type::str => todo!(), // Span is also required for an error here
+            Type::str => Err(CodegenError::UndefinedOperator(
+                opcode,
+                lhs_span,
+                self.type_.to_string(),
+            )),
         }
     }
 }
