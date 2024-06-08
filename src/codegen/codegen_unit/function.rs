@@ -44,7 +44,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         let mut fn_scope = Scope::new(&scope).with_params(&params, &function);
 
         for statement in body {
-            self.generate_statement(&mut fn_scope, statement)?;
+            self.generate_statement(&mut fn_scope, statement.as_sref())?;
         }
 
         self.builder.build_return(Some(&zero)).unwrap();

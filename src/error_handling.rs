@@ -16,12 +16,18 @@ pub trait WLangError: Sized {
 }
 
 /// Includes information about where something appears in a source file
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Spanned<T>(pub T, pub Span);
 
 impl<T: PartialEq> PartialEq for Spanned<T> {
     fn eq(&self, other: &Self) -> bool {
         self.0 == other.0
+    }
+}
+
+impl<T> Spanned<T> {
+    pub fn as_sref(&self) -> Spanned<&T> {
+        Spanned(&self.0, self.1)
     }
 }
 

@@ -1,4 +1,4 @@
-use std::mem;
+use std::{mem, ops::Deref};
 
 use inkwell::{
     builder::Builder,
@@ -9,6 +9,7 @@ use inkwell::{
 
 use crate::{
     codegen::{error::CodegenError, scope::Scope, CoreTypes},
+    error_handling::Spanned as S,
     parser::Statement,
 };
 
@@ -52,12 +53,14 @@ impl<'ctx> CodegenUnit<'ctx> {
     pub fn generate_statement<'a: 'ctx>(
         &self,
         scope: &mut Scope<'_, 'ctx>,
-        statement: &Statement<'a>,
+        statement: S<&Statement<'a>>,
     ) -> Result<(), CodegenError<'a>> {
-        match statement {
-            Statement::Expression(expr) => mem::drop(self.generate_expression(expr, scope)?),
+        match statement.deref() {
+            Statement::Expression(expr) => {
+                mem::drop(self.generate_expression(S(expr, statement.1), scope)?)
+            }
             Statement::Let(varname, val) => {
-                let val = self.generate_expression(val, scope)?;
+                let val = self.generate_expression(val.as_sref(), scope)?;
                 scope.create_variable(varname, val);
             }
             Statement::Assign(_, _) => todo!(),

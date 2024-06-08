@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::{
     codegen::{
         codegen_unit::CodegenUnit,
@@ -10,14 +12,15 @@ use crate::{
 };
 
 use inkwell::{types::StringRadix, values::BasicMetadataValueEnum};
+use wutil::Span;
 
 impl<'ctx> CodegenUnit<'ctx> {
     pub fn generate_expression<'a: 'ctx>(
         &self,
-        expression: &Expression<'a>,
+        expression: S<&Expression<'a>>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, CodegenError<'a>> {
-        match expression {
+        match expression.deref() {
             Expression::Identifier(ident) => scope
                 .get_variable(ident)
                 .cloned()
@@ -25,14 +28,14 @@ impl<'ctx> CodegenUnit<'ctx> {
             Expression::Literal(Literal::Number(lit)) => self.generate_number_literal(lit),
             Expression::Literal(Literal::String(lit)) => self.generate_string_literal(lit),
             Expression::BinaryOperator(a_expr, operator, b_expr) => {
-                let a = self.generate_expression(a_expr, scope)?;
-                let b = self.generate_expression(b_expr, scope)?;
+                let a = self.generate_expression(a_expr.as_sref(), scope)?;
+                let b = self.generate_expression(b_expr.as_sref(), scope)?;
 
                 a.generate_operation(&self.builder, a_expr.1, *operator, S(b, b_expr.1))
             }
             Expression::CompoundExpression(_) => todo!(),
             Expression::FunctionCall(fn_name, arguments) => {
-                self.generate_function_call(scope, fn_name, arguments)
+                self.generate_function_call(expression.1, scope, fn_name, arguments)
             }
         }
     }
@@ -83,6 +86,7 @@ impl<'ctx> CodegenUnit<'ctx> {
 
     fn generate_function_call<'a: 'ctx>(
         &self,
+        span: Span,
         scope: &mut Scope<'_, 'ctx>,
         fn_name: &'a str,
         arguments: &[S<Expression<'a>>],
@@ -93,14 +97,18 @@ impl<'ctx> CodegenUnit<'ctx> {
             .ok_or(CodegenError::UndefinedFunction(fn_name))?;
 
         if arguments.len() != function.params.len() {
-            // return CodegenError::InvalidParamCount(, , ) TODO
+            return Err(CodegenError::InvalidParamCount(
+                span,
+                function.params.len(),
+                arguments.len(),
+            ));
         }
 
         let mut metadata_arguments: Vec<BasicMetadataValueEnum> =
             Vec::with_capacity(arguments.len());
 
         for (i, arg) in arguments.iter().enumerate() {
-            let arg = self.generate_expression(arg, scope)?;
+            let arg = self.generate_expression(arg.as_sref(), scope)?;
 
             metadata_arguments.push(arg.val.into());
 
