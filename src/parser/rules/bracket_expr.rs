@@ -32,7 +32,7 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<
     }
 }
 
-pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Statement<'a>>> {
+pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Statement<'a>>>> {
     let mut items = Vec::new();
 
     for (mut stmnt, separator) in TokenSplit::new(tokens, |t| matches!(&t, &T!(";") | &T!("}"))) {
@@ -42,7 +42,8 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<State
         }
 
         if let Some(statement) = try_parse_statement(stmnt)? {
-            items.push(statement)
+            let span = stmnt.first().unwrap().1.start..stmnt.last().unwrap().1.end;
+            items.push(S(statement, span.into()));
         }
     }
 

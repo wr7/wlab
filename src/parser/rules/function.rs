@@ -64,11 +64,11 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
     Ok(Some(Expression::FunctionCall(&fn_name, params)))
 }
 
-fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expression<'a>>> {
+fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Expression<'a>>>> {
     let mut expressions = Vec::new();
 
-    for (expr, separator) in TokenSplit::new(tokens, |t| t == &T!(",")) {
-        let Some(expr) = try_parse_expr(expr)? else {
+    for (expr_toks, separator) in TokenSplit::new(tokens, |t| t == &T!(",")) {
+        let Some(expr) = try_parse_expr(expr_toks)? else {
             let Some(separator) = separator else {
                 break;
             };
@@ -76,7 +76,9 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<Expressi
             return Err(ParseError::ExpectedExpression(separator.1.span_at()));
         };
 
-        expressions.push(expr);
+        let span = expr_toks.first().unwrap().1.start..expr_toks.last().unwrap().1.end;
+
+        expressions.push(S(expr, span.into()));
     }
 
     Ok(expressions)

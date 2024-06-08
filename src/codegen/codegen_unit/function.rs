@@ -5,6 +5,7 @@ use crate::{
         types::Type,
         CodegenUnit,
     },
+    error_handling::Spanned as S,
     parser::Statement,
 };
 
@@ -15,7 +16,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         &self,
         fn_name: &str,
         params: &[(&'a str, &'a str)],
-        body: &[Statement<'a>],
+        body: &[S<Statement<'a>>],
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), CodegenError<'a>> {
         let params: Result<Vec<(&'a str, Type)>, _> = params

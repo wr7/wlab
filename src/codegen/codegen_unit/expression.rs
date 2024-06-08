@@ -5,6 +5,7 @@ use crate::{
         scope::Scope,
         types::{Type, TypedValue},
     },
+    error_handling::Spanned as S,
     parser::{Expression, Literal},
 };
 
@@ -84,7 +85,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         &self,
         scope: &mut Scope<'_, 'ctx>,
         fn_name: &'a str,
-        arguments: &[Expression<'a>],
+        arguments: &[S<Expression<'a>>],
     ) -> Result<TypedValue<'ctx>, CodegenError<'a>> {
         let function = scope
             .get_function(fn_name)

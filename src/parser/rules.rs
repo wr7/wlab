@@ -109,7 +109,12 @@ fn try_parse_assign<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<
         return Err(ParseError::ExpectedExpression(equal_span.span_after()));
     };
 
-    Ok(Some(Statement::Assign(&var_name, Box::new(val))))
+    let span = tokens.first().unwrap().1.start..tokens.last().unwrap().1.end;
+
+    Ok(Some(Statement::Assign(
+        &var_name,
+        Box::new(S(val, span.into())),
+    )))
 }
 
 /// A variable initialization. Eg `let foo = bar * (fizz + buzz)`
@@ -131,7 +136,12 @@ fn try_parse_let<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>
         return Err(ParseError::ExpectedExpression(equal_span.span_after()));
     };
 
-    return Ok(Some(Statement::Let(&var_name, Box::new(val))));
+    let span = tokens.first().unwrap().1.start..tokens.last().unwrap().1.end;
+
+    return Ok(Some(Statement::Let(
+        &var_name,
+        Box::new(S(val, span.into())),
+    )));
 }
 
 /// A binary expression. Eg `a + b`
@@ -151,10 +161,13 @@ fn try_parse_binary_operator<'a>(
                 let y = try_parse_expr(&tokens[i + 1..])?
                     .ok_or_else(|| ParseError::ExpectedExpression(tokens[i].1.span_after()))?;
 
+                let x_span = tokens[0].1.start..tokens[i - 1].1.end;
+                let y_span = tokens[i + 1].1.start..tokens.last().unwrap().1.end;
+
                 return Ok(Some(Expression::BinaryOperator(
-                    Box::new(x),
+                    Box::new(S(x, x_span.into())),
                     *opcode,
-                    Box::new(y),
+                    Box::new(S(y, y_span.into())),
                 )));
             }
         }

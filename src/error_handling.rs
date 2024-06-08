@@ -25,6 +25,8 @@ impl<T: PartialEq> PartialEq for Spanned<T> {
     }
 }
 
+impl<T: Eq> Eq for Spanned<T> {}
+
 pub struct Hint {
     msg: Cow<'static, str>,
     span: Range<usize>,

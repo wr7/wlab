@@ -9,9 +9,13 @@ pub use error::ParseError;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Statement<'a> {
     Expression(Expression<'a>),
-    Let(&'a str, Box<Expression<'a>>),
-    Assign(&'a str, Box<Expression<'a>>),
-    Function(&'a str, Vec<(&'a str, &'a str)>, Vec<Statement<'a>>),
+    Let(&'a str, Box<Spanned<Expression<'a>>>),
+    Assign(&'a str, Box<Spanned<Expression<'a>>>),
+    Function(
+        &'a str,
+        Vec<(&'a str, &'a str)>,
+        Vec<Spanned<Statement<'a>>>,
+    ),
 }
 
 impl<'a> From<Expression<'a>> for Statement<'a> {
@@ -30,9 +34,9 @@ pub enum Literal<'a> {
 pub enum Expression<'a> {
     Identifier(&'a str),
     Literal(Literal<'a>),
-    BinaryOperator(Box<Self>, OpCode, Box<Self>),
-    CompoundExpression(Vec<Statement<'a>>),
-    FunctionCall(&'a str, Vec<Expression<'a>>),
+    BinaryOperator(Box<Spanned<Self>>, OpCode, Box<Spanned<Self>>),
+    CompoundExpression(Vec<Spanned<Statement<'a>>>),
+    FunctionCall(&'a str, Vec<Spanned<Expression<'a>>>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -43,7 +47,9 @@ pub enum OpCode {
     Slash,
 }
 
-pub fn parse<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Result<Vec<Statement<'a>>, ParseError> {
+pub fn parse<'a>(
+    tokens: &'a [Spanned<Token<'a>>],
+) -> Result<Vec<Spanned<Statement<'a>>>, ParseError> {
     error::check_brackets(tokens)?;
     rules::parse_statement_list(tokens)
 }
