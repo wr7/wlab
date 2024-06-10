@@ -3,6 +3,6 @@ fn print(val: str) {
 }
 
 fn _start() {
-    print("hello from wlang!", 5);
+    print("hello from \"wlang\"!\n");
     exit(0);
 }

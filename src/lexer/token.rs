@@ -7,7 +7,7 @@ pub enum Token<'a> {
     OpenBracket(BracketType),
     CloseBracket(BracketType),
     Identifier(&'a str),
-    StringLiteral(&'a str),
+    StringLiteral(String),
     Arrow,
     Plus,
     Minus,

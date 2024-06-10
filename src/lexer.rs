@@ -28,6 +28,7 @@ pub struct Lexer<'a> {
 pub enum LexerError {
     InvalidToken(Span),
     UnclosedString(Span),
+    InvalidEscape(Span),
 }
 
 impl WLangError for LexerError {
@@ -40,6 +41,10 @@ impl WLangError for LexerError {
             LexerError::UnclosedString(span) => d! {
                 "unclosed string",
                 [Hint::new_error("string starts here", *span)],
+            },
+            LexerError::InvalidEscape(span) => d! {
+                format!("invalid escape sequence \"\\{}\"", &code[*span]),
+                [Hint::new_error("", *span)],
             },
         }
     }
@@ -105,7 +110,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn lex_string(&mut self, string_start: usize) -> Result<Spanned<Token<'a>>, LexerError> {
-        let string_start = string_start;
+        let mut string = String::new();
         let string_end;
 
         loop {
@@ -113,13 +118,34 @@ impl<'a> Lexer<'a> {
                 return Err(LexerError::UnclosedString(Span::at(string_start)));
             };
 
-            if char == '"' {
-                string_end = byte_index;
-                break;
+            match char {
+                '"' => {
+                    string_end = byte_index;
+                    break;
+                }
+                '\\' => {
+                    let Some((byte_index, char)) = self.chars.next() else {
+                        continue; // Triggers an "unclosed string" error
+                    };
+
+                    let char_to_add = match char {
+                        'n' => '\n',
+                        'r' => '\r',
+                        '\\' => '\\',
+                        '"' => '"',
+                        _ => {
+                            return Err(LexerError::InvalidEscape(
+                                Span::at(byte_index).with_len(char.len_utf8()),
+                            ))
+                        }
+                    };
+
+                    string.push(char_to_add);
+                }
+                _ => string.push(char),
             }
         }
 
-        let string = &self.input[string_start + 1..string_end];
         return Ok(Spanned(
             Token::StringLiteral(string),
             Span::at(string_start).with_end(string_end + 1),
