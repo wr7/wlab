@@ -85,7 +85,7 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Expres
 }
 
 /// Parses function parameters eg `foo: i32, bar: usize`.
-fn parse_fn_params<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<(&'a str, &'a str)>> {
+fn parse_fn_params<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<(&'a str, S<&'a str>)>> {
     let mut params = Vec::new();
 
     for (param, separator) in TokenSplit::new(&tokens, |t| t == &T!(",")) {
@@ -104,7 +104,7 @@ fn parse_fn_params<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<(&'a str, &'a 
 }
 
 /// Parses a function parameter (eg `foo: u32`)
-fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, &'a str)>> {
+fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, S<&'a str>)>> {
     let Some((S(Token::Identifier(name), name_span), tokens)) = tokens.split_first() else {
         let Some(tok) = tokens.first() else {
             return Ok(None);
@@ -122,7 +122,7 @@ fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, &'
         return Err(ParseError::ExpectedToken(span, &[T!(":")]));
     };
 
-    let Some((S(Token::Identifier(type_), _), tokens)) = tokens.split_first() else {
+    let Some((S(Token::Identifier(type_), type_span), tokens)) = tokens.split_first() else {
         let span = tokens
             .first()
             .map(|t| t.1)
@@ -135,5 +135,5 @@ fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, &'
         return Err(ParseError::ExpectedToken(tok.1, &[T!(","), T!(")")]));
     }
 
-    Ok(Some((name, type_)))
+    Ok(Some((name, S(type_, *type_span))))
 }

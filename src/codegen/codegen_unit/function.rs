@@ -1,11 +1,10 @@
 use crate::{
     codegen::{
-        error::CodegenError,
         scope::{FunctionInfo, Scope},
         types::Type,
         CodegenUnit,
     },
-    error_handling::Spanned as S,
+    error_handling::{Diagnostic, Spanned as S},
     parser::Statement,
 };
 
@@ -15,13 +14,13 @@ impl<'ctx> CodegenUnit<'ctx> {
     pub fn generate_function<'a: 'ctx>(
         &self,
         fn_name: &str,
-        params: &[(&'a str, &'a str)],
+        params: &[(&'a str, S<&'a str>)],
         body: &[S<Statement<'a>>],
         scope: &mut Scope<'_, 'ctx>,
-    ) -> Result<(), CodegenError<'a>> {
+    ) -> Result<(), Diagnostic> {
         let params: Result<Vec<(&'a str, Type)>, _> = params
             .iter()
-            .map(|(n, t)| Ok((*n, Type::new(t)?)))
+            .map(|(n, t)| Ok((*n, Type::new(t, t.1)?)))
             .collect();
         let params = params?;
 

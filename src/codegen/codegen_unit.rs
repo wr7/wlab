@@ -8,8 +8,8 @@ use inkwell::{
 };
 
 use crate::{
-    codegen::{error::CodegenError, scope::Scope, CoreTypes},
-    error_handling::Spanned as S,
+    codegen::{scope::Scope, CoreTypes},
+    error_handling::{Diagnostic, Spanned as S},
     parser::Statement,
 };
 
@@ -54,7 +54,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         &self,
         scope: &mut Scope<'_, 'ctx>,
         statement: S<&Statement<'a>>,
-    ) -> Result<(), CodegenError<'a>> {
+    ) -> Result<(), Diagnostic> {
         match statement.deref() {
             Statement::Expression(expr) => {
                 mem::drop(self.generate_expression(S(expr, statement.1), scope)?)

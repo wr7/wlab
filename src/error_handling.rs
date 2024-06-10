@@ -15,6 +15,12 @@ pub trait WLangError: Sized {
     }
 }
 
+impl WLangError for Diagnostic {
+    fn get_diagnostic(&self, _: &str) -> Diagnostic {
+        self.clone()
+    }
+}
+
 /// Includes information about where something appears in a source file
 #[derive(Debug, Clone, Copy)]
 pub struct Spanned<T>(pub T, pub Span);
@@ -33,12 +39,14 @@ impl<T> Spanned<T> {
 
 impl<T: Eq> Eq for Spanned<T> {}
 
+#[derive(Clone)]
 pub struct Hint {
     msg: Cow<'static, str>,
     span: Range<usize>,
     pointer_char: char,
 }
 
+#[derive(Clone)]
 pub struct Diagnostic {
     pub msg: Cow<'static, str>,
     pub hints: Vec<Hint>,

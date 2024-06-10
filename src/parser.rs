@@ -15,7 +15,7 @@ pub enum Statement<'a> {
     Assign(&'a str, Box<Spanned<Expression<'a>>>),
     Function(
         &'a str,
-        Vec<(&'a str, &'a str)>,
+        Vec<(&'a str, Spanned<&'a str>)>,
         Vec<Spanned<Statement<'a>>>,
     ),
 }

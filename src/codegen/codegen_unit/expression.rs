@@ -2,12 +2,12 @@ use std::ops::Deref;
 
 use crate::{
     codegen::{
+        self,
         codegen_unit::CodegenUnit,
-        error::CodegenError,
         scope::Scope,
         types::{Type, TypedValue},
     },
-    error_handling::Spanned as S,
+    error_handling::{Diagnostic, Spanned as S},
     parser::{Expression, Literal},
 };
 
@@ -19,13 +19,15 @@ impl<'ctx> CodegenUnit<'ctx> {
         &self,
         expression: S<&Expression<'a>>,
         scope: &mut Scope<'_, 'ctx>,
-    ) -> Result<TypedValue<'ctx>, CodegenError<'a>> {
+    ) -> Result<TypedValue<'ctx>, Diagnostic> {
         match expression.deref() {
             Expression::Identifier(ident) => scope
                 .get_variable(ident)
                 .cloned()
-                .ok_or(CodegenError::UndefinedVariable(ident)),
-            Expression::Literal(Literal::Number(lit)) => self.generate_number_literal(lit),
+                .ok_or(codegen::error::undefined_variable(S(ident, expression.1))),
+            Expression::Literal(Literal::Number(lit)) => {
+                self.generate_number_literal(lit, expression.1)
+            }
             Expression::Literal(Literal::String(lit)) => self.generate_string_literal(lit),
             Expression::BinaryOperator(a_expr, operator, b_expr) => {
                 let a = self.generate_expression(a_expr.as_sref(), scope)?;
@@ -43,7 +45,7 @@ impl<'ctx> CodegenUnit<'ctx> {
     fn generate_string_literal<'a: 'ctx>(
         &self,
         lit: &'a str,
-    ) -> Result<TypedValue<'ctx>, CodegenError<'a>> {
+    ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let string = self.context.const_string(lit.as_bytes(), false);
 
         let string_global = self.module.add_global(
@@ -72,13 +74,14 @@ impl<'ctx> CodegenUnit<'ctx> {
     fn generate_number_literal<'a: 'ctx>(
         &self,
         lit: &'a str,
-    ) -> Result<TypedValue<'ctx>, CodegenError<'a>> {
+        span: Span,
+    ) -> Result<TypedValue<'ctx>, Diagnostic> {
         Ok(TypedValue {
             val: self
                 .context
                 .i32_type()
                 .const_int_from_string(lit, StringRadix::Decimal)
-                .ok_or(CodegenError::InvalidNumber(lit))?
+                .ok_or(codegen::error::invalid_number(S(lit, span)))?
                 .into(),
             type_: Type::i32,
         })
@@ -90,14 +93,18 @@ impl<'ctx> CodegenUnit<'ctx> {
         scope: &mut Scope<'_, 'ctx>,
         fn_name: &'a str,
         arguments: &[S<Expression<'a>>],
-    ) -> Result<TypedValue<'ctx>, CodegenError<'a>> {
-        let function = scope
-            .get_function(fn_name)
-            .cloned()
-            .ok_or(CodegenError::UndefinedFunction(fn_name))?;
+    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+        let function =
+            scope
+                .get_function(fn_name)
+                .cloned()
+                .ok_or(codegen::error::undefined_function(S(
+                    fn_name,
+                    span.with_len(fn_name.len()),
+                )))?;
 
         if arguments.len() != function.params.len() {
-            return Err(CodegenError::InvalidParamCount(
+            return Err(codegen::error::invalid_param_count(
                 span,
                 function.params.len(),
                 arguments.len(),
@@ -114,10 +121,10 @@ impl<'ctx> CodegenUnit<'ctx> {
 
             let expected_type = &function.params[i];
             if expected_type != &arg.type_ {
-                return Err(CodegenError::UnexpectedType(
+                return Err(codegen::error::unexpected_type(
                     arguments[i].1,
-                    expected_type.to_string().into(),
-                    arg.type_.to_string().into(),
+                    expected_type,
+                    &arg.type_,
                 ));
             }
         }

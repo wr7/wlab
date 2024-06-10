@@ -3,9 +3,11 @@ use std::fmt::Display;
 use inkwell::{builder::Builder, types::BasicTypeEnum, values::BasicValueEnum};
 use wutil::Span;
 
-use crate::{error_handling::Spanned, parser::OpCode};
-
-use super::{error::CodegenError, CodegenUnit};
+use crate::{
+    codegen::{self, CodegenUnit},
+    error_handling::{Diagnostic, Spanned as S},
+    parser::OpCode,
+};
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 #[allow(non_camel_case_types)]
@@ -30,11 +32,11 @@ impl Display for Type {
 }
 
 impl Type {
-    pub fn new<'a>(type_: &'a str) -> Result<Self, CodegenError<'a>> {
+    pub fn new<'a>(type_: &'a str, span: Span) -> Result<Self, Diagnostic> {
         Ok(match type_ {
             "i32" => Self::i32,
             "str" => Self::str,
-            _ => return Err(CodegenError::UndefinedType(type_)),
+            _ => return Err(codegen::error::undefined_type(S(type_, span))),
         })
     }
 
@@ -52,15 +54,15 @@ impl<'ctx> TypedValue<'ctx> {
         builder: &Builder<'ctx>,
         lhs_span: Span,
         opcode: OpCode,
-        rhs: Spanned<Self>,
-    ) -> Result<Self, CodegenError<'static>> {
+        rhs: S<Self>,
+    ) -> Result<Self, Diagnostic> {
         match self.type_ {
             Type::i32 => {
                 if rhs.type_ != Type::i32 {
-                    return Err(CodegenError::UnexpectedType(
+                    return Err(codegen::error::unexpected_type(
                         rhs.1,
-                        "i32".into(),
-                        rhs.type_.to_string(),
+                        &Type::i32,
+                        &rhs.type_,
                     ));
                 }
 
@@ -82,10 +84,10 @@ impl<'ctx> TypedValue<'ctx> {
                     val: val.unwrap().into(),
                 })
             }
-            Type::str => Err(CodegenError::UndefinedOperator(
+            Type::str => Err(codegen::error::undefined_operator(
                 opcode,
                 lhs_span,
-                self.type_.to_string(),
+                &self.type_,
             )),
         }
     }

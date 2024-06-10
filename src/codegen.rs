@@ -7,9 +7,12 @@ use inkwell::{
     AddressSpace,
 };
 
-use crate::{error_handling::Spanned as S, parser::Statement};
+use crate::{
+    error_handling::{Diagnostic, Spanned as S},
+    parser::Statement,
+};
 
-use self::{error::CodegenError, scope::Scope};
+use self::scope::Scope;
 
 mod codegen_unit;
 mod error;
@@ -46,7 +49,7 @@ impl<'ctx> CoreTypes<'ctx> {
     }
 }
 
-pub fn generate_code<'a>(ast: &[S<Statement<'a>>]) -> Result<(), CodegenError<'a>> {
+pub fn generate_code<'a>(ast: &[S<Statement<'a>>]) -> Result<(), Diagnostic> {
     let context = Context::create();
     let generator = CodegenUnit::new(&context);
     let mut scope = Scope::new_global();
