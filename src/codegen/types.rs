@@ -32,7 +32,7 @@ impl Display for Type {
 }
 
 impl Type {
-    pub fn new<'a>(type_: &'a str, span: Span) -> Result<Self, Diagnostic> {
+    pub fn new(type_: &str, span: Span) -> Result<Self, Diagnostic> {
         Ok(match type_ {
             "i32" => Self::i32,
             "str" => Self::str,
@@ -42,8 +42,8 @@ impl Type {
 
     pub fn get_llvm_type<'ctx>(&self, generator: &CodegenUnit<'ctx>) -> BasicTypeEnum<'ctx> {
         match self {
-            Type::i32 => generator.core_types.i32.clone().into(),
-            Type::str => generator.core_types.str.clone().into(),
+            Type::i32 => generator.core_types.i32.into(),
+            Type::str => generator.core_types.str.into(),
         }
     }
 }
@@ -54,7 +54,7 @@ impl<'ctx> TypedValue<'ctx> {
         builder: &Builder<'ctx>,
         lhs_span: Span,
         opcode: OpCode,
-        rhs: S<Self>,
+        rhs: &S<Self>,
     ) -> Result<Self, Diagnostic> {
         match self.type_ {
             Type::i32 => {

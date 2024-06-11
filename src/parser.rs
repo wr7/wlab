@@ -54,11 +54,11 @@ impl Display for OpCode {
         let str = match self {
             OpCode::Plus => "+",
             OpCode::Minus => "-",
-            OpCode::Asterisk => "-",
+            OpCode::Asterisk => "*",
             OpCode::Slash => "/",
         };
 
-        write!(f, "{}", str)
+        write!(f, "{str}")
     }
 }
 

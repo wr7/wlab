@@ -38,7 +38,7 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Sta
     for (mut stmnt, separator) in TokenSplit::new(tokens, |t| matches!(&t, &T!(";") | &T!("}"))) {
         if matches!(separator, Some(S(T!("}"), _))) {
             let stmnt_idx = tokens.subslice_range(stmnt).unwrap();
-            stmnt = &tokens[stmnt_idx.start..stmnt_idx.end + 1]; // Include closing bracket
+            stmnt = &tokens[stmnt_idx.start..=stmnt_idx.end]; // Include closing bracket
         }
 
         if let Some(statement) = try_parse_statement(stmnt)? {

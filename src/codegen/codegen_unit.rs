@@ -1,5 +1,3 @@
-use std::{mem, ops::Deref};
-
 use inkwell::{
     builder::Builder,
     context::Context,
@@ -55,9 +53,9 @@ impl<'ctx> CodegenUnit<'ctx> {
         scope: &mut Scope<'_, 'ctx>,
         statement: S<&Statement<'a>>,
     ) -> Result<(), Diagnostic> {
-        match statement.deref() {
+        match &*statement {
             Statement::Expression(expr) => {
-                mem::drop(self.generate_expression(S(expr, statement.1), scope)?)
+                self.generate_expression(S(expr, statement.1), scope)?;
             }
             Statement::Let(varname, val) => {
                 let val = self.generate_expression(val.as_sref(), scope)?;

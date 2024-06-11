@@ -105,7 +105,7 @@ fn line_number(src: &str, byte_position: usize) -> usize {
         }
     }
 
-    return line_no;
+    line_no
 }
 
 /// Gets the column number of a byte in some text
@@ -124,5 +124,5 @@ fn column_number(src: &str, byte_position: usize) -> usize {
         }
     }
 
-    return col_no;
+    col_no
 }

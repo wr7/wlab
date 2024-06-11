@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use crate::{
     codegen::{
         self,
@@ -20,7 +18,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         expression: S<&Expression<'a>>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
-        match expression.deref() {
+        match &*expression {
             Expression::Identifier(ident) => scope
                 .get_variable(ident)
                 .cloned()
@@ -28,12 +26,12 @@ impl<'ctx> CodegenUnit<'ctx> {
             Expression::Literal(Literal::Number(lit)) => {
                 self.generate_number_literal(lit, expression.1)
             }
-            Expression::Literal(Literal::String(lit)) => self.generate_string_literal(lit),
+            Expression::Literal(Literal::String(lit)) => Ok(self.generate_string_literal(lit)),
             Expression::BinaryOperator(a_expr, operator, b_expr) => {
                 let a = self.generate_expression(a_expr.as_sref(), scope)?;
                 let b = self.generate_expression(b_expr.as_sref(), scope)?;
 
-                a.generate_operation(&self.builder, a_expr.1, *operator, S(b, b_expr.1))
+                a.generate_operation(&self.builder, a_expr.1, *operator, &S(b, b_expr.1))
             }
             Expression::CompoundExpression(_) => todo!(),
             Expression::FunctionCall(fn_name, arguments) => {
@@ -42,10 +40,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         }
     }
 
-    fn generate_string_literal<'a: 'ctx>(
-        &self,
-        lit: &'a str,
-    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+    fn generate_string_literal<'a: 'ctx>(&self, lit: &'a str) -> TypedValue<'ctx> {
         let string = self.context.const_string(lit.as_bytes(), false);
 
         let string_global = self.module.add_global(
@@ -61,14 +56,14 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         let str_len = self.core_types.isize.const_int(lit.len() as u64, false);
 
-        Ok(TypedValue {
+        TypedValue {
             val: self
                 .core_types
                 .str
                 .const_named_struct(&[string_ptr.into(), str_len.into()])
                 .into(),
             type_: Type::str,
-        })
+        }
     }
 
     fn generate_number_literal<'a: 'ctx>(
@@ -131,7 +126,7 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         let _ret_val = self
             .builder
-            .build_direct_call(function.function.clone(), &metadata_arguments, "")
+            .build_direct_call(function.function, &metadata_arguments, "")
             .unwrap();
 
         Ok(TypedValue {

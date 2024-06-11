@@ -38,9 +38,9 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
     pub fn with_params<'a>(
         mut self,
         params: &'a [(&'a str, Type)],
-        function: &FunctionValue<'ctx>,
+        function: FunctionValue<'ctx>,
     ) -> Self {
-        for (i, param) in params.into_iter().enumerate() {
+        for (i, param) in params.iter().enumerate() {
             let Some(val) = function.get_nth_param(i as u32) else {
                 unreachable!();
             };

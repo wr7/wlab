@@ -57,25 +57,25 @@ impl WLangError for ParseError {
                 let mut msg = "expected token".to_owned();
                 for (i, tok) in tokens.iter().enumerate() {
                     if i != 0 && tokens.len() > 2 {
-                        msg += ","
+                        msg += ",";
                     }
                     msg += " ";
                     if i == tokens.len() - 1 && tokens.len() > 1 {
-                        msg += "or "
+                        msg += "or ";
                     }
                     write!(&mut msg, "{tok}").unwrap();
                 }
 
                 d! {
                     msg,
-                    [Hint::new_error("", span.clone())],
+                    [Hint::new_error("", *span)],
                 }
             }
             ParseError::MismatchedBrackets(opening, closing) => d! {
                 "mismatched brackets",
                 [
-                    Hint::new_error("opening bracket here", opening.clone()),
-                    Hint::new_error("closing bracket here", closing.clone()),
+                    Hint::new_error("opening bracket here", *opening),
+                    Hint::new_error("closing bracket here", *closing),
                 ],
             },
         };
@@ -92,7 +92,7 @@ pub fn check_brackets<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Result<(), ParseE
 
     for token in tokens {
         let Spanned(token, span) = token;
-        let span = span.clone();
+        let span = *span;
 
         match token {
             Token::OpenBracket(ty) => {
@@ -112,7 +112,7 @@ pub fn check_brackets<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Result<(), ParseE
     }
 
     if let Some(br) = brackets.first() {
-        return Err(ParseError::UnmatchedBracket(br.1.clone()));
+        return Err(ParseError::UnmatchedBracket(br.1));
     }
 
     Ok(())

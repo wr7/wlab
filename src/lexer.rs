@@ -106,7 +106,7 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        return (ident_start..ident_end).into();
+        (ident_start..ident_end).into()
     }
 
     fn lex_string(&mut self, string_start: usize) -> Result<Spanned<Token<'a>>, LexerError> {

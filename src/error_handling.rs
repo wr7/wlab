@@ -11,7 +11,7 @@ use crate::util;
 pub trait WLangError: Sized {
     fn get_diagnostic(&self, code: &str) -> Diagnostic;
     fn render(&self, code: &str) -> String {
-        return self.get_diagnostic(code).render(code);
+        self.get_diagnostic(code).render(code)
     }
 }
 
@@ -83,7 +83,7 @@ impl Diagnostic {
 
         ret_val.push('\n');
 
-        return ret_val;
+        ret_val
     }
 }
 
@@ -129,7 +129,7 @@ impl Hint {
 
             // Print pointer gutter //
 
-            for _ in 0..line_end.ilog10() + 1 {
+            for _ in 0..=line_end.ilog10() {
                 ret_val += " ";
             }
 
@@ -148,8 +148,8 @@ impl Hint {
                 ret_val += " ";
             }
 
-            for _ in arrow_st..arrow_end.max(arrow_st) + 1 {
-                ret_val.push(self.pointer_char)
+            for _ in arrow_st..=arrow_end.max(arrow_st) {
+                ret_val.push(self.pointer_char);
             }
 
             ret_val += "\n";
@@ -157,14 +157,14 @@ impl Hint {
 
         if !self.msg.is_empty() {
             // Print message //
-            for _ in 0..line_end.ilog10() + 1 {
+            for _ in 0..=line_end.ilog10() {
                 ret_val += " ";
             }
             ret_val += " | ";
             ret_val += &self.msg;
         }
 
-        return ret_val;
+        ret_val
     }
 }
 

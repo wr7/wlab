@@ -1,4 +1,4 @@
-use std::{ops::Deref, path::Path};
+use std::{path::Path};
 
 use inkwell::{
     context::Context,
@@ -21,7 +21,7 @@ mod scope;
 
 mod types;
 
-pub(self) use codegen_unit::CodegenUnit;
+ use codegen_unit::CodegenUnit;
 
 struct CoreTypes<'ctx> {
     unit: StructType<'ctx>,
@@ -49,7 +49,7 @@ impl<'ctx> CoreTypes<'ctx> {
     }
 }
 
-pub fn generate_code<'a>(ast: &[S<Statement<'a>>]) -> Result<(), Diagnostic> {
+pub fn generate_code(ast: &[S<Statement<'_>>]) -> Result<(), Diagnostic> {
     let context = Context::create();
     let generator = CodegenUnit::new(&context);
     let mut scope = Scope::new_global();
@@ -57,11 +57,11 @@ pub fn generate_code<'a>(ast: &[S<Statement<'a>>]) -> Result<(), Diagnostic> {
     intrinsics::add_intrinsics(&generator, &mut scope);
 
     for s in ast {
-        let Statement::Function(fn_name, params, body) = s.deref() else {
+        let Statement::Function(fn_name, params, body) = &**s else {
             todo!()
         };
 
-        generator.generate_function(fn_name, &params, &body, &mut scope)?;
+        generator.generate_function(fn_name, params, body, &mut scope)?;
     }
 
     let llvm_ir = generator.module.to_string();

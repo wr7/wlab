@@ -1,4 +1,3 @@
-use std::ops::Deref;
 
 use crate::{
     diagnostic as d,
@@ -12,19 +11,19 @@ use super::types::Type;
 
 pub fn undefined_variable(name: S<&str>) -> Diagnostic {
     d! {
-        format!("Undefined variable `{}`", name.deref()),
+        format!("Undefined variable `{}`", &*name),
         [Hint::new_error("", name.1)],
     }
 }
 pub fn undefined_function(name: S<&str>) -> Diagnostic {
     d! {
-        format!("Undefined function `{}`", name.deref()),
+        format!("Undefined function `{}`", &*name),
         [Hint::new_error("", name.1)],
     }
 }
 pub fn undefined_type(name: S<&str>) -> Diagnostic {
     d! {
-        format!("Undefined type `{}`", name.deref()),
+        format!("Undefined type `{}`", &*name),
         [Hint::new_error("", name.1)],
     }
 }
@@ -48,7 +47,7 @@ pub fn invalid_param_count(span: Span, expected: usize, got: usize) -> Diagnosti
 }
 pub fn invalid_number(num: S<&str>) -> Diagnostic {
     d! {
-        format!("Invalid numberical literal `{}`", num.deref()),
+        format!("Invalid numberical literal `{}`", &*num),
         [Hint::new_error("Literal used here", num.1)]
     }
 }

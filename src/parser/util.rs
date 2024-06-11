@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use crate::{error_handling::Spanned, lexer::Token};
 
 mod split;
@@ -7,9 +5,6 @@ mod split;
 pub use split::*;
 
 /// Iterates over tokens that are not surrounded by brackets.
-/// # Example
-/// # use wutil::lexer::Lexer;
-/// let tokens = lexer::new
 #[derive(Clone)]
 pub struct NonBracketedIter<'a> {
     remaining: &'a [Spanned<Token<'a>>],
@@ -38,7 +33,7 @@ impl<'a> Iterator for NonBracketedIter<'a> {
             };
             self.remaining = remaining;
 
-            match token.deref() {
+            match &**token {
                 Token::OpenBracket(_) => self.bracket_level_start += 1,
                 Token::CloseBracket(_) => self.bracket_level_start -= 1,
                 _ => {}
@@ -48,7 +43,7 @@ impl<'a> Iterator for NonBracketedIter<'a> {
                 return Some(token);
             }
 
-            if self.bracket_level_start == 1 && matches!(token.deref(), Token::OpenBracket(_)) {
+            if self.bracket_level_start == 1 && matches!(&**token, Token::OpenBracket(_)) {
                 return Some(token);
             }
         }
@@ -64,7 +59,7 @@ impl<'a> DoubleEndedIterator for NonBracketedIter<'a> {
             };
             self.remaining = remaining;
 
-            match token.deref() {
+            match &**token {
                 Token::OpenBracket(_) => self.bracket_level_end -= 1,
                 Token::CloseBracket(_) => self.bracket_level_end += 1,
                 _ => {}
@@ -74,7 +69,7 @@ impl<'a> DoubleEndedIterator for NonBracketedIter<'a> {
                 return Some(token);
             }
 
-            if self.bracket_level_end == 1 && matches!(token.deref(), Token::CloseBracket(_)) {
+            if self.bracket_level_end == 1 && matches!(&**token, Token::CloseBracket(_)) {
                 return Some(token);
             }
         }
@@ -94,12 +89,12 @@ mod tests {
             .unwrap();
 
         let mut iter = NonBracketedIter::new(&tokens);
-        assert_eq!(iter.next().unwrap().deref(), &T!("9"));
-        assert_eq!(iter.next().unwrap().deref(), &T!("+"));
-        assert_eq!(iter.next().unwrap().deref(), &T!("("));
-        assert_eq!(iter.next().unwrap().deref(), &T!(")"));
-        assert_eq!(iter.next().unwrap().deref(), &T!("="));
-        assert_eq!(iter.next().unwrap().deref(), &T!("21"));
+        assert_eq!(&**iter.next().unwrap(), &T!("9"));
+        assert_eq!(&**iter.next().unwrap(), &T!("+"));
+        assert_eq!(&**iter.next().unwrap(), &T!("("));
+        assert_eq!(&**iter.next().unwrap(), &T!(")"));
+        assert_eq!(&**iter.next().unwrap(), &T!("="));
+        assert_eq!(&**iter.next().unwrap(), &T!("21"));
         assert_eq!(iter.next(), None);
     }
 }

@@ -24,7 +24,7 @@ pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stat
 
     let left_paren = nb_iter.next();
     let Some(left_paren @ S(T!("("), _)) = left_paren else {
-        let span = left_paren.map(|t| t.1).unwrap_or(name_span.span_after());
+        let span = left_paren.map_or(name_span.span_after(), |t| t.1);
 
         return Err(ParseError::ExpectedToken(span, &[T!("(")]));
     };
@@ -61,7 +61,7 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
 
     let params = parse_expression_list(tokens)?;
 
-    Ok(Some(Expression::FunctionCall(&fn_name, params)))
+    Ok(Some(Expression::FunctionCall(fn_name, params)))
 }
 
 fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Expression<'a>>>> {
@@ -88,7 +88,7 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Expres
 fn parse_fn_params<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<(&'a str, S<&'a str>)>> {
     let mut params = Vec::new();
 
-    for (param, separator) in TokenSplit::new(&tokens, |t| t == &T!(",")) {
+    for (param, separator) in TokenSplit::new(tokens, |t| t == &T!(",")) {
         let Some(param) = parse_fn_param(param)? else {
             let Some(separator) = separator else {
                 break; // Ignore trailing comma
@@ -97,7 +97,7 @@ fn parse_fn_params<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<(&'a str, S<&'
             return Err(ParseError::ExpectedParameter(separator.1.span_at()));
         };
 
-        params.push(param)
+        params.push(param);
     }
 
     Ok(params)
@@ -116,8 +116,7 @@ fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, S<
     let Some((S(T!(":"), colon_span), tokens)) = tokens.split_first() else {
         let span = tokens
             .first()
-            .map(|t| t.1)
-            .unwrap_or(name_span.span_after());
+            .map_or(name_span.span_after(), |t| t.1);
 
         return Err(ParseError::ExpectedToken(span, &[T!(":")]));
     };
@@ -125,8 +124,7 @@ fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, S<
     let Some((S(Token::Identifier(type_), type_span), tokens)) = tokens.split_first() else {
         let span = tokens
             .first()
-            .map(|t| t.1)
-            .unwrap_or(colon_span.span_after());
+            .map_or(colon_span.span_after(), |t| t.1);
 
         return Err(ParseError::ExpectedType(span));
     };

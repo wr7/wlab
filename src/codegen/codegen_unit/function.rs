@@ -26,11 +26,11 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         let llvm_param_types: Vec<BasicMetadataTypeEnum<'ctx>> = params
             .iter()
-            .map(|(_, type_)| type_.get_llvm_type(&self).into())
+            .map(|(_, type_)| type_.get_llvm_type(self).into())
             .collect();
 
         let function = self.module.add_function(
-            &fn_name,
+            fn_name,
             self.core_types.unit.fn_type(&llvm_param_types, false),
             None,
         );
@@ -40,7 +40,7 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         let zero = self.core_types.unit.const_zero();
 
-        let mut fn_scope = Scope::new(&scope).with_params(&params, &function);
+        let mut fn_scope = Scope::new(scope).with_params(&params, function);
 
         for statement in body {
             self.generate_statement(&mut fn_scope, statement.as_sref())?;

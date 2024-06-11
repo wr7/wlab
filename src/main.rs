@@ -1,3 +1,15 @@
+#![allow(clippy::module_name_repetitions)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::enum_variant_names)]
+#![allow(clippy::default_trait_access)]
+#![allow(clippy::manual_assert)]
+#![allow(clippy::ref_as_ptr)]
+#![forbid(clippy::explicit_deref_methods)]
+#![forbid(clippy::range_plus_one)]
+#![forbid(clippy::semicolon_if_nothing_returned)]
+#![forbid(clippy::map_unwrap_or)]
+#![forbid(clippy::uninlined_format_args)]
+
 use std::{io::Write as _, process};
 
 use error_handling::WLangError;

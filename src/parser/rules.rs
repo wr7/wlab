@@ -1,7 +1,5 @@
 //! Contains rules for the parser. Note: inputs are assumed to not have mismatched/unclosed brackets (these checks should be done in advance).
 
-use std::ops::Deref;
-
 use crate::{error_handling::Spanned as S, lexer::Token, util::SliceExt, T};
 
 use super::{util::NonBracketedIter, Expression, Literal, OpCode, ParseError, Statement};
@@ -15,13 +13,13 @@ pub use bracket_expr::parse_statement_list;
 use wutil::Span;
 
 fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
-    if tokens.len() == 0 {
+    if tokens.is_empty() {
         return Ok(None);
     }
 
     let rules = [
-        |tokens| try_parse_literal(tokens),
-        |tokens| try_parse_identifier(tokens),
+        |tokens| Ok(try_parse_literal(tokens)),
+        |tokens| Ok(try_parse_identifier(tokens)),
         |tokens| bracket_expr::try_parse_bracket_expr(tokens),
         |tokens| function::try_parse_function_call(tokens),
         |tokens| {
@@ -48,7 +46,7 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
 
 /// A statement. This can be either an expression or a few other things.
 fn try_parse_statement<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
-    if tokens.len() == 0 {
+    if tokens.is_empty() {
         return Ok(None);
     }
 
@@ -67,34 +65,34 @@ fn try_parse_statement<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stateme
     if let Some(expr) = try_parse_expr(tokens)? {
         Ok(Some(expr.into()))
     } else {
-        return Ok(None);
+        Ok(None)
     }
 }
 
 /// A plain identifier
-fn try_parse_identifier<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+fn try_parse_identifier<'a>(tokens: &'a [S<Token<'a>>]) -> Option<Expression<'a>> {
     if let [S(Token::Identifier(ident), _)] = tokens {
-        return Ok(Some(Expression::Identifier(ident)));
+        return Some(Expression::Identifier(ident));
     }
 
-    Ok(None)
+    None
 }
 
 /// A literal
-fn try_parse_literal<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+fn try_parse_literal<'a>(tokens: &'a [S<Token<'a>>]) -> Option<Expression<'a>> {
     match tokens {
         [S(Token::Identifier(ident), _)] => {
-            if matches!(ident.chars().next().unwrap(), '0'..='9') {
-                return Ok(Some(Expression::Literal(Literal::Number(ident))));
+            if ident.chars().next().unwrap().is_ascii_digit() {
+                return Some(Expression::Literal(Literal::Number(ident)));
             }
         }
         [S(Token::StringLiteral(lit), _)] => {
-            return Ok(Some(Expression::Literal(Literal::String(lit))));
+            return Some(Expression::Literal(Literal::String(lit)));
         }
         _ => {}
     }
 
-    Ok(None)
+    None
 }
 
 /// A variable assignment. Eg `foo = bar * (fizz + buzz)`
@@ -105,14 +103,14 @@ fn try_parse_assign<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<
         return Ok(None);
     };
 
-    let Some(val) = try_parse_expr(&tokens)? else {
+    let Some(val) = try_parse_expr(tokens)? else {
         return Err(ParseError::ExpectedExpression(equal_span.span_after()));
     };
 
     let span = tokens.first().unwrap().1.start..tokens.last().unwrap().1.end;
 
     Ok(Some(Statement::Assign(
-        &var_name,
+        var_name,
         Box::new(S(val, span.into())),
     )))
 }
@@ -132,14 +130,14 @@ fn try_parse_let<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>
         ));
     };
 
-    let Some(val) = try_parse_expr(&tokens)? else {
+    let Some(val) = try_parse_expr(tokens)? else {
         return Err(ParseError::ExpectedExpression(equal_span.span_after()));
     };
 
     let span = tokens.first().unwrap().1.start..tokens.last().unwrap().1.end;
 
     return Ok(Some(Statement::Let(
-        &var_name,
+        var_name,
         Box::new(S(val, span.into())),
     )));
 }
@@ -153,7 +151,7 @@ fn try_parse_binary_operator<'a>(
         let i = tokens.elem_offset(tok).unwrap();
 
         for (op_tok, opcode) in opcodes {
-            if tok.deref() == op_tok {
+            if &**tok == op_tok {
                 let x = try_parse_expr(&tokens[0..i])?.ok_or_else(|| {
                     ParseError::ExpectedExpression(Span::at(tokens[i].1.start.saturating_sub(1)))
                 })?;
@@ -173,5 +171,5 @@ fn try_parse_binary_operator<'a>(
         }
     }
 
-    return Ok(None);
+    Ok(None)
 }
