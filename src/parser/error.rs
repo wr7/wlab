@@ -12,6 +12,7 @@ use crate::diagnostic as d;
 #[derive(Debug)]
 pub enum ParseError {
     InvalidExpression(Span),
+    InvalidType(Span),
     UnmatchedBracket(Span),
     ExpectedParameter(Span),
     ExpectedBody(Span),
@@ -27,6 +28,10 @@ impl WLangError for ParseError {
         let mut diagnostic = match self {
             ParseError::InvalidExpression(span) => d! {
                 "invalid expression",
+                [Hint::new_error("", *span)],
+            },
+            ParseError::InvalidType(span) => d! {
+                "invalid type",
                 [Hint::new_error("", *span)],
             },
             ParseError::UnmatchedBracket(span) => d! {

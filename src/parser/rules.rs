@@ -8,6 +8,7 @@ type PResult<T> = Result<T, ParseError>;
 
 mod bracket_expr;
 mod function;
+mod types;
 
 pub use bracket_expr::parse_statement_list;
 use wutil::Span;

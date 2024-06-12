@@ -114,24 +114,16 @@ fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, S<
     };
 
     let Some((S(T!(":"), colon_span), tokens)) = tokens.split_first() else {
-        let span = tokens
-            .first()
-            .map_or(name_span.span_after(), |t| t.1);
+        let span = tokens.first().map_or(name_span.span_after(), |t| t.1);
 
         return Err(ParseError::ExpectedToken(span, &[T!(":")]));
     };
 
-    let Some((S(Token::Identifier(type_), type_span), tokens)) = tokens.split_first() else {
-        let span = tokens
-            .first()
-            .map_or(colon_span.span_after(), |t| t.1);
+    let Some(type_) = super::types::try_parse_type(tokens)? else {
+        let span = tokens.first().map_or(colon_span.span_after(), |t| t.1);
 
         return Err(ParseError::ExpectedType(span));
     };
 
-    if let Some(tok) = tokens.first() {
-        return Err(ParseError::ExpectedToken(tok.1, &[T!(","), T!(")")]));
-    }
-
-    Ok(Some((name, S(type_, *type_span))))
+    Ok(Some((name, type_)))
 }

@@ -1,4 +1,4 @@
-use std::{path::Path};
+use std::path::Path;
 
 use inkwell::{
     context::Context,
@@ -21,7 +21,7 @@ mod scope;
 
 mod types;
 
- use codegen_unit::CodegenUnit;
+use codegen_unit::CodegenUnit;
 
 struct CoreTypes<'ctx> {
     unit: StructType<'ctx>,

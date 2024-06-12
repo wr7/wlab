@@ -14,6 +14,7 @@ use crate::{
 pub enum Type {
     i32,
     str,
+    unit,
 }
 
 #[derive(Clone)]
@@ -27,6 +28,7 @@ impl Display for Type {
         match self {
             Type::i32 => write!(f, "i32"),
             Type::str => write!(f, "str"),
+            Type::unit => write!(f, "()"),
         }
     }
 }
@@ -36,6 +38,7 @@ impl Type {
         Ok(match type_ {
             "i32" => Self::i32,
             "str" => Self::str,
+            "()" => Self::unit,
             _ => return Err(codegen::error::undefined_type(S(type_, span))),
         })
     }
@@ -44,6 +47,7 @@ impl Type {
         match self {
             Type::i32 => generator.core_types.i32.into(),
             Type::str => generator.core_types.str.into(),
+            Type::unit => generator.core_types.unit.into(),
         }
     }
 }
@@ -85,6 +89,11 @@ impl<'ctx> TypedValue<'ctx> {
                 })
             }
             Type::str => Err(codegen::error::undefined_operator(
+                opcode,
+                lhs_span,
+                &self.type_,
+            )),
+            Type::unit => Err(codegen::error::undefined_operator(
                 opcode,
                 lhs_span,
                 &self.type_,
