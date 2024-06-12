@@ -7,23 +7,31 @@ mod rules;
 mod util;
 
 pub use error::ParseError;
+use wutil::Span;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Statement<'a> {
     Expression(Expression<'a>),
     Let(&'a str, Box<Spanned<Expression<'a>>>),
     Assign(&'a str, Box<Spanned<Expression<'a>>>),
-    Function(
-        &'a str,
-        Vec<(&'a str, Spanned<&'a str>)>,
-        Vec<Spanned<Statement<'a>>>,
-    ),
+    Function {
+        name: &'a str,
+        params: Vec<(&'a str, Spanned<&'a str>)>,
+        return_type: Option<Spanned<&'a str>>,
+        body: CodeBlock<'a>,
+    },
 }
 
 impl<'a> From<Expression<'a>> for Statement<'a> {
     fn from(expr: Expression<'a>) -> Self {
         Statement::Expression(expr)
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct CodeBlock<'a> {
+    pub body: Vec<Spanned<Statement<'a>>>,
+    pub trailing_semicolon: Option<Span>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -37,7 +45,7 @@ pub enum Expression<'a> {
     Identifier(&'a str),
     Literal(Literal<'a>),
     BinaryOperator(Box<Spanned<Self>>, OpCode, Box<Spanned<Self>>),
-    CompoundExpression(Vec<Spanned<Statement<'a>>>),
+    CompoundExpression(CodeBlock<'a>),
     FunctionCall(&'a str, Vec<Spanned<Expression<'a>>>),
 }
 

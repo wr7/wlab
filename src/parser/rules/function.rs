@@ -14,7 +14,7 @@ use super::{bracket_expr::try_parse_bracket_expr, PResult};
 
 /// A function. Eg `fn foo() {let x = ten; x}`
 pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
-    let Some(([S(T!("fn"), _), S(Token::Identifier(fn_name), name_span)], tokens)) =
+    let Some(([S(T!("fn"), _), S(Token::Identifier(name), name_span)], tokens)) =
         tokens.split_first_chunk::<2>()
     else {
         return Ok(None);
@@ -39,13 +39,35 @@ pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stat
     let params = left_paren_idx + 1..right_paren_idx;
     let params = parse_fn_params(&tokens[params])?;
 
-    let Some(Expression::CompoundExpression(body)) =
-        try_parse_bracket_expr(&tokens[right_paren_idx + 1..])?
+    let tokens = &tokens[right_paren_idx + 1..];
+
+    let body_start = tokens
+        .iter()
+        .position(|t| matches!(&**t, &T!("{")))
+        .unwrap_or(tokens.len());
+
+    let return_type =
+        if let Some((S(T!("->"), arrow_span), return_type)) = &tokens[..body_start].split_first() {
+            let Some(return_type) = super::types::try_parse_type(return_type)? else {
+                return Err(ParseError::ExpectedType(arrow_span.span_after()));
+            };
+
+            Some(return_type)
+        } else {
+            None
+        };
+
+    let Some(Expression::CompoundExpression(body)) = try_parse_bracket_expr(&tokens[body_start..])?
     else {
         return Err(ParseError::ExpectedBody(right_paren.1.span_after()));
     };
 
-    Ok(Some(Statement::Function(fn_name, params, body)))
+    Ok(Some(Statement::Function {
+        name,
+        params,
+        return_type,
+        body,
+    }))
 }
 
 pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {

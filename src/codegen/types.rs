@@ -88,12 +88,7 @@ impl<'ctx> TypedValue<'ctx> {
                     val: val.unwrap().into(),
                 })
             }
-            Type::str => Err(codegen::error::undefined_operator(
-                opcode,
-                lhs_span,
-                &self.type_,
-            )),
-            Type::unit => Err(codegen::error::undefined_operator(
+            Type::unit | Type::str => Err(codegen::error::undefined_operator(
                 opcode,
                 lhs_span,
                 &self.type_,

@@ -57,11 +57,17 @@ pub fn generate_code(ast: &[S<Statement<'_>>]) -> Result<(), Diagnostic> {
     intrinsics::add_intrinsics(&generator, &mut scope);
 
     for s in ast {
-        let Statement::Function(fn_name, params, body) = &**s else {
+        let Statement::Function {
+            name,
+            params,
+            return_type: _,
+            body,
+        } = &**s
+        else {
             todo!()
         };
 
-        generator.generate_function(fn_name, params, body, &mut scope)?;
+        generator.generate_function(name, params, &body.body, &mut scope)?;
     }
 
     let llvm_ir = generator.module.to_string();

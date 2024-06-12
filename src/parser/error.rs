@@ -55,7 +55,7 @@ impl WLangError for ParseError {
                 [Hint::new_error("expected name here", *span)],
             },
             ParseError::ExpectedType(span) => d! {
-                format!("expected type got `{}`", &code[*span]),
+                format!("expected type, got `{}`", &code[*span]),
                 [Hint::new_error("", *span)],
             },
             ParseError::ExpectedToken(span, tokens) => {
