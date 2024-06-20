@@ -34,12 +34,12 @@ impl Display for Type {
 }
 
 impl Type {
-    pub fn new(type_: &str, span: Span) -> Result<Self, Diagnostic> {
-        Ok(match type_ {
+    pub fn new(type_: S<&str>) -> Result<Self, Diagnostic> {
+        Ok(match *type_ {
             "i32" => Self::i32,
             "str" => Self::str,
             "()" => Self::unit,
-            _ => return Err(codegen::error::undefined_type(S(type_, span))),
+            _ => return Err(codegen::error::undefined_type(type_)),
         })
     }
 

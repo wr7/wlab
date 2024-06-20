@@ -1,7 +1,7 @@
 use inkwell::values::{IntValue, StructValue};
 
 use super::{
-    scope::{FunctionInfo, Scope},
+    scope::{FunctionInfo, FunctionSignature, Scope},
     types::Type,
     CodegenUnit,
 };
@@ -98,7 +98,10 @@ fn add_write<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
     scope.create_function(
         "write",
         FunctionInfo {
-            params: vec![Type::i32, Type::str],
+            signature: FunctionSignature {
+                params: vec![Type::i32, Type::str],
+                return_type: Type::unit,
+            },
             function: write,
         },
     );
@@ -157,7 +160,10 @@ fn add_exit<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
     scope.create_function(
         "exit",
         FunctionInfo {
-            params: vec![Type::i32],
+            signature: FunctionSignature {
+                params: vec![Type::i32],
+                return_type: Type::unit,
+            },
             function: exit,
         },
     );

@@ -49,7 +49,7 @@ where
 
             span.start = span.start.min(idx);
 
-            if (self.predicate)(&tok.0) {
+            if (self.predicate)(tok) {
                 separator = Some(tok);
                 span.end = idx;
                 break;

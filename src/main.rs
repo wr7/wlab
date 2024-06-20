@@ -29,7 +29,6 @@ mod util;
 mod parser;
 
 /* Long term TODO list
- *  - Add function return values and compound expressions
  *  - Add function definition to errors
  *  - Add a "function already defined" error
  *  - Allow out-of-order and recursive functions

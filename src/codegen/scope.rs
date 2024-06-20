@@ -4,9 +4,15 @@ use inkwell::values::FunctionValue;
 
 use super::types::{Type, TypedValue};
 
-#[derive(Clone)]
-pub struct FunctionInfo<'ctx> {
+#[derive(Clone, Debug)]
+pub struct FunctionSignature {
     pub params: Vec<Type>,
+    pub return_type: Type,
+}
+
+#[derive(Clone, Debug)]
+pub struct FunctionInfo<'ctx> {
+    pub signature: FunctionSignature,
     pub function: FunctionValue<'ctx>,
 }
 

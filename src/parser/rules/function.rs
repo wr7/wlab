@@ -66,7 +66,13 @@ pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stat
         name,
         params,
         return_type,
-        body,
+        body: S(
+            body,
+            tokens[body_start]
+                .1
+                .span_at()
+                .with_end(tokens.last().unwrap().1.end),
+        ),
     }))
 }
 

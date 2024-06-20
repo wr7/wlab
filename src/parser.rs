@@ -18,7 +18,7 @@ pub enum Statement<'a> {
         name: &'a str,
         params: Vec<(&'a str, Spanned<&'a str>)>,
         return_type: Option<Spanned<&'a str>>,
-        body: CodeBlock<'a>,
+        body: Spanned<CodeBlock<'a>>,
     },
 }
 

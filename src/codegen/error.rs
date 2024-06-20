@@ -1,8 +1,7 @@
-
 use crate::{
     diagnostic as d,
     error_handling::{Diagnostic, Hint, Spanned as S},
-    parser::OpCode,
+    parser::{CodeBlock, OpCode},
 };
 
 use wutil::Span;
@@ -49,5 +48,32 @@ pub fn invalid_number(num: S<&str>) -> Diagnostic {
     d! {
         format!("Invalid numberical literal `{}`", &*num),
         [Hint::new_error("Literal used here", num.1)]
+    }
+}
+pub fn incorrect_return_type(body: S<&CodeBlock>, expected: &Type, got: &Type) -> Diagnostic {
+    if body.body.is_empty() {
+        return d! {
+            format!("Expected return type `{expected}` from function body"),
+            [Hint::new_error("Function body is empty", body.1)]
+        };
+    }
+
+    if expected == &Type::unit {
+        return d! {
+            format!("Incorrect return type; expected `()`, got `{got}`"),
+            [Hint::new_error("Try adding a semicolon here", body.body.last().unwrap().1.span_after())]
+        };
+    }
+
+    if let Some(semicolon) = body.trailing_semicolon {
+        return d! {
+            format!("Incorrect return type; expected `{expected}`, got `()`"),
+            [Hint::new_error("`()` explicitly returned because of this semicolon here", semicolon)]
+        };
+    }
+
+    d! {
+        format!("Incorrect return type; expected `{expected}`, got `{got}`"),
+        [Hint::new_error(format!("Expression here is of type `{got}`"), body.body.last().unwrap().1)]
     }
 }

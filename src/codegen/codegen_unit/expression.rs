@@ -33,7 +33,10 @@ impl<'ctx> CodegenUnit<'ctx> {
 
                 a.generate_operation(&self.builder, a_expr.1, *operator, &S(b, b_expr.1))
             }
-            Expression::CompoundExpression(_) => todo!(),
+            Expression::CompoundExpression(block) => {
+                let mut scope = Scope::new(scope);
+                self.generate_codeblock(block, &mut scope)
+            }
             Expression::FunctionCall(fn_name, arguments) => {
                 self.generate_function_call(expression.1, scope, fn_name, arguments)
             }
@@ -98,10 +101,12 @@ impl<'ctx> CodegenUnit<'ctx> {
                     span.with_len(fn_name.len()),
                 )))?;
 
-        if arguments.len() != function.params.len() {
+        let signature = &function.signature;
+
+        if arguments.len() != signature.params.len() {
             return Err(codegen::error::invalid_param_count(
                 span,
-                function.params.len(),
+                signature.params.len(),
                 arguments.len(),
             ));
         }
@@ -114,7 +119,7 @@ impl<'ctx> CodegenUnit<'ctx> {
 
             metadata_arguments.push(arg.val.into());
 
-            let expected_type = &function.params[i];
+            let expected_type = &signature.params[i];
             if expected_type != &arg.type_ {
                 return Err(codegen::error::unexpected_type(
                     arguments[i].1,
@@ -124,14 +129,14 @@ impl<'ctx> CodegenUnit<'ctx> {
             }
         }
 
-        let _ret_val = self
+        let ret_val = self
             .builder
             .build_direct_call(function.function, &metadata_arguments, "")
             .unwrap();
 
         Ok(TypedValue {
-            val: self.context.i32_type().const_zero().into(),
-            type_: Type::i32,
+            val: ret_val.try_as_basic_value().left().unwrap(),
+            type_: function.signature.return_type,
         })
     }
 }

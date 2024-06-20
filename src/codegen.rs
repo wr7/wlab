@@ -12,7 +12,7 @@ use crate::{
     parser::Statement,
 };
 
-use self::scope::Scope;
+use self::{scope::Scope, types::Type};
 
 mod codegen_unit;
 mod error;
@@ -60,14 +60,16 @@ pub fn generate_code(ast: &[S<Statement<'_>>]) -> Result<(), Diagnostic> {
         let Statement::Function {
             name,
             params,
-            return_type: _,
+            return_type,
             body,
         } = &**s
         else {
             todo!()
         };
 
-        generator.generate_function(name, params, &body.body, &mut scope)?;
+        let return_type = return_type.map_or(Ok(Type::unit), Type::new)?;
+
+        generator.generate_function(name, params, return_type, body.as_sref(), &mut scope)?;
     }
 
     let llvm_ir = generator.module.to_string();

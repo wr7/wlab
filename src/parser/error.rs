@@ -108,7 +108,7 @@ pub fn check_brackets<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Result<(), ParseE
                     return Err(ParseError::UnmatchedBracket(span));
                 };
 
-                if *ty != open_type.0 {
+                if *ty != *open_type {
                     return Err(ParseError::MismatchedBrackets(open_type.1, span));
                 }
             }
