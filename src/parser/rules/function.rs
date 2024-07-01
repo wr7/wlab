@@ -71,13 +71,7 @@ pub fn try_parse_function_from_front<'a>(
             name,
             params,
             return_type,
-            body: S(
-                body,
-                tokens[body_start]
-                    .1
-                    .span_at()
-                    .with_end(tokens.last().unwrap().1.end),
-            ),
+            body,
         },
         remaining_tokens,
     )))

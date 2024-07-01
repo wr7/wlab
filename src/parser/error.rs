@@ -22,6 +22,7 @@ pub enum ParseError {
     ExpectedToken(Span, &'static [Token<'static>]),
     UnexpectedTokens(Span),
     MismatchedBrackets(Span, Span),
+    MissingBlock(Span),
 }
 
 impl WLangError for ParseError {
@@ -88,6 +89,12 @@ impl WLangError for ParseError {
                 "unexpected tokens",
                 [
                     Hint::new_error("tokens here", *span)
+                ]
+            },
+            ParseError::MissingBlock(span) => d! {
+                "missing if statement block",
+                [
+                    Hint::new_error("if statement here", *span)
                 ]
             },
         };

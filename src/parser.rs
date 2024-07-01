@@ -31,8 +31,8 @@ pub enum Expression<'a> {
     FunctionCall(&'a str, Vec<Spanned<Expression<'a>>>),
     If {
         condition: Box<Spanned<Self>>,
-        block: CodeBlock<'a>,
-        else_block: Option<CodeBlock<'a>>,
+        block: Spanned<CodeBlock<'a>>,
+        else_block: Option<Spanned<CodeBlock<'a>>>,
     },
 }
 

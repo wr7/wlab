@@ -77,3 +77,12 @@ pub fn incorrect_return_type(body: S<&CodeBlock>, expected: &Type, got: &Type) -
         [Hint::new_error(format!("Expression here is of type `{got}`"), body.body.last().unwrap().1)]
     }
 }
+pub fn mismatched_if_else(if_block: S<&Type>, else_block: S<&Type>) -> Diagnostic {
+    d! {
+        format!("If and else have different types"),
+        [
+            Hint::new_error(format!("If block is of type `{}`", *if_block), if_block.1),
+            Hint::new_error(format!("Else block is of type `{}`", *else_block), else_block.1),
+        ]
+    }
+}

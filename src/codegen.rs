@@ -54,7 +54,7 @@ impl<'ctx> CoreTypes<'ctx> {
 
 pub fn generate_code(ast: &[S<Statement<'_>>]) -> Result<(), Diagnostic> {
     let context = Context::create();
-    let generator = CodegenUnit::new(&context);
+    let mut generator = CodegenUnit::new(&context);
     let mut scope = Scope::new_global();
 
     intrinsics::add_intrinsics(&generator, &mut scope);

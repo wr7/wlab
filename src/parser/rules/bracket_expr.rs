@@ -1,10 +1,10 @@
 use wutil::iter::IterExt;
 
 use crate::{
-    error_handling::Spanned as S,
+    error_handling::{self, Spanned as S},
     lexer::Token,
     parser::{
-        rules::{self},
+        rules,
         util::{NonBracketedIter, TokenSplit},
         CodeBlock, Expression, Statement,
     },
@@ -33,13 +33,13 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<
         return Ok(None);
     };
 
-    Ok(Some(Expression::CompoundExpression(code_block)))
+    Ok(Some(Expression::CompoundExpression(code_block.0)))
 }
 
 /// A code block eg `{biz+bang; do_thing()}`
 pub fn try_parse_code_block_from_front<'a>(
     tokens: &'a [S<Token<'a>>],
-) -> PResult<Option<(CodeBlock<'a>, &'a [S<Token<'a>>])>> {
+) -> PResult<Option<(S<CodeBlock<'a>>, &'a [S<Token<'a>>])>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some([S(T!("{"), _), close_bracket]) = nb_iter.collect_n() else {
@@ -49,6 +49,7 @@ pub fn try_parse_code_block_from_front<'a>(
     let closing_idx = tokens.elem_offset(close_bracket).unwrap();
 
     let body = parse_statement_list(&tokens[1..closing_idx])?;
+    let span = error_handling::span_of(&tokens[1..closing_idx]).unwrap();
 
     let trailing_semicolon = if let S(T!(";"), s) = &tokens[closing_idx - 1] {
         Some(*s)
@@ -57,10 +58,13 @@ pub fn try_parse_code_block_from_front<'a>(
     };
 
     Ok(Some((
-        CodeBlock {
-            body,
-            trailing_semicolon,
-        },
+        S(
+            CodeBlock {
+                body,
+                trailing_semicolon,
+            },
+            span,
+        ),
         &tokens[closing_idx + 1..],
     )))
 }

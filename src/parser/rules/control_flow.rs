@@ -32,7 +32,7 @@ pub fn try_parse_if_from_front<'a>(
     };
 
     let Some(left_bracket) = nb_iter.find(|t| &***t == &T!("{")) else {
-        todo!() // Expected code block; got EOF
+        return Err(ParseError::MissingBlock(*if_span));
     };
 
     let left_idx = tokens.elem_offset(left_bracket).unwrap();
@@ -69,6 +69,8 @@ pub fn try_parse_if_from_front<'a>(
             body: vec![S(Statement::Expression(else_if), else_if_span)],
             trailing_semicolon: None,
         };
+
+        let else_block = S(else_block, else_if_span);
 
         return Ok(Some((
             Expression::If {

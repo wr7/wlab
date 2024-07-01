@@ -1,4 +1,5 @@
 use inkwell::{
+    basic_block::BasicBlock,
     builder::Builder,
     context::Context,
     module::Module,
@@ -20,6 +21,7 @@ pub struct CodegenUnit<'ctx> {
     pub(super) builder: Builder<'ctx>,
     pub(super) core_types: CoreTypes<'ctx>,
     pub(super) module: Module<'ctx>,
+    pub(super) current_block: Option<BasicBlock<'ctx>>,
 }
 
 impl<'ctx> CodegenUnit<'ctx> {
@@ -45,11 +47,12 @@ impl<'ctx> CodegenUnit<'ctx> {
             module: context.create_module("my_module"),
             builder: context.create_builder(),
             core_types,
+            current_block: None,
         }
     }
 
     pub fn generate_statement<'a: 'ctx>(
-        &self,
+        &mut self,
         scope: &mut Scope<'_, 'ctx>,
         statement: S<&Statement<'a>>,
     ) -> Result<(), Diagnostic> {
@@ -70,5 +73,10 @@ impl<'ctx> CodegenUnit<'ctx> {
             } => todo!(),
         }
         Ok(())
+    }
+
+    pub(super) fn position_at_end(&mut self, basic_block: BasicBlock<'ctx>) {
+        self.builder.position_at_end(basic_block);
+        self.current_block = Some(basic_block);
     }
 }

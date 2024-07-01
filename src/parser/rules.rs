@@ -75,8 +75,14 @@ fn try_parse_statement_from_front<'a>(
         |tokens| function::try_parse_function_from_front(tokens),
         |tokens| Ok(control_flow::try_parse_if_from_front(tokens)?.map(|(ex, r)| (ex.into(), r))),
         |tokens| {
-            Ok(bracket_expr::try_parse_code_block_from_front(tokens)?
-                .map(|(c, r)| (Statement::Expression(Expression::CompoundExpression(c)), r)))
+            Ok(
+                bracket_expr::try_parse_code_block_from_front(tokens)?.map(|(c, r)| {
+                    (
+                        Statement::Expression(Expression::CompoundExpression(c.0)),
+                        r,
+                    )
+                }),
+            )
         },
         |tokens| Ok(try_parse_let(tokens)?.map(|t| (t, &tokens[Span::at(tokens.len())]))),
         |tokens| Ok(try_parse_assign(tokens)?.map(|t| (t, &tokens[Span::at(tokens.len())]))),

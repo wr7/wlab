@@ -13,7 +13,7 @@ use inkwell::types::{BasicMetadataTypeEnum, BasicType};
 
 impl<'ctx> CodegenUnit<'ctx> {
     pub fn generate_function<'a: 'ctx>(
-        &self,
+        &mut self,
         fn_name: &str,
         params: &[(&'a str, S<&'a str>)],
         return_type: Type,
@@ -40,7 +40,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         );
 
         let main_block = self.context.append_basic_block(function, "");
-        self.builder.position_at_end(main_block);
+        self.position_at_end(main_block);
 
         let mut fn_scope = Scope::new(scope).with_params(&params, function);
 
@@ -72,7 +72,7 @@ impl<'ctx> CodegenUnit<'ctx> {
 
     /// Generates a codeblock: NOTE: this will NOT create a new scope. The caller should create one for this block
     pub fn generate_codeblock<'a: 'ctx>(
-        &self,
+        &mut self,
         block: &CodeBlock<'a>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {

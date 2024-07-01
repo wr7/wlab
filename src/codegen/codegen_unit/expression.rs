@@ -6,15 +6,18 @@ use crate::{
         types::{Type, TypedValue},
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::{Expression, Literal},
+    parser::{CodeBlock, Expression, Literal},
 };
 
-use inkwell::{types::StringRadix, values::BasicMetadataValueEnum};
+use inkwell::{
+    types::StringRadix,
+    values::{BasicMetadataValueEnum, BasicValueEnum},
+};
 use wutil::Span;
 
 impl<'ctx> CodegenUnit<'ctx> {
     pub fn generate_expression<'a: 'ctx>(
-        &self,
+        &mut self,
         expression: S<&Expression<'a>>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
@@ -54,8 +57,105 @@ impl<'ctx> CodegenUnit<'ctx> {
                 condition,
                 block,
                 else_block,
-            } => todo!(),
+            } => self.generate_if(scope, condition, block.as_sref(), else_block),
         }
+    }
+
+    fn generate_if<'a: 'ctx>(
+        &mut self,
+        scope: &mut Scope<'_, 'ctx>,
+        condition: &Box<S<Expression<'a>>>,
+        block: S<&CodeBlock<'a>>,
+        else_block: &Option<S<CodeBlock<'a>>>,
+    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+        let condition_span = condition.1;
+        let condition = self.generate_expression(condition.as_sref(), scope)?;
+
+        if &condition.type_ != &Type::bool {
+            return Err(codegen::error::unexpected_type(
+                condition_span,
+                &Type::bool,
+                &condition.type_,
+            ));
+        }
+
+        let BasicValueEnum::IntValue(condition) = condition.val else {
+            unreachable!()
+        };
+
+        let Some(base_bb) = self.current_block else {
+            unreachable!()
+        };
+
+        let if_bb = self.context.insert_basic_block_after(base_bb, "");
+        self.position_at_end(if_bb);
+
+        let mut if_scope = Scope::new(&scope);
+        let if_retval = self.generate_codeblock(*block, &mut if_scope)?;
+
+        let else_bb;
+        let continuing_bb;
+        let else_retval: Option<TypedValue<'ctx>> = if let Some(else_block) = else_block {
+            let else_bb_ = self.context.insert_basic_block_after(if_bb, "");
+            else_bb = Some(else_bb_);
+
+            continuing_bb = self.context.insert_basic_block_after(else_bb_, "");
+
+            self.position_at_end(else_bb_);
+            let mut else_scope = Scope::new(&scope);
+
+            let else_retval = self.generate_codeblock(else_block, &mut else_scope)?;
+
+            self.builder
+                .build_unconditional_branch(continuing_bb)
+                .unwrap();
+
+            Some(else_retval)
+        } else {
+            else_bb = None;
+            continuing_bb = self.context.insert_basic_block_after(if_bb, "");
+            None
+        };
+
+        self.position_at_end(if_bb);
+        self.builder
+            .build_unconditional_branch(continuing_bb)
+            .unwrap();
+
+        self.position_at_end(base_bb);
+        self.builder
+            .build_conditional_branch(condition, if_bb, else_bb.unwrap_or(continuing_bb))
+            .unwrap();
+
+        self.position_at_end(continuing_bb);
+
+        let retval = if let Some(else_retval) = else_retval {
+            if else_retval.type_ != if_retval.type_ {
+                return Err(codegen::error::mismatched_if_else(
+                    S(&if_retval.type_, block.1),
+                    S(&else_retval.type_, else_block.as_ref().unwrap().1),
+                ));
+            }
+
+            let phi = self
+                .builder
+                .build_phi(if_retval.val.get_type(), "")
+                .unwrap();
+
+            phi.add_incoming(&[
+                (&if_retval.val, if_bb),
+                (&else_retval.val, else_bb.unwrap()),
+            ]);
+
+            TypedValue {
+                type_: if_retval.type_,
+                val: phi.as_basic_value(),
+            }
+        } else {
+            if_retval
+        };
+
+        Ok(retval)
     }
 
     fn generate_string_literal<'a: 'ctx>(&self, lit: &'a str) -> TypedValue<'ctx> {
@@ -101,7 +201,7 @@ impl<'ctx> CodegenUnit<'ctx> {
     }
 
     fn generate_function_call<'a: 'ctx>(
-        &self,
+        &mut self,
         span: Span,
         scope: &mut Scope<'_, 'ctx>,
         fn_name: &'a str,

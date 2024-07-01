@@ -1,8 +1,20 @@
-fn print(val: str) {
+fn println(val: str) {
     write(1, val);
+    write(1, "\n");
 }
 
 fn _start() {
-    print("hello from \"wlang\"!\n");
+    println("what's 9 + 10?");
+
+    if 9 + 10 == 21 {
+        println("21");
+    } else {
+        println("19");
+    }
+
+    let x = if 9 + 10 == 21 {"goteem"} else {":("};
+
+    println(x);
+
     exit(0);
 }
