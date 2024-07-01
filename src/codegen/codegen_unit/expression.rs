@@ -152,7 +152,10 @@ impl<'ctx> CodegenUnit<'ctx> {
                 val: phi.as_basic_value(),
             }
         } else {
-            if_retval
+            TypedValue {
+                type_: Type::unit,
+                val: self.core_types.unit.const_zero().into(),
+            }
         };
 
         Ok(retval)
