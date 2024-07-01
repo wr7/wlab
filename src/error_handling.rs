@@ -40,6 +40,7 @@ impl<T> Spanned<T> {
 /// Gets the span of a slice of objects in the source file.
 ///
 /// Returns `None` if the slice is empty.
+#[must_use]
 pub fn span_of<T>(slice: &[Spanned<T>]) -> Option<Span> {
     let (first, last) = slice.first().zip(slice.last())?;
 

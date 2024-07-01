@@ -1,6 +1,11 @@
 //! Contains rules for the parser. Note: inputs are assumed to not have mismatched/unclosed brackets (these checks should be done in advance).
 
-use crate::{error_handling::Spanned as S, lexer::Token, util::SliceExt, T};
+use crate::{
+    error_handling::{self, Spanned as S},
+    lexer::Token,
+    util::SliceExt,
+    T,
+};
 
 use super::{util::NonBracketedIter, Expression, Literal, OpCode, ParseError, Statement};
 
@@ -59,7 +64,7 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
     }
 
     Err(ParseError::InvalidExpression(
-        Span::at(tokens.first().unwrap().1.start).with_end(tokens.last().unwrap().1.end),
+        error_handling::span_of(&tokens).unwrap(),
     ))
 }
 
@@ -139,7 +144,7 @@ fn try_parse_assign<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<
         return Err(ParseError::ExpectedExpression(equal_span.span_after()));
     };
 
-    let span = tokens.first().unwrap().1.start..tokens.last().unwrap().1.end;
+    let span = error_handling::span_of(tokens).unwrap();
 
     Ok(Some(Statement::Assign(
         var_name,
@@ -166,12 +171,9 @@ fn try_parse_let<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>
         return Err(ParseError::ExpectedExpression(equal_span.span_after()));
     };
 
-    let span = tokens.first().unwrap().1.start..tokens.last().unwrap().1.end;
+    let span = error_handling::span_of(tokens).unwrap();
 
-    return Ok(Some(Statement::Let(
-        var_name,
-        Box::new(S(val, span.into())),
-    )));
+    return Ok(Some(Statement::Let(var_name, Box::new(S(val, span)))));
 }
 
 /// A binary expression. Eg `a + b`
@@ -184,15 +186,15 @@ fn try_parse_binary_operator<'a>(
 
         for (op_tok, opcode) in opcodes {
             if &**tok == op_tok {
-                let x = try_parse_expr(&tokens[0..i])?.ok_or_else(|| {
+                let x = try_parse_expr(&tokens[..i])?.ok_or_else(|| {
                     ParseError::ExpectedExpression(Span::at(tokens[i].1.start.saturating_sub(1)))
                 })?;
 
                 let y = try_parse_expr(&tokens[i + 1..])?
                     .ok_or_else(|| ParseError::ExpectedExpression(tokens[i].1.span_after()))?;
 
-                let x_span = tokens[0].1.start..tokens[i - 1].1.end;
-                let y_span = tokens[i + 1].1.start..tokens.last().unwrap().1.end;
+                let x_span = error_handling::span_of(&tokens[..i]).unwrap();
+                let y_span = error_handling::span_of(&tokens[i + 1..]).unwrap();
 
                 return Ok(Some(Expression::BinaryOperator(
                     Box::new(S(x, x_span.into())),

@@ -33,8 +33,6 @@ mod parser;
  *  - Add a "function already defined" error
  *  - Allow out-of-order and recursive functions
  *  - Add unit tests for parser
- *  - Refactor code to use `error_handling::span_of`
- *  - Add `if` expected block got EOF error
  */
 
 fn main() {

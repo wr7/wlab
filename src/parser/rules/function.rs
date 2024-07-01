@@ -1,7 +1,7 @@
 use wutil::iter::IterExt as _;
 
 use crate::{
-    error_handling::Spanned as S,
+    error_handling::{self, Spanned as S},
     lexer::Token,
     parser::{
         rules::try_parse_expr,
@@ -90,17 +90,9 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
 
     let closing_idx = tokens.elem_offset(right_paren).unwrap();
 
-    // Check for trailing tokens
-    if closing_idx < tokens.len() - 1 {
-        let trailing_tokens = &tokens[closing_idx + 1..];
-        return Err(ParseError::UnexpectedTokens(
-            trailing_tokens
-                .first()
-                .unwrap()
-                .1
-                .span_at()
-                .with_end(trailing_tokens.last().unwrap().1.end),
-        ));
+    let trailing_tokens = &tokens[closing_idx + 1..];
+    if let Some(span) = error_handling::span_of(trailing_tokens) {
+        return Err(ParseError::UnexpectedTokens(span));
     }
 
     let params = parse_expression_list(&tokens[2..closing_idx])?;
@@ -120,9 +112,9 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Expres
             return Err(ParseError::ExpectedExpression(separator.1.span_at()));
         };
 
-        let span = expr_toks.first().unwrap().1.start..expr_toks.last().unwrap().1.end;
+        let span = error_handling::span_of(expr_toks).unwrap();
 
-        expressions.push(S(expr, span.into()));
+        expressions.push(S(expr, span));
     }
 
     Ok(expressions)

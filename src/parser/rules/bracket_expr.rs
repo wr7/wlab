@@ -77,8 +77,8 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Sta
 
     while let Some(stmnt) = queued_tokens.take().or_else(|| token_split.next()) {
         if let Some((statement, remaining_tokens)) = try_parse_statement_from_front(stmnt)? {
-            let span = stmnt.first().unwrap().1.start..stmnt.last().unwrap().1.end;
-            items.push(S(statement, span.into()));
+            let span = error_handling::span_of(stmnt).unwrap();
+            items.push(S(statement, span));
 
             if !remaining_tokens.is_empty() {
                 queued_tokens = Some(remaining_tokens)
