@@ -19,10 +19,20 @@ impl<'ctx> CodegenUnit<'ctx> {
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         match &*expression {
-            Expression::Identifier(ident) => scope
-                .get_variable(ident)
-                .cloned()
-                .ok_or(codegen::error::undefined_variable(S(ident, expression.1))),
+            Expression::Identifier(ident) => match *ident {
+                "true" => Ok(TypedValue {
+                    val: self.core_types.bool.const_int(1, false).into(),
+                    type_: Type::bool,
+                }),
+                "false" => Ok(TypedValue {
+                    val: self.core_types.bool.const_int(0, false).into(),
+                    type_: Type::bool,
+                }),
+                _ => scope
+                    .get_variable(ident)
+                    .cloned()
+                    .ok_or(codegen::error::undefined_variable(S(ident, expression.1))),
+            },
             Expression::Literal(Literal::Number(lit)) => {
                 self.generate_number_literal(lit, expression.1)
             }

@@ -8,24 +8,29 @@ pub enum Token<'a> {
     CloseBracket(BracketType),
     Identifier(&'a str),
     StringLiteral(String),
-    Arrow,
     Plus,
     Minus,
     Asterisk,
     Slash,
+    Greater,
+    Less,
     Dot,
     Comma,
     Colon,
     Semicolon,
     EqualSign,
+    Arrow,
+    Or,
+    And,
+    DoubleEqual,
+    NotEqual,
+    GreaterOrEqual,
+    LessOrEqual,
 }
 
 /// Shorthand macro for `Token` literals.
 #[macro_export]
 macro_rules! T {
-    ("->") => {
-        $crate::lexer::Token::Arrow
-    };
     ("+") => {
         $crate::lexer::Token::Plus
     };
@@ -37,6 +42,12 @@ macro_rules! T {
     };
     ("*") => {
         $crate::lexer::Token::Asterisk
+    };
+    (">") => {
+        $crate::lexer::Token::Greater
+    };
+    ("<") => {
+        $crate::lexer::Token::Less
     };
     (".") => {
         $crate::lexer::Token::Dot
@@ -71,6 +82,27 @@ macro_rules! T {
     ("=") => {
         $crate::lexer::Token::EqualSign
     };
+    ("->") => {
+        $crate::lexer::Token::Arrow
+    };
+    ("||") => {
+        $crate::lexer::Token::Or
+    };
+    ("&&") => {
+        $crate::lexer::Token::And
+    };
+    ("==") => {
+        $crate::lexer::Token::DoubleEqual
+    };
+    ("!=") => {
+        $crate::lexer::Token::NotEqual
+    };
+    (">=") => {
+        $crate::lexer::Token::GreaterOrEqual
+    };
+    ("<=") => {
+        $crate::lexer::Token::LessOrEqual
+    };
     ($ident:literal) => {
         $crate::lexer::Token::Identifier($ident)
     };
@@ -81,11 +113,12 @@ impl<'a> Token<'a> {
         match self {
             Token::Identifier(ident) => ident,
             Token::StringLiteral(lit) => lit,
-            T!("->") => "->",
             T!("+") => "+",
             T!("-") => "-",
             T!("*") => "*",
             T!("/") => "/",
+            T!(">") => ">",
+            T!("<") => "<",
             T!(".") => ".",
             T!(",") => ",",
             T!("(") => "(",
@@ -97,6 +130,13 @@ impl<'a> Token<'a> {
             T!(":") => ":",
             T!(";") => ";",
             T!("=") => "=",
+            T!("->") => "->",
+            T!("||") => "||",
+            T!("&&") => "&&",
+            T!("==") => "==",
+            T!("!=") => "!=",
+            T!(">=") => ">=",
+            T!("<=") => "<=",
         }
     }
 }

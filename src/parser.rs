@@ -55,6 +55,14 @@ pub enum OpCode {
     Minus,
     Asterisk,
     Slash,
+    Or,
+    And,
+    Equal,
+    NotEqual,
+    Greater,
+    Less,
+    GreaterEqual,
+    LessEqual,
 }
 
 impl Display for OpCode {
@@ -64,6 +72,14 @@ impl Display for OpCode {
             OpCode::Minus => "-",
             OpCode::Asterisk => "*",
             OpCode::Slash => "/",
+            OpCode::Or => "||",
+            OpCode::And => "&&",
+            OpCode::Equal => "==",
+            OpCode::NotEqual => "!=",
+            OpCode::Greater => ">",
+            OpCode::Less => "<",
+            OpCode::GreaterEqual => ">=",
+            OpCode::LessEqual => "<=",
         };
 
         write!(f, "{str}")

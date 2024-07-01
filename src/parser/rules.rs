@@ -22,6 +22,22 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
         |tokens| Ok(try_parse_literal(tokens)),
         |tokens| Ok(try_parse_identifier(tokens)),
         |tokens| bracket_expr::try_parse_bracket_expr(tokens),
+        |tokens| {
+            try_parse_binary_operator(tokens, &[(T!("||"), OpCode::Or), (T!("&&"), OpCode::And)])
+        },
+        |tokens| {
+            try_parse_binary_operator(
+                tokens,
+                &[
+                    (T!(">"), OpCode::Greater),
+                    (T!("<"), OpCode::Less),
+                    (T!(">="), OpCode::GreaterEqual),
+                    (T!("<="), OpCode::LessEqual),
+                    (T!("=="), OpCode::Equal),
+                    (T!("!="), OpCode::NotEqual),
+                ],
+            )
+        },
         |tokens| function::try_parse_function_call(tokens),
         |tokens| {
             try_parse_binary_operator(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)])

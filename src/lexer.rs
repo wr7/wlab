@@ -157,9 +157,8 @@ impl<'a> Lexer<'a> {
         byte_index: usize,
         char: char,
     ) -> Result<Spanned<Token<'a>>, LexerError> {
-        if char == '-' && self.chars.clone().next().is_some_and(|c| c.1 == '>') {
-            self.chars.next();
-            return Ok(Spanned(T!("->"), Span::at(byte_index).with_len(2)));
+        if let Some(symbol) = self.lex_two_character_symbol(byte_index, char) {
+            return Ok(symbol);
         }
 
         Ok(Spanned(
@@ -168,6 +167,8 @@ impl<'a> Lexer<'a> {
                 '-' => T!("-"),
                 '*' => T!("*"),
                 '/' => T!("/"),
+                '>' => T!(">"),
+                '<' => T!("<"),
                 '.' => T!("."),
                 ',' => T!(","),
                 '(' => T!("("),
@@ -187,5 +188,28 @@ impl<'a> Lexer<'a> {
             },
             Span::at(byte_index).with_len(1),
         ))
+    }
+
+    fn lex_two_character_symbol(
+        &mut self,
+        byte_index: usize,
+        char: char,
+    ) -> Option<Spanned<Token<'a>>> {
+        let next_char = self.chars.clone().next()?.1;
+
+        let symbol = match (char, next_char) {
+            ('-', '>') => T!("->"),
+            ('|', '|') => T!("||"),
+            ('&', '&') => T!("&&"),
+            ('=', '=') => T!("=="),
+            ('!', '=') => T!("!="),
+            ('>', '=') => T!(">="),
+            ('<', '=') => T!("<="),
+            _ => return None,
+        };
+
+        self.chars.next();
+
+        Some(Spanned(symbol, Span::at(byte_index).with_len(2)))
     }
 }
