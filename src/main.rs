@@ -4,6 +4,7 @@
 #![allow(clippy::default_trait_access)]
 #![allow(clippy::manual_assert)]
 #![allow(clippy::ref_as_ptr)]
+#![allow(clippy::type_complexity)]
 #![forbid(clippy::explicit_deref_methods)]
 #![forbid(clippy::range_plus_one)]
 #![forbid(clippy::semicolon_if_nothing_returned)]

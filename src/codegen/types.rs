@@ -139,43 +139,43 @@ impl<'ctx> TypedValue<'ctx> {
         match opcode {
             OpCode::Plus => {
                 val = builder.build_int_add(lhs, rhs, "");
-                type_ = Type::i32
+                type_ = Type::i32;
             }
             OpCode::Minus => {
                 val = builder.build_int_sub(lhs, rhs, "");
-                type_ = Type::i32
+                type_ = Type::i32;
             }
             OpCode::Asterisk => {
                 val = builder.build_int_mul(lhs, rhs, "");
-                type_ = Type::i32
+                type_ = Type::i32;
             }
             OpCode::Slash => {
                 val = builder.build_int_signed_div(lhs, rhs, "");
-                type_ = Type::i32
+                type_ = Type::i32;
             }
             OpCode::Equal => {
                 val = builder.build_int_compare(inkwell::IntPredicate::EQ, lhs, rhs, "");
-                type_ = Type::bool
+                type_ = Type::bool;
             }
             OpCode::NotEqual => {
                 val = builder.build_int_compare(inkwell::IntPredicate::NE, lhs, rhs, "");
-                type_ = Type::bool
+                type_ = Type::bool;
             }
             OpCode::Greater => {
                 val = builder.build_int_compare(inkwell::IntPredicate::SGT, lhs, rhs, "");
-                type_ = Type::bool
+                type_ = Type::bool;
             }
             OpCode::Less => {
                 val = builder.build_int_compare(inkwell::IntPredicate::SLT, lhs, rhs, "");
-                type_ = Type::bool
+                type_ = Type::bool;
             }
             OpCode::GreaterEqual => {
                 val = builder.build_int_compare(inkwell::IntPredicate::SGE, lhs, rhs, "");
-                type_ = Type::bool
+                type_ = Type::bool;
             }
             OpCode::LessEqual => {
                 val = builder.build_int_compare(inkwell::IntPredicate::SLE, lhs, rhs, "");
-                type_ = Type::bool
+                type_ = Type::bool;
             }
             OpCode::And | OpCode::Or => {
                 return Err(codegen::error::undefined_operator(

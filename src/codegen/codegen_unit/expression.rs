@@ -64,14 +64,14 @@ impl<'ctx> CodegenUnit<'ctx> {
     fn generate_if<'a: 'ctx>(
         &mut self,
         scope: &mut Scope<'_, 'ctx>,
-        condition: &Box<S<Expression<'a>>>,
+        condition: &S<Expression<'a>>,
         block: S<&CodeBlock<'a>>,
         else_block: &Option<S<CodeBlock<'a>>>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let condition_span = condition.1;
         let condition = self.generate_expression(condition.as_sref(), scope)?;
 
-        if &condition.type_ != &Type::bool {
+        if condition.type_ != Type::bool {
             return Err(codegen::error::unexpected_type(
                 condition_span,
                 &Type::bool,
@@ -90,7 +90,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         let if_bb = self.context.insert_basic_block_after(base_bb, "");
         self.position_at_end(if_bb);
 
-        let mut if_scope = Scope::new(&scope);
+        let mut if_scope = Scope::new(scope);
         let if_retval = self.generate_codeblock(*block, &mut if_scope)?;
 
         let else_bb;
@@ -102,7 +102,7 @@ impl<'ctx> CodegenUnit<'ctx> {
             continuing_bb = self.context.insert_basic_block_after(else_bb_, "");
 
             self.position_at_end(else_bb_);
-            let mut else_scope = Scope::new(&scope);
+            let mut else_scope = Scope::new(scope);
 
             let else_retval = self.generate_codeblock(else_block, &mut else_scope)?;
 

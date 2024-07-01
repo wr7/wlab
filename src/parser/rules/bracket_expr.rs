@@ -81,7 +81,7 @@ pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Sta
             items.push(S(statement, span));
 
             if !remaining_tokens.is_empty() {
-                queued_tokens = Some(remaining_tokens)
+                queued_tokens = Some(remaining_tokens);
             }
         }
     }

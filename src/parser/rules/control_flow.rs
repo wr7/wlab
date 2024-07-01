@@ -31,7 +31,7 @@ pub fn try_parse_if_from_front<'a>(
         return Ok(None);
     };
 
-    let Some(left_bracket) = nb_iter.find(|t| &***t == &T!("{")) else {
+    let Some(left_bracket) = nb_iter.find(|t| ***t == T!("{")) else {
         return Err(ParseError::MissingBlock(*if_span));
     };
 

@@ -64,7 +64,7 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
     }
 
     Err(ParseError::InvalidExpression(
-        error_handling::span_of(&tokens).unwrap(),
+        error_handling::span_of(tokens).unwrap(),
     ))
 }
 
@@ -148,7 +148,7 @@ fn try_parse_assign<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<
 
     Ok(Some(Statement::Assign(
         var_name,
-        Box::new(S(val, span.into())),
+        Box::new(S(val, span)),
     )))
 }
 
@@ -197,9 +197,9 @@ fn try_parse_binary_operator<'a>(
                 let y_span = error_handling::span_of(&tokens[i + 1..]).unwrap();
 
                 return Ok(Some(Expression::BinaryOperator(
-                    Box::new(S(x, x_span.into())),
+                    Box::new(S(x, x_span)),
                     *opcode,
-                    Box::new(S(y, y_span.into())),
+                    Box::new(S(y, y_span)),
                 )));
             }
         }
