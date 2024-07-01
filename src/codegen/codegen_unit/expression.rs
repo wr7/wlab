@@ -18,7 +18,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         expression: S<&Expression<'a>>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
-        match &*expression {
+        match *expression {
             Expression::Identifier(ident) => match *ident {
                 "true" => Ok(TypedValue {
                     val: self.core_types.bool.const_int(1, false).into(),
@@ -50,6 +50,11 @@ impl<'ctx> CodegenUnit<'ctx> {
             Expression::FunctionCall(fn_name, arguments) => {
                 self.generate_function_call(expression.1, scope, fn_name, arguments)
             }
+            Expression::If {
+                condition,
+                block,
+                else_block,
+            } => todo!(),
         }
     }
 

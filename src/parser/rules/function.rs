@@ -97,8 +97,16 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
     let closing_idx = tokens.elem_offset(right_paren).unwrap();
 
     // Check for trailing tokens
-    if closing_idx != tokens.len() - 1 {
-        return Ok(None); // Will yield an invalidexpression error eventually
+    if closing_idx < tokens.len() - 1 {
+        let trailing_tokens = &tokens[closing_idx + 1..];
+        return Err(ParseError::UnexpectedTokens(
+            trailing_tokens
+                .first()
+                .unwrap()
+                .1
+                .span_at()
+                .with_end(trailing_tokens.last().unwrap().1.end),
+        ));
     }
 
     let params = parse_expression_list(&tokens[2..closing_idx])?;

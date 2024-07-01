@@ -29,6 +29,11 @@ pub enum Expression<'a> {
     BinaryOperator(Box<Spanned<Self>>, OpCode, Box<Spanned<Self>>),
     CompoundExpression(CodeBlock<'a>),
     FunctionCall(&'a str, Vec<Spanned<Expression<'a>>>),
+    If {
+        condition: Box<Spanned<Self>>,
+        block: CodeBlock<'a>,
+        else_block: Option<CodeBlock<'a>>,
+    },
 }
 
 impl<'a> From<Expression<'a>> for Statement<'a> {

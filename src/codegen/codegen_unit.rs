@@ -53,7 +53,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         scope: &mut Scope<'_, 'ctx>,
         statement: S<&Statement<'a>>,
     ) -> Result<(), Diagnostic> {
-        match &*statement {
+        match *statement {
             Statement::Expression(expr) => {
                 self.generate_expression(S(expr, statement.1), scope)?;
             }

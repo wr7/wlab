@@ -7,6 +7,7 @@ use super::{util::NonBracketedIter, Expression, Literal, OpCode, ParseError, Sta
 type PResult<T> = Result<T, ParseError>;
 
 mod bracket_expr;
+mod control_flow;
 mod function;
 mod types;
 
@@ -21,6 +22,7 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
     let rules = [
         |tokens| Ok(try_parse_literal(tokens)),
         |tokens| Ok(try_parse_identifier(tokens)),
+        |tokens| control_flow::try_parse_if_expression(tokens),
         |tokens| bracket_expr::try_parse_bracket_expr(tokens),
         |tokens| {
             try_parse_binary_operator(tokens, &[(T!("||"), OpCode::Or), (T!("&&"), OpCode::And)])
@@ -71,6 +73,7 @@ fn try_parse_statement_from_front<'a>(
 
     let rules = [
         |tokens| function::try_parse_function_from_front(tokens),
+        |tokens| Ok(control_flow::try_parse_if_from_front(tokens)?.map(|(ex, r)| (ex.into(), r))),
         |tokens| {
             Ok(bracket_expr::try_parse_code_block_from_front(tokens)?
                 .map(|(c, r)| (Statement::Expression(Expression::CompoundExpression(c)), r)))

@@ -37,6 +37,15 @@ impl<T> Spanned<T> {
     }
 }
 
+/// Gets the span of a slice of objects in the source file.
+///
+/// Returns `None` if the slice is empty.
+pub fn span_of<T>(slice: &[Spanned<T>]) -> Option<Span> {
+    let (first, last) = slice.first().zip(slice.last())?;
+
+    Some(first.1.span_at().with_end(last.1.end))
+}
+
 impl<T: Eq> Eq for Spanned<T> {}
 
 #[derive(Clone)]

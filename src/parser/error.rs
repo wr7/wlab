@@ -20,6 +20,7 @@ pub enum ParseError {
     ExpectedParamName(Span),
     ExpectedType(Span),
     ExpectedToken(Span, &'static [Token<'static>]),
+    UnexpectedTokens(Span),
     MismatchedBrackets(Span, Span),
 }
 
@@ -82,6 +83,12 @@ impl WLangError for ParseError {
                     Hint::new_error("opening bracket here", *opening),
                     Hint::new_error("closing bracket here", *closing),
                 ],
+            },
+            ParseError::UnexpectedTokens(span) => d! {
+                "unexpected tokens",
+                [
+                    Hint::new_error("tokens here", *span)
+                ]
             },
         };
 
