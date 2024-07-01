@@ -49,7 +49,7 @@ pub fn try_parse_code_block_from_front<'a>(
     let closing_idx = tokens.elem_offset(close_bracket).unwrap();
 
     let body = parse_statement_list(&tokens[1..closing_idx])?;
-    let span = error_handling::span_of(&tokens[1..closing_idx]).unwrap();
+    let span = error_handling::span_of(&tokens[0..=closing_idx]).unwrap();
 
     let trailing_semicolon = if let S(T!(";"), s) = &tokens[closing_idx - 1] {
         Some(*s)
