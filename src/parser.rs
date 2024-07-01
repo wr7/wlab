@@ -22,6 +22,15 @@ pub enum Statement<'a> {
     },
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum Expression<'a> {
+    Identifier(&'a str),
+    Literal(Literal<'a>),
+    BinaryOperator(Box<Spanned<Self>>, OpCode, Box<Spanned<Self>>),
+    CompoundExpression(CodeBlock<'a>),
+    FunctionCall(&'a str, Vec<Spanned<Expression<'a>>>),
+}
+
 impl<'a> From<Expression<'a>> for Statement<'a> {
     fn from(expr: Expression<'a>) -> Self {
         Statement::Expression(expr)
@@ -38,15 +47,6 @@ pub struct CodeBlock<'a> {
 pub enum Literal<'a> {
     Number(&'a str),
     String(&'a str),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Expression<'a> {
-    Identifier(&'a str),
-    Literal(Literal<'a>),
-    BinaryOperator(Box<Spanned<Self>>, OpCode, Box<Spanned<Self>>),
-    CompoundExpression(CodeBlock<'a>),
-    FunctionCall(&'a str, Vec<Spanned<Expression<'a>>>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

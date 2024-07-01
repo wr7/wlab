@@ -1,3 +1,5 @@
+use wutil::iter::IterExt as _;
+
 use crate::{
     error_handling::Spanned as S,
     lexer::Token,
@@ -10,10 +12,12 @@ use crate::{
     T,
 };
 
-use super::{bracket_expr::try_parse_bracket_expr, PResult};
+use super::{bracket_expr::try_parse_code_block_from_front, PResult};
 
 /// A function. Eg `fn foo() {let x = ten; x}`
-pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
+pub fn try_parse_function_from_front<'a>(
+    tokens: &'a [S<Token<'a>>],
+) -> PResult<Option<(Statement<'a>, &'a [S<Token<'a>>])>> {
     let Some(([S(T!("fn"), _), S(Token::Identifier(name), name_span)], tokens)) =
         tokens.split_first_chunk::<2>()
     else {
@@ -57,37 +61,47 @@ pub fn try_parse_function<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stat
             None
         };
 
-    let Some(Expression::CompoundExpression(body)) = try_parse_bracket_expr(&tokens[body_start..])?
+    let Some((body, remaining_tokens)) = try_parse_code_block_from_front(&tokens[body_start..])?
     else {
         return Err(ParseError::ExpectedBody(right_paren.1.span_after()));
     };
 
-    Ok(Some(Statement::Function {
-        name,
-        params,
-        return_type,
-        body: S(
-            body,
-            tokens[body_start]
-                .1
-                .span_at()
-                .with_end(tokens.last().unwrap().1.end),
-        ),
-    }))
+    Ok(Some((
+        Statement::Function {
+            name,
+            params,
+            return_type,
+            body: S(
+                body,
+                tokens[body_start]
+                    .1
+                    .span_at()
+                    .with_end(tokens.last().unwrap().1.end),
+            ),
+        },
+        remaining_tokens,
+    )))
 }
 
 pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
-    let Some(([S(Token::Identifier(fn_name), _), S(T!("("), _)], tokens)) =
-        tokens.split_first_chunk()
-    else {
+    let mut nb_iter = NonBracketedIter::new(tokens);
+
+    let Some([S(Token::Identifier(fn_name), _), S(T!("("), _)]) = nb_iter.collect_n() else {
         return Ok(None);
     };
 
-    let Some((S(T!(")"), _), tokens)) = tokens.split_last() else {
-        return Ok(None); // Will yield an invalidexpression error eventually
+    let Some(right_paren @ S(T!(")"), _)) = nb_iter.next() else {
+        unreachable!()
     };
 
-    let params = parse_expression_list(tokens)?;
+    let closing_idx = tokens.elem_offset(right_paren).unwrap();
+
+    // Check for trailing tokens
+    if closing_idx != tokens.len() - 1 {
+        return Ok(None); // Will yield an invalidexpression error eventually
+    }
+
+    let params = parse_expression_list(&tokens[2..closing_idx])?;
 
     Ok(Some(Expression::FunctionCall(fn_name, params)))
 }

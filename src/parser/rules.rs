@@ -62,15 +62,21 @@ fn try_parse_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'
 }
 
 /// A statement. This can be either an expression or a few other things.
-fn try_parse_statement<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<'a>>> {
+fn try_parse_statement_from_front<'a>(
+    tokens: &'a [S<Token<'a>>],
+) -> PResult<Option<(Statement<'a>, &'a [S<Token<'a>>])>> {
     if tokens.is_empty() {
         return Ok(None);
     }
 
     let rules = [
-        |tokens| function::try_parse_function(tokens),
-        |tokens| try_parse_let(tokens),
-        |tokens| try_parse_assign(tokens),
+        |tokens| function::try_parse_function_from_front(tokens),
+        |tokens| {
+            Ok(bracket_expr::try_parse_code_block_from_front(tokens)?
+                .map(|(c, r)| (Statement::Expression(Expression::CompoundExpression(c)), r)))
+        },
+        |tokens| Ok(try_parse_let(tokens)?.map(|t| (t, &tokens[Span::at(tokens.len())]))),
+        |tokens| Ok(try_parse_assign(tokens)?.map(|t| (t, &tokens[Span::at(tokens.len())]))),
     ];
 
     for rule in rules {
@@ -80,7 +86,7 @@ fn try_parse_statement<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Stateme
     }
 
     if let Some(expr) = try_parse_expr(tokens)? {
-        Ok(Some(expr.into()))
+        Ok(Some((expr.into(), &tokens[Span::at(tokens.len())])))
     } else {
         Ok(None)
     }
