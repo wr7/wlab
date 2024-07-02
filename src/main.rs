@@ -33,7 +33,9 @@ mod parser;
  *  - Add function definition to errors
  *  - Add a "function already defined" error
  *  - Allow out-of-order and recursive functions
- *  - Add unit tests for parser
+ *  - Fix nested if statements
+ *  - Add noreturn and nounwind to exit
+ *  - Add intrinsic attribute
  */
 
 fn main() {
@@ -52,7 +54,7 @@ fn main() {
     let mut lex_file = std::fs::File::create("./a.lex").unwrap();
     write!(&mut lex_file, "{tokens:#?}").unwrap();
 
-    let ast = parser::parse(&tokens);
+    let ast = parser::parse_module(&tokens);
     let ast = match ast {
         Ok(ast) => ast,
         Err(err) => {

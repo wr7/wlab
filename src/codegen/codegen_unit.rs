@@ -65,12 +65,7 @@ impl<'ctx> CodegenUnit<'ctx> {
                 scope.create_variable(varname, val);
             }
             Statement::Assign(_, _) => todo!(),
-            Statement::Function {
-                name: _,
-                params: _,
-                return_type: _,
-                body: _,
-            } => todo!(),
+            Statement::Function(_) => todo!(),
         }
         Ok(())
     }

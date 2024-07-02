@@ -6,18 +6,36 @@ use crate::{
     parser::{
         rules::try_parse_expr,
         util::{NonBracketedIter, TokenSplit},
-        Expression, ParseError, Statement,
+        Expression, Function, ParseError, Statement, Visibility,
     },
     util::SliceExt,
     T,
 };
 
-use super::{bracket_expr::try_parse_code_block_from_front, PResult};
+use super::{attributes, bracket_expr::try_parse_code_block_from_front, PResult};
 
 /// A function. Eg `fn foo() {let x = ten; x}`
 pub fn try_parse_function_from_front<'a>(
-    tokens: &'a [S<Token<'a>>],
+    mut tokens: &'a [S<Token<'a>>],
 ) -> PResult<Option<(Statement<'a>, &'a [S<Token<'a>>])>> {
+    let attributes;
+    if let Some((attributes_, remaining_tokens)) =
+        attributes::try_parse_attributes_from_front(tokens)?
+    {
+        tokens = remaining_tokens;
+        attributes = attributes_;
+    } else {
+        attributes = Vec::new();
+    }
+
+    let visibility;
+    if let Some((S(T!("pub"), _), tokens_)) = tokens.split_first() {
+        tokens = tokens_;
+        visibility = Visibility::Public
+    } else {
+        visibility = Visibility::Private
+    }
+
     let Some(([S(T!("fn"), _), S(Token::Identifier(name), name_span)], tokens)) =
         tokens.split_first_chunk::<2>()
     else {
@@ -67,12 +85,14 @@ pub fn try_parse_function_from_front<'a>(
     };
 
     Ok(Some((
-        Statement::Function {
+        Statement::Function(Function {
             name,
             params,
             return_type,
+            attributes,
+            visibility,
             body,
-        },
+        }),
         remaining_tokens,
     )))
 }

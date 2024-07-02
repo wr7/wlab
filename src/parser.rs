@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::{error_handling::Spanned, lexer::Token};
+use crate::{error_handling::Spanned as S, lexer::Token};
 
 mod error;
 mod rules;
@@ -9,30 +9,94 @@ mod util;
 pub use error::ParseError;
 use wutil::Span;
 
+pub fn parse_module<'a>(mut tokens: &'a [S<Token<'a>>]) -> Result<Module<'a>, ParseError> {
+    error::check_brackets(tokens)?;
+
+    let attributes;
+    if let Some((attributes_, tokens_)) = rules::try_parse_outer_attributes_from_front(tokens)? {
+        tokens = tokens_;
+        attributes = attributes_;
+    } else {
+        attributes = Vec::new();
+    }
+
+    let statements = rules::parse_statement_list(tokens)?;
+    let functions: Result<Vec<S<Function<'a>>>, _> = statements
+        .into_iter()
+        .map(|S(statement, span)| {
+            Function::try_from(statement)
+                .map(|s| S(s, span))
+                .map_err(|_| ParseError::ExpectedFunction(span))
+        })
+        .collect();
+
+    let functions = functions?;
+
+    Ok(Module {
+        attributes,
+        functions,
+    })
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Module<'a> {
+    pub attributes: Vec<S<Attribute>>,
+    pub functions: Vec<S<Function<'a>>>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Attribute {
+    DeclareCrate(String),
+    NoMangle,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Visibility {
+    Public,
+    Private,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Function<'a> {
+    pub name: &'a str,
+    pub params: Vec<(&'a str, S<&'a str>)>,
+    pub return_type: Option<S<&'a str>>,
+    pub attributes: Vec<S<Attribute>>,
+    pub visibility: Visibility,
+    pub body: S<CodeBlock<'a>>,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum Statement<'a> {
     Expression(Expression<'a>),
-    Let(&'a str, Box<Spanned<Expression<'a>>>),
-    Assign(&'a str, Box<Spanned<Expression<'a>>>),
-    Function {
-        name: &'a str,
-        params: Vec<(&'a str, Spanned<&'a str>)>,
-        return_type: Option<Spanned<&'a str>>,
-        body: Spanned<CodeBlock<'a>>,
-    },
+    Let(&'a str, Box<S<Expression<'a>>>),
+    Assign(&'a str, Box<S<Expression<'a>>>),
+    Function(Function<'a>),
+}
+
+impl<'a> TryFrom<Statement<'a>> for Function<'a> {
+    type Error = ();
+
+    fn try_from(stmnt: Statement<'a>) -> Result<Self, Self::Error> {
+        if let Statement::Function(f) = stmnt {
+            Ok(f)
+        } else {
+            Err(())
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Expression<'a> {
     Identifier(&'a str),
     Literal(Literal<'a>),
-    BinaryOperator(Box<Spanned<Self>>, OpCode, Box<Spanned<Self>>),
+    BinaryOperator(Box<S<Self>>, OpCode, Box<S<Self>>),
     CompoundExpression(CodeBlock<'a>),
-    FunctionCall(&'a str, Vec<Spanned<Expression<'a>>>),
+    FunctionCall(&'a str, Vec<S<Expression<'a>>>),
     If {
-        condition: Box<Spanned<Self>>,
-        block: Spanned<CodeBlock<'a>>,
-        else_block: Option<Spanned<CodeBlock<'a>>>,
+        condition: Box<S<Self>>,
+        block: S<CodeBlock<'a>>,
+        else_block: Option<S<CodeBlock<'a>>>,
     },
 }
 
@@ -44,7 +108,7 @@ impl<'a> From<Expression<'a>> for Statement<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct CodeBlock<'a> {
-    pub body: Vec<Spanned<Statement<'a>>>,
+    pub body: Vec<S<Statement<'a>>>,
     pub trailing_semicolon: Option<Span>,
 }
 
@@ -89,11 +153,4 @@ impl Display for OpCode {
 
         write!(f, "{str}")
     }
-}
-
-pub fn parse<'a>(
-    tokens: &'a [Spanned<Token<'a>>],
-) -> Result<Vec<Spanned<Statement<'a>>>, ParseError> {
-    error::check_brackets(tokens)?;
-    rules::parse_statement_list(tokens)
 }

@@ -13,7 +13,9 @@ use crate::diagnostic as d;
 pub enum ParseError {
     InvalidExpression(Span),
     InvalidType(Span),
+    InvalidAttribute(Span),
     UnmatchedBracket(Span),
+    ExpectedFunction(Span),
     ExpectedParameter(Span),
     ExpectedBody(Span),
     ExpectedExpression(Span),
@@ -36,8 +38,16 @@ impl WLangError for ParseError {
                 "invalid type",
                 [Hint::new_error("", *span)],
             },
+            ParseError::InvalidAttribute(span) => d! {
+                "invalid attribute",
+                [Hint::new_error("", *span)],
+            },
             ParseError::UnmatchedBracket(span) => d! {
                 format!("unmatched bracket `{}`", &code[*span]),
+                [Hint::new_error("", *span)],
+            },
+            ParseError::ExpectedFunction(span) => d! {
+                "expected function definition",
                 [Hint::new_error("", *span)],
             },
             ParseError::ExpectedParameter(span) => d! {

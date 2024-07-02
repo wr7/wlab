@@ -172,6 +172,7 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         string_global.set_initializer(&string);
         string_global.set_constant(true);
+        string_global.set_linkage(inkwell::module::Linkage::Private);
 
         let string_ptr = string_global.as_pointer_value();
 

@@ -7,12 +7,9 @@ use inkwell::{
     AddressSpace,
 };
 
-use crate::{
-    error_handling::{Diagnostic, Spanned as S},
-    parser::Statement,
-};
+use crate::{error_handling::Diagnostic, parser::Module};
 
-use self::{scope::Scope, types::Type};
+use self::scope::Scope;
 
 mod codegen_unit;
 mod error;
@@ -52,27 +49,15 @@ impl<'ctx> CoreTypes<'ctx> {
     }
 }
 
-pub fn generate_code(ast: &[S<Statement<'_>>]) -> Result<(), Diagnostic> {
+pub fn generate_code(ast: &Module<'_>) -> Result<(), Diagnostic> {
     let context = Context::create();
     let mut generator = CodegenUnit::new(&context);
     let mut scope = Scope::new_global();
 
     intrinsics::add_intrinsics(&generator, &mut scope);
 
-    for s in ast {
-        let Statement::Function {
-            name,
-            params,
-            return_type,
-            body,
-        } = &**s
-        else {
-            todo!()
-        };
-
-        let return_type = return_type.map_or(Ok(Type::unit), Type::new)?;
-
-        generator.generate_function(name, params, return_type, body.as_sref(), &mut scope)?;
+    for function in &ast.functions {
+        generator.generate_function(function, &mut scope)?;
     }
 
     let llvm_ir = generator.module.to_string();

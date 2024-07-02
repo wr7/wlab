@@ -179,7 +179,9 @@ impl<'a> Lexer<'a> {
                 '}' => T!("}"),
                 ':' => T!(":"),
                 ';' => T!(";"),
+                '!' => T!("!"),
                 '=' => T!("="),
+                '#' => T!("#"),
                 _ => {
                     return Err(LexerError::InvalidToken(
                         self.input.char_span(byte_index).unwrap(),

@@ -11,11 +11,13 @@ use super::{util::NonBracketedIter, Expression, Literal, OpCode, ParseError, Sta
 
 type PResult<T> = Result<T, ParseError>;
 
+mod attributes;
 mod bracket_expr;
 mod control_flow;
 mod function;
 mod types;
 
+pub use attributes::try_parse_outer_attributes_from_front;
 pub use bracket_expr::parse_statement_list;
 use wutil::Span;
 
@@ -146,10 +148,7 @@ fn try_parse_assign<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Statement<
 
     let span = error_handling::span_of(tokens).unwrap();
 
-    Ok(Some(Statement::Assign(
-        var_name,
-        Box::new(S(val, span)),
-    )))
+    Ok(Some(Statement::Assign(var_name, Box::new(S(val, span)))))
 }
 
 /// A variable initialization. Eg `let foo = bar * (fizz + buzz)`

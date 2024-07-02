@@ -6,21 +6,22 @@ use crate::{
         CodegenUnit,
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::{CodeBlock, Expression, Statement},
+    parser::{Attribute, CodeBlock, Expression, Function, Statement, Visibility},
 };
 
-use inkwell::types::{BasicMetadataTypeEnum, BasicType};
+use inkwell::{
+    module::Linkage,
+    types::{BasicMetadataTypeEnum, BasicType},
+};
 
 impl<'ctx> CodegenUnit<'ctx> {
     pub fn generate_function<'a: 'ctx>(
         &mut self,
-        fn_name: &str,
-        params: &[(&'a str, S<&'a str>)],
-        return_type: Type,
-        body: S<&'a CodeBlock<'a>>,
+        function: &Function<'a>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), Diagnostic> {
-        let params: Result<Vec<(&'a str, Type)>, _> = params
+        let params: Result<Vec<(&'a str, Type)>, _> = function
+            .params
             .iter()
             .map(|(n, t)| Ok((*n, Type::new(*t)?)))
             .collect();
@@ -31,24 +32,39 @@ impl<'ctx> CodegenUnit<'ctx> {
             .map(|(_, type_)| type_.get_llvm_type(self).into())
             .collect();
 
-        let function = self.module.add_function(
-            fn_name,
+        let return_type = function.return_type.map_or(Ok(Type::unit), Type::new)?;
+
+        let mut no_mangle = false;
+
+        for attr in &function.attributes {
+            match **attr {
+                Attribute::DeclareCrate(_) => {
+                    return Err(codegen::error::non_function_attribute(attr))
+                }
+                Attribute::NoMangle => no_mangle = true,
+            }
+        }
+
+        let private = function.visibility == Visibility::Private && !no_mangle;
+
+        let ll_function = self.module.add_function(
+            if no_mangle { function.name } else { "" },
             return_type
                 .get_llvm_type(self)
                 .fn_type(&llvm_param_types, false),
-            None,
+            private.then_some(Linkage::Internal),
         );
 
-        let main_block = self.context.append_basic_block(function, "");
+        let main_block = self.context.append_basic_block(ll_function, "");
         self.position_at_end(main_block);
 
-        let mut fn_scope = Scope::new(scope).with_params(&params, function);
+        let mut fn_scope = Scope::new(scope).with_params(&params, ll_function);
 
-        let return_value = self.generate_codeblock(*body, &mut fn_scope)?;
+        let return_value = self.generate_codeblock(&function.body, &mut fn_scope)?;
 
         if return_value.type_ != return_type {
             return Err(codegen::error::incorrect_return_type(
-                body,
+                function.body.as_sref(),
                 &return_type,
                 &return_value.type_,
             ));
@@ -57,13 +73,13 @@ impl<'ctx> CodegenUnit<'ctx> {
         self.builder.build_return(Some(&return_value.val)).unwrap();
 
         scope.create_function(
-            fn_name,
+            &function.name,
             FunctionInfo {
                 signature: FunctionSignature {
                     params: params.into_iter().map(|(_, t)| t).collect(),
                     return_type,
                 },
-                function,
+                function: ll_function,
             },
         );
 

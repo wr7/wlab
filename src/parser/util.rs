@@ -6,19 +6,23 @@ pub use split::*;
 
 /// Iterates over tokens that are not surrounded by brackets.
 #[derive(Clone)]
-pub struct NonBracketedIter<'a> {
+pub(super) struct NonBracketedIter<'a> {
     remaining: &'a [Spanned<Token<'a>>],
     bracket_level_start: usize,
     bracket_level_end: usize,
 }
 
 impl<'a> NonBracketedIter<'a> {
-    pub(super) fn new(slc: &'a [Spanned<Token<'a>>]) -> Self {
+    pub fn new(slc: &'a [Spanned<Token<'a>>]) -> Self {
         Self {
             remaining: slc,
             bracket_level_start: 0,
             bracket_level_end: 0,
         }
+    }
+
+    pub fn remainder(&self) -> &'a [Spanned<Token<'a>>] {
+        self.remaining
     }
 }
 

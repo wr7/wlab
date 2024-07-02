@@ -19,6 +19,7 @@ pub enum Token<'a> {
     Colon,
     Semicolon,
     EqualSign,
+    Bang,
     Arrow,
     Or,
     And,
@@ -26,6 +27,7 @@ pub enum Token<'a> {
     NotEqual,
     GreaterOrEqual,
     LessOrEqual,
+    HashTag,
 }
 
 /// Shorthand macro for `Token` literals.
@@ -82,6 +84,9 @@ macro_rules! T {
     ("=") => {
         $crate::lexer::Token::EqualSign
     };
+    ("!") => {
+        $crate::lexer::Token::Bang
+    };
     ("->") => {
         $crate::lexer::Token::Arrow
     };
@@ -102,6 +107,9 @@ macro_rules! T {
     };
     ("<=") => {
         $crate::lexer::Token::LessOrEqual
+    };
+    ("#") => {
+        $crate::lexer::Token::HashTag
     };
     ($ident:literal) => {
         $crate::lexer::Token::Identifier($ident)
@@ -129,6 +137,7 @@ impl<'a> Token<'a> {
             T!("}") => "}",
             T!(":") => ":",
             T!(";") => ";",
+            T!("!") => "!",
             T!("=") => "=",
             T!("->") => "->",
             T!("||") => "||",
@@ -137,6 +146,7 @@ impl<'a> Token<'a> {
             T!("!=") => "!=",
             T!(">=") => ">=",
             T!("<=") => "<=",
+            T!("#") => "#",
         }
     }
 }
