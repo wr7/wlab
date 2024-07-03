@@ -2,11 +2,10 @@ use wutil::iter::IterExt;
 
 use crate::{
     error_handling::{self, Spanned as S},
-    lexer::Token,
     parser::{
         rules,
         util::{NonBracketedIter, TokenSplit},
-        CodeBlock, Expression, Statement,
+        CodeBlock, Expression, Statement, TokenStream,
     },
     util::SliceExt,
     T,
@@ -15,7 +14,7 @@ use crate::{
 use super::{try_parse_statement_from_front, PResult};
 
 /// A statement surrounded in brackets eg `(foo + bar)` or `{biz+bang; do_thing*f}`. The latter case is a compound statement
-pub fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+pub fn try_parse_bracket_expr(tokens: TokenStream) -> PResult<Option<Expression>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     if let Some([S(T!("("), _), close_bracket]) = nb_iter.collect_n() {
@@ -37,9 +36,9 @@ pub fn try_parse_bracket_expr<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<
 }
 
 /// A code block eg `{biz+bang; do_thing()}`
-pub fn try_parse_code_block_from_front<'a>(
-    tokens: &'a [S<Token<'a>>],
-) -> PResult<Option<(S<CodeBlock<'a>>, &'a [S<Token<'a>>])>> {
+pub fn try_parse_code_block_from_front(
+    tokens: TokenStream,
+) -> PResult<Option<(S<CodeBlock>, TokenStream)>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some([S(T!("{"), _), close_bracket]) = nb_iter.collect_n() else {
@@ -69,7 +68,7 @@ pub fn try_parse_code_block_from_front<'a>(
     )))
 }
 
-pub fn parse_statement_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Statement<'a>>>> {
+pub fn parse_statement_list(tokens: TokenStream) -> PResult<Vec<S<Statement>>> {
     let mut items = Vec::new();
 
     let mut queued_tokens = None;

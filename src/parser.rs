@@ -12,7 +12,7 @@ use wutil::Span;
 pub type TokenStream<'a> = &'a [S<Token<'a>>];
 pub type Path<'a> = Vec<S<&'a str>>;
 
-pub fn parse_module<'a>(mut tokens: &'a [S<Token<'a>>]) -> Result<Module<'a>, ParseError> {
+pub fn parse_module(mut tokens: TokenStream) -> Result<Module, ParseError> {
     error::check_brackets(tokens)?;
 
     let attributes;
@@ -24,7 +24,7 @@ pub fn parse_module<'a>(mut tokens: &'a [S<Token<'a>>]) -> Result<Module<'a>, Pa
     }
 
     let statements = rules::parse_statement_list(tokens)?;
-    let functions: Result<Vec<S<Function<'a>>>, _> = statements
+    let functions: Result<Vec<S<Function>>, _> = statements
         .into_iter()
         .map(|S(statement, span)| {
             Function::try_from(statement)
@@ -138,7 +138,7 @@ pub enum OpCode {
 }
 
 impl Display for OpCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let str = match self {
             OpCode::Plus => "+",
             OpCode::Minus => "-",

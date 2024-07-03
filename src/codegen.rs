@@ -49,7 +49,7 @@ impl<'ctx> CoreTypes<'ctx> {
     }
 }
 
-pub fn generate_code(ast: &Module<'_>) -> Result<(), Diagnostic> {
+pub fn generate_code(ast: &Module) -> Result<(), Diagnostic> {
     let context = Context::create();
     let mut generator = CodegenUnit::new(&context);
     let mut scope = Scope::new_global();

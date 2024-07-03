@@ -1,16 +1,15 @@
 use crate::{
     error_handling::{self, Spanned as S},
-    lexer::Token,
     parser::{
         rules::{bracket_expr::try_parse_code_block_from_front, try_parse_expr, PResult},
         util::NonBracketedIter,
-        CodeBlock, Expression, ParseError, Statement,
+        CodeBlock, Expression, ParseError, Statement, TokenStream,
     },
     util::SliceExt,
     T,
 };
 
-pub fn try_parse_if_expression<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+pub fn try_parse_if_expression(tokens: TokenStream) -> PResult<Option<Expression>> {
     let Some((expr, trailing_tokens)) = try_parse_if_from_front(tokens)? else {
         return Ok(None);
     };
@@ -22,9 +21,7 @@ pub fn try_parse_if_expression<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
     Ok(Some(expr))
 }
 
-pub fn try_parse_if_from_front<'a>(
-    tokens: &'a [S<Token<'a>>],
-) -> PResult<Option<(Expression<'a>, &'a [S<Token<'a>>])>> {
+pub fn try_parse_if_from_front(tokens: TokenStream) -> PResult<Option<(Expression, TokenStream)>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some(S(T!("if"), if_span)) = nb_iter.next() else {

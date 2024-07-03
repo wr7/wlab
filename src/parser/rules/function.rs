@@ -4,7 +4,7 @@ use crate::{
     parser::{
         rules::try_parse_expr,
         util::{NonBracketedIter, TokenSplit},
-        Expression, Function, ParseError, Statement, Visibility,
+        Expression, Function, ParseError, Statement, TokenStream, Visibility,
     },
     util::SliceExt,
     T,
@@ -13,9 +13,9 @@ use crate::{
 use super::{attributes, bracket_expr::try_parse_code_block_from_front, path, PResult};
 
 /// A function. Eg `fn foo() {let x = ten; x}`
-pub fn try_parse_function_from_front<'a>(
-    mut tokens: &'a [S<Token<'a>>],
-) -> PResult<Option<(Statement<'a>, &'a [S<Token<'a>>])>> {
+pub fn try_parse_function_from_front(
+    mut tokens: TokenStream,
+) -> PResult<Option<(Statement, TokenStream)>> {
     let attributes;
     if let Some((attributes_, remaining_tokens)) =
         attributes::try_parse_attributes_from_front(tokens)?
@@ -95,7 +95,7 @@ pub fn try_parse_function_from_front<'a>(
     )))
 }
 
-pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+pub fn try_parse_function_call(tokens: TokenStream) -> PResult<Option<Expression>> {
     let Some((fn_name, remaining_tokens)) = path::try_parse_path_from_front(tokens)? else {
         return Ok(None);
     };
@@ -123,7 +123,7 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
     Ok(Some(Expression::FunctionCall(fn_name, params)))
 }
 
-fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Expression<'a>>>> {
+fn parse_expression_list(tokens: TokenStream) -> PResult<Vec<S<Expression>>> {
     let mut expressions = Vec::new();
 
     for (expr_toks, separator) in TokenSplit::new(tokens, |t| t == &T!(",")) {
@@ -144,7 +144,7 @@ fn parse_expression_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Expres
 }
 
 /// Parses function parameters eg `foo: i32, bar: usize`.
-fn parse_fn_params<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<(&'a str, S<&'a str>)>> {
+fn parse_fn_params(tokens: TokenStream) -> PResult<Vec<(&str, S<&str>)>> {
     let mut params = Vec::new();
 
     for (param, separator) in TokenSplit::new(tokens, |t| t == &T!(",")) {
@@ -163,7 +163,7 @@ fn parse_fn_params<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<(&'a str, S<&'
 }
 
 /// Parses a function parameter (eg `foo: u32`)
-fn parse_fn_param<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<(&'a str, S<&'a str>)>> {
+fn parse_fn_param(tokens: TokenStream) -> PResult<Option<(&str, S<&str>)>> {
     let Some((S(Token::Identifier(name), name_span), tokens)) = tokens.split_first() else {
         let Some(tok) = tokens.first() else {
             return Ok(None);

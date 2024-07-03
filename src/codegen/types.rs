@@ -25,7 +25,7 @@ pub struct TypedValue<'ctx> {
 }
 
 impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let str = match self {
             Type::i32 => "i32",
             Type::str => "str",
