@@ -33,8 +33,6 @@ mod parser;
  *  - Add function definition to errors
  *  - Add a "function already defined" error
  *  - Allow out-of-order and recursive functions
- *  - Fix nested if statements
- *  - Add noreturn and nounwind to exit
  *  - Add intrinsic attribute
  */
 

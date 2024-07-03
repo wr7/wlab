@@ -88,18 +88,21 @@ impl<'ctx> CodegenUnit<'ctx> {
         };
 
         let if_bb = self.context.insert_basic_block_after(base_bb, "");
+        let continuing_bb = self.context.insert_basic_block_after(if_bb, "");
+
         self.position_at_end(if_bb);
 
         let mut if_scope = Scope::new(scope);
         let if_retval = self.generate_codeblock(*block, &mut if_scope)?;
 
+        self.builder
+            .build_unconditional_branch(continuing_bb)
+            .unwrap();
+
         let else_bb;
-        let continuing_bb;
         let else_retval: Option<TypedValue<'ctx>> = if let Some(else_block) = else_block {
             let else_bb_ = self.context.insert_basic_block_after(if_bb, "");
             else_bb = Some(else_bb_);
-
-            continuing_bb = self.context.insert_basic_block_after(else_bb_, "");
 
             self.position_at_end(else_bb_);
             let mut else_scope = Scope::new(scope);
@@ -113,14 +116,8 @@ impl<'ctx> CodegenUnit<'ctx> {
             Some(else_retval)
         } else {
             else_bb = None;
-            continuing_bb = self.context.insert_basic_block_after(if_bb, "");
             None
         };
-
-        self.position_at_end(if_bb);
-        self.builder
-            .build_unconditional_branch(continuing_bb)
-            .unwrap();
 
         self.position_at_end(base_bb);
         self.builder
