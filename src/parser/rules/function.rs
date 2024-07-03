@@ -1,5 +1,3 @@
-use wutil::iter::IterExt as _;
-
 use crate::{
     error_handling::{self, Spanned as S},
     lexer::Token,
@@ -12,7 +10,7 @@ use crate::{
     T,
 };
 
-use super::{attributes, bracket_expr::try_parse_code_block_from_front, PResult};
+use super::{attributes, bracket_expr::try_parse_code_block_from_front, path, PResult};
 
 /// A function. Eg `fn foo() {let x = ten; x}`
 pub fn try_parse_function_from_front<'a>(
@@ -98,9 +96,14 @@ pub fn try_parse_function_from_front<'a>(
 }
 
 pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option<Expression<'a>>> {
+    let Some((fn_name, remaining_tokens)) = path::try_parse_path_from_front(tokens)? else {
+        return Ok(None);
+    };
+
+    let tokens = remaining_tokens;
     let mut nb_iter = NonBracketedIter::new(tokens);
 
-    let Some([S(Token::Identifier(fn_name), _), S(T!("("), _)]) = nb_iter.collect_n() else {
+    let Some(S(T!("("), _)) = nb_iter.next() else {
         return Ok(None);
     };
 
@@ -115,7 +118,7 @@ pub fn try_parse_function_call<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Option
         return Err(ParseError::UnexpectedTokens(span));
     }
 
-    let params = parse_expression_list(&tokens[2..closing_idx])?;
+    let params = parse_expression_list(&tokens[1..closing_idx])?;
 
     Ok(Some(Expression::FunctionCall(fn_name, params)))
 }

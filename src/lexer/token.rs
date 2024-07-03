@@ -27,6 +27,7 @@ pub enum Token<'a> {
     NotEqual,
     GreaterOrEqual,
     LessOrEqual,
+    DoubleColon,
     HashTag,
 }
 
@@ -108,6 +109,9 @@ macro_rules! T {
     ("<=") => {
         $crate::lexer::Token::LessOrEqual
     };
+    ("::") => {
+        $crate::lexer::Token::DoubleColon
+    };
     ("#") => {
         $crate::lexer::Token::HashTag
     };
@@ -146,6 +150,7 @@ impl<'a> Token<'a> {
             T!("!=") => "!=",
             T!(">=") => ">=",
             T!("<=") => "<=",
+            T!("::") => "::",
             T!("#") => "#",
         }
     }

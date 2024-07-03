@@ -6,7 +6,7 @@ use crate::{
         types::{Type, TypedValue},
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::{CodeBlock, Expression, Literal},
+    parser::{CodeBlock, Expression, Literal, Path},
 };
 
 use inkwell::{
@@ -205,17 +205,19 @@ impl<'ctx> CodegenUnit<'ctx> {
         &mut self,
         span: Span,
         scope: &mut Scope<'_, 'ctx>,
-        fn_name: &'a str,
+        fn_name: &S<Path<'a>>,
         arguments: &[S<Expression<'a>>],
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
-        let function =
-            scope
-                .get_function(fn_name)
-                .cloned()
-                .ok_or(codegen::error::undefined_function(S(
-                    fn_name,
-                    span.with_len(fn_name.len()),
-                )))?;
+        let fn_name = if fn_name.len() == 1 {
+            *fn_name.get(0).unwrap()
+        } else {
+            todo!() // TODO: support scoped fn names
+        };
+
+        let function = scope
+            .get_function(*fn_name)
+            .cloned()
+            .ok_or(codegen::error::undefined_function(fn_name))?;
 
         let signature = &function.signature;
 

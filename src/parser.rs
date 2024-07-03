@@ -9,6 +9,9 @@ mod util;
 pub use error::ParseError;
 use wutil::Span;
 
+pub type TokenStream<'a> = &'a [S<Token<'a>>];
+pub type Path<'a> = Vec<S<&'a str>>;
+
 pub fn parse_module<'a>(mut tokens: &'a [S<Token<'a>>]) -> Result<Module<'a>, ParseError> {
     error::check_brackets(tokens)?;
 
@@ -92,7 +95,7 @@ pub enum Expression<'a> {
     Literal(Literal<'a>),
     BinaryOperator(Box<S<Self>>, OpCode, Box<S<Self>>),
     CompoundExpression(CodeBlock<'a>),
-    FunctionCall(&'a str, Vec<S<Expression<'a>>>),
+    FunctionCall(S<Path<'a>>, Vec<S<Expression<'a>>>),
     If {
         condition: Box<S<Self>>,
         block: S<CodeBlock<'a>>,

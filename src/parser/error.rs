@@ -21,6 +21,7 @@ pub enum ParseError {
     ExpectedExpression(Span),
     ExpectedParamName(Span),
     ExpectedType(Span),
+    ExpectedIdentifier(Span),
     ExpectedToken(Span, &'static [Token<'static>]),
     UnexpectedTokens(Span),
     MismatchedBrackets(Span, Span),
@@ -68,6 +69,10 @@ impl WLangError for ParseError {
             },
             ParseError::ExpectedType(span) => d! {
                 format!("expected type, got `{}`", &code[*span]),
+                [Hint::new_error("", *span)],
+            },
+            ParseError::ExpectedIdentifier(span) => d! {
+                "expected identifier",
                 [Hint::new_error("", *span)],
             },
             ParseError::ExpectedToken(span, tokens) => {

@@ -34,6 +34,8 @@ mod parser;
  *  - Add a "function already defined" error
  *  - Allow out-of-order and recursive functions
  *  - Add intrinsic attribute
+ *  - Use type alias for token stream
+ *  - Use function-based errors for parser
  */
 
 fn main() {

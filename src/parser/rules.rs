@@ -15,6 +15,7 @@ mod attributes;
 mod bracket_expr;
 mod control_flow;
 mod function;
+mod path;
 mod types;
 
 pub use attributes::try_parse_outer_attributes_from_front;
