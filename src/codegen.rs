@@ -9,13 +9,14 @@ use inkwell::{
 
 use crate::{error_handling::Diagnostic, parser::Module};
 
-use self::scope::Scope;
+use self::{codegen_context::CodegenContext, scope::Scope};
 
+mod codegen_context;
 mod codegen_unit;
+
 mod error;
 mod intrinsics;
 mod scope;
-
 mod types;
 
 use codegen_unit::CodegenUnit;
@@ -51,7 +52,9 @@ impl<'ctx> CoreTypes<'ctx> {
 
 pub fn generate_code(ast: &Module) -> Result<(), Diagnostic> {
     let context = Context::create();
-    let mut generator = CodegenUnit::new(&context);
+    let mut codegen_context = CodegenContext::new(&context);
+
+    let mut generator = CodegenUnit::new(&mut codegen_context);
     let mut scope = Scope::new_global();
 
     intrinsics::add_intrinsics(&generator, &mut scope);
@@ -65,6 +68,7 @@ pub fn generate_code(ast: &Module) -> Result<(), Diagnostic> {
     std::fs::write("./a.llvm", llvm_ir).unwrap();
 
     generator
+        .c
         .target
         .write_to_file(
             &generator.module,
@@ -74,6 +78,7 @@ pub fn generate_code(ast: &Module) -> Result<(), Diagnostic> {
         .unwrap();
 
     generator
+        .c
         .target
         .write_to_file(
             &generator.module,

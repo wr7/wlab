@@ -6,38 +6,39 @@ use super::{
     CodegenUnit,
 };
 
-pub fn add_intrinsics<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
+pub fn add_intrinsics<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
     add_write(unit, scope);
     add_exit(unit, scope);
 }
 
-fn add_write<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
-    let i64 = unit.context.i64_type();
-    let i32 = unit.core_types.i32;
-    let str = unit.core_types.str;
+fn add_write<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
+    let i64 = unit.c.context.i64_type();
+    let i32 = unit.c.core_types.i32;
+    let str = unit.c.core_types.str;
 
     let write = unit.module.add_function(
         "write",
-        unit.core_types
+        unit.c
+            .core_types
             .unit
             .fn_type(&[i32.into(), str.into()], false),
         None,
     );
 
-    let main_block = unit.context.append_basic_block(write, "");
+    let main_block = unit.c.context.append_basic_block(write, "");
     unit.builder.position_at_end(main_block);
 
     let syscall_type = i64.fn_type(
         &[
             i64.into(),
             i64.into(),
-            unit.context.i8_type().ptr_type(Default::default()).into(),
-            unit.core_types.isize.into(),
+            unit.c.context.i8_type().ptr_type(Default::default()).into(),
+            unit.c.core_types.isize.into(),
         ],
         false,
     );
 
-    let syscall = unit.context.create_inline_asm(
+    let syscall = unit.c.context.create_inline_asm(
         syscall_type,
         "syscall".into(),
         "=r,{rax},{rdi},{rsi},{rdx}".into(),
@@ -92,7 +93,7 @@ fn add_write<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
         )
         .unwrap();
 
-    let zero = unit.core_types.unit.const_zero();
+    let zero = unit.c.core_types.unit.const_zero();
     unit.builder.build_return(Some(&zero)).unwrap();
 
     scope.create_function(
@@ -107,22 +108,22 @@ fn add_write<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
     );
 }
 
-fn add_exit<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
-    let i64 = unit.context.i64_type();
-    let i32 = unit.core_types.i32;
+fn add_exit<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
+    let i64 = unit.c.context.i64_type();
+    let i32 = unit.c.core_types.i32;
 
     let exit = unit.module.add_function(
         "exit",
-        unit.core_types.unit.fn_type(&[i32.into()], false),
+        unit.c.core_types.unit.fn_type(&[i32.into()], false),
         None,
     );
 
-    let main_block = unit.context.append_basic_block(exit, "");
+    let main_block = unit.c.context.append_basic_block(exit, "");
     unit.builder.position_at_end(main_block);
 
     let syscall_type = i64.fn_type(&[i64.into(), i64.into()], false);
 
-    let syscall = unit.context.create_inline_asm(
+    let syscall = unit.c.context.create_inline_asm(
         syscall_type,
         "syscall".into(),
         "=r,{rax},{rdi}".into(),
@@ -154,7 +155,7 @@ fn add_exit<'ctx>(unit: &CodegenUnit<'ctx>, scope: &mut Scope<'_, 'ctx>) {
         )
         .unwrap();
 
-    let zero = unit.core_types.unit.const_zero();
+    let zero = unit.c.core_types.unit.const_zero();
     unit.builder.build_return(Some(&zero)).unwrap();
 
     scope.create_function(

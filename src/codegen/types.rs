@@ -48,12 +48,15 @@ impl Type {
         })
     }
 
-    pub fn get_llvm_type<'ctx>(&self, generator: &CodegenUnit<'ctx>) -> BasicTypeEnum<'ctx> {
+    pub fn get_llvm_type<'ctx>(
+        &self,
+        generator: &CodegenUnit<'_, 'ctx>,
+    ) -> BasicTypeEnum<'ctx> {
         match self {
-            Type::i32 => generator.core_types.i32.into(),
-            Type::str => generator.core_types.str.into(),
-            Type::unit => generator.core_types.unit.into(),
-            Type::bool => generator.core_types.bool.into(),
+            Type::i32 => generator.c.core_types.i32.into(),
+            Type::str => generator.c.core_types.str.into(),
+            Type::unit => generator.c.core_types.unit.into(),
+            Type::bool => generator.c.core_types.bool.into(),
         }
     }
 }

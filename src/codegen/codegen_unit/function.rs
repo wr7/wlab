@@ -14,7 +14,7 @@ use inkwell::{
     types::{BasicMetadataTypeEnum, BasicType},
 };
 
-impl<'ctx> CodegenUnit<'ctx> {
+impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     pub fn generate_function<'a: 'ctx>(
         &mut self,
         function: &Function<'a>,
@@ -55,7 +55,7 @@ impl<'ctx> CodegenUnit<'ctx> {
             private.then_some(Linkage::Internal),
         );
 
-        let main_block = self.context.append_basic_block(ll_function, "");
+        let main_block = self.c.context.append_basic_block(ll_function, "");
         self.position_at_end(main_block);
 
         let mut fn_scope = Scope::new(scope).with_params(&params, ll_function);
@@ -119,7 +119,7 @@ impl<'ctx> CodegenUnit<'ctx> {
             .transpose()?
             .unwrap_or_else(|| TypedValue {
                 type_: Type::unit,
-                val: self.core_types.unit.const_zero().into(),
+                val: self.c.core_types.unit.const_zero().into(),
             });
 
         Ok(return_value)

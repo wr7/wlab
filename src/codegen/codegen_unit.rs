@@ -1,13 +1,7 @@
-use inkwell::{
-    basic_block::BasicBlock,
-    builder::Builder,
-    context::Context,
-    module::Module,
-    targets::{Target, TargetMachine},
-};
+use inkwell::{basic_block::BasicBlock, builder::Builder, module::Module};
 
 use crate::{
-    codegen::{scope::Scope, CoreTypes},
+    codegen::{codegen_context::CodegenContext, scope::Scope},
     error_handling::{Diagnostic, Spanned as S},
     parser::Statement,
 };
@@ -15,38 +9,21 @@ use crate::{
 mod expression;
 mod function;
 
-pub struct CodegenUnit<'ctx> {
-    pub(super) target: TargetMachine,
-    pub(super) context: &'ctx Context,
+pub struct CodegenUnit<'m, 'ctx> {
+    pub(super) c: &'m mut CodegenContext<'ctx>,
     pub(super) builder: Builder<'ctx>,
-    pub(super) core_types: CoreTypes<'ctx>,
     pub(super) module: Module<'ctx>,
     pub(super) current_block: Option<BasicBlock<'ctx>>,
 }
 
-impl<'ctx> CodegenUnit<'ctx> {
-    pub fn new(context: &'ctx Context) -> Self {
-        Target::initialize_native(&Default::default()).unwrap();
-        let target = Target::get_first().unwrap();
-        let target = target
-            .create_target_machine(
-                &TargetMachine::get_default_triple(),
-                TargetMachine::get_host_cpu_name().to_str().unwrap(),
-                TargetMachine::get_host_cpu_features().to_str().unwrap(),
-                inkwell::OptimizationLevel::Default,
-                inkwell::targets::RelocMode::Default,
-                inkwell::targets::CodeModel::Default,
-            )
-            .unwrap();
-
-        let core_types = CoreTypes::new(context, &target);
+impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
+    pub fn new(c: &'m mut CodegenContext<'ctx>) -> Self {
+        let context = c.context;
 
         Self {
-            context,
-            target,
+            c,
             module: context.create_module("my_module"),
             builder: context.create_builder(),
-            core_types,
             current_block: None,
         }
     }

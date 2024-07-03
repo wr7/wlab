@@ -15,7 +15,7 @@ use inkwell::{
 };
 use wutil::Span;
 
-impl<'ctx> CodegenUnit<'ctx> {
+impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     pub fn generate_expression<'a: 'ctx>(
         &mut self,
         expression: S<&Expression<'a>>,
@@ -24,11 +24,11 @@ impl<'ctx> CodegenUnit<'ctx> {
         match *expression {
             Expression::Identifier(ident) => match *ident {
                 "true" => Ok(TypedValue {
-                    val: self.core_types.bool.const_int(1, false).into(),
+                    val: self.c.core_types.bool.const_int(1, false).into(),
                     type_: Type::bool,
                 }),
                 "false" => Ok(TypedValue {
-                    val: self.core_types.bool.const_int(0, false).into(),
+                    val: self.c.core_types.bool.const_int(0, false).into(),
                     type_: Type::bool,
                 }),
                 _ => scope
@@ -87,8 +87,8 @@ impl<'ctx> CodegenUnit<'ctx> {
             unreachable!()
         };
 
-        let if_bb = self.context.insert_basic_block_after(base_bb, "");
-        let continuing_bb = self.context.insert_basic_block_after(if_bb, "");
+        let if_bb = self.c.context.insert_basic_block_after(base_bb, "");
+        let continuing_bb = self.c.context.insert_basic_block_after(if_bb, "");
 
         self.position_at_end(if_bb);
 
@@ -101,7 +101,7 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         let else_bb;
         let else_retval: Option<TypedValue<'ctx>> = if let Some(else_block) = else_block {
-            let else_bb_ = self.context.insert_basic_block_after(if_bb, "");
+            let else_bb_ = self.c.context.insert_basic_block_after(if_bb, "");
             else_bb = Some(else_bb_);
 
             self.position_at_end(else_bb_);
@@ -151,7 +151,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         } else {
             TypedValue {
                 type_: Type::unit,
-                val: self.core_types.unit.const_zero().into(),
+                val: self.c.core_types.unit.const_zero().into(),
             }
         };
 
@@ -159,10 +159,10 @@ impl<'ctx> CodegenUnit<'ctx> {
     }
 
     fn generate_string_literal<'a: 'ctx>(&self, lit: &'a str) -> TypedValue<'ctx> {
-        let string = self.context.const_string(lit.as_bytes(), false);
+        let string = self.c.context.const_string(lit.as_bytes(), false);
 
         let string_global = self.module.add_global(
-            self.context.i8_type().array_type(lit.len() as u32),
+            self.c.context.i8_type().array_type(lit.len() as u32),
             None,
             "",
         );
@@ -173,10 +173,11 @@ impl<'ctx> CodegenUnit<'ctx> {
 
         let string_ptr = string_global.as_pointer_value();
 
-        let str_len = self.core_types.isize.const_int(lit.len() as u64, false);
+        let str_len = self.c.core_types.isize.const_int(lit.len() as u64, false);
 
         TypedValue {
             val: self
+                .c
                 .core_types
                 .str
                 .const_named_struct(&[string_ptr.into(), str_len.into()])
@@ -192,6 +193,7 @@ impl<'ctx> CodegenUnit<'ctx> {
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         Ok(TypedValue {
             val: self
+                .c
                 .context
                 .i32_type()
                 .const_int_from_string(lit, StringRadix::Decimal)
