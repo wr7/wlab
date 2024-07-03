@@ -29,7 +29,7 @@ pub fn parse_module<'a>(mut tokens: &'a [S<Token<'a>>]) -> Result<Module<'a>, Pa
         .map(|S(statement, span)| {
             Function::try_from(statement)
                 .map(|s| S(s, span))
-                .map_err(|_| ParseError::ExpectedFunction(span))
+                .map_err(|()| ParseError::ExpectedFunction(span))
         })
         .collect();
 

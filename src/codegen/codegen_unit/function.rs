@@ -73,7 +73,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         self.builder.build_return(Some(&return_value.val)).unwrap();
 
         scope.create_function(
-            &function.name,
+            function.name,
             FunctionInfo {
                 signature: FunctionSignature {
                     params: params.into_iter().map(|(_, t)| t).collect(),

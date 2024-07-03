@@ -60,9 +60,9 @@ fn parse_attribute_list<'a>(tokens: &'a [S<Token<'a>>]) -> PResult<Vec<S<Attribu
 
 fn parse_attribute<'a>(tokens: &'a [S<Token<'a>>]) -> Option<PResult<S<Attribute>>> {
     Some(Ok(S(
-        match tokens {
-            &[S(T!("no_mangle"), _)] => Attribute::NoMangle,
-            &[S(T!("declare_crate"), _), S(T!("("), _), S(Token::Identifier(crate_name), _), S(T!(")"), _)] => {
+        match *tokens {
+            [S(T!("no_mangle"), _)] => Attribute::NoMangle,
+            [S(T!("declare_crate"), _), S(T!("("), _), S(Token::Identifier(crate_name), _), S(T!(")"), _)] => {
                 Attribute::DeclareCrate(crate_name.into())
             }
             _ => {

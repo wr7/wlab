@@ -209,7 +209,7 @@ impl<'ctx> CodegenUnit<'ctx> {
         arguments: &[S<Expression<'a>>],
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let fn_name = if fn_name.len() == 1 {
-            *fn_name.get(0).unwrap()
+            *fn_name.first().unwrap()
         } else {
             todo!() // TODO: support scoped fn names
         };

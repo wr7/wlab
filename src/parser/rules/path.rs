@@ -8,9 +8,9 @@ use crate::{
     T,
 };
 
-pub fn try_parse_path_from_front<'a>(
-    tokens: TokenStream<'a>,
-) -> PResult<Option<(S<Path<'a>>, TokenStream<'a>)>> {
+pub fn try_parse_path_from_front(
+    tokens: TokenStream<'_>,
+) -> PResult<Option<(S<Path<'_>>, TokenStream<'_>)>> {
     let mut tok_iter = tokens.iter();
     let mut path = Vec::new();
 

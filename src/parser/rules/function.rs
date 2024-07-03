@@ -29,9 +29,9 @@ pub fn try_parse_function_from_front<'a>(
     let visibility;
     if let Some((S(T!("pub"), _), tokens_)) = tokens.split_first() {
         tokens = tokens_;
-        visibility = Visibility::Public
+        visibility = Visibility::Public;
     } else {
-        visibility = Visibility::Private
+        visibility = Visibility::Private;
     }
 
     let Some(([S(T!("fn"), _), S(Token::Identifier(name), name_span)], tokens)) =
