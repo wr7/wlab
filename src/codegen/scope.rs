@@ -41,11 +41,7 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         }
     }
 
-    pub fn with_params<'a>(
-        mut self,
-        params: &'a [(&'a str, Type)],
-        function: FunctionValue<'ctx>,
-    ) -> Self {
+    pub fn with_params(mut self, params: &[(&str, Type)], function: FunctionValue<'ctx>) -> Self {
         for (i, param) in params.iter().enumerate() {
             let Some(val) = function.get_nth_param(i as u32) else {
                 unreachable!();
@@ -67,15 +63,15 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         self.variables.insert(name.to_owned(), val);
     }
 
-    pub fn create_function(&mut self, name: &'_ str, function: FunctionInfo<'ctx>) {
+    pub fn create_function(&mut self, name: &str, function: FunctionInfo<'ctx>) {
         self.functions.insert(name.to_owned(), function);
     }
 
-    pub fn get_variable<'a>(&'a self, name: &'_ str) -> Option<&'a TypedValue<'ctx>> {
+    pub fn get_variable(&self, name: &str) -> Option<&TypedValue<'ctx>> {
         self.variables.get(name)
     }
 
-    pub fn get_function<'a>(&'a self, name: &'_ str) -> Option<&'a FunctionInfo<'ctx>> {
+    pub fn get_function(&self, name: &str) -> Option<&FunctionInfo<'ctx>> {
         self.functions
             .get(name)
             .or_else(|| self.parent.and_then(|p| p.get_function(name)))

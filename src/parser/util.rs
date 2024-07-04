@@ -6,14 +6,14 @@ pub use split::*;
 
 /// Iterates over tokens that are not surrounded by brackets.
 #[derive(Clone)]
-pub(super) struct NonBracketedIter<'a> {
-    remaining: &'a [Spanned<Token<'a>>],
+pub(super) struct NonBracketedIter<'a, 'src> {
+    remaining: &'a [Spanned<Token<'src>>],
     bracket_level_start: usize,
     bracket_level_end: usize,
 }
 
-impl<'a> NonBracketedIter<'a> {
-    pub fn new(slc: &'a [Spanned<Token<'a>>]) -> Self {
+impl<'a, 'src> NonBracketedIter<'a, 'src> {
+    pub fn new(slc: &'a [Spanned<Token<'src>>]) -> Self {
         Self {
             remaining: slc,
             bracket_level_start: 0,
@@ -21,13 +21,13 @@ impl<'a> NonBracketedIter<'a> {
         }
     }
 
-    pub fn remainder(&self) -> &'a [Spanned<Token<'a>>] {
+    pub fn remainder<'b>(&'b self) -> &'a [Spanned<Token<'src>>] {
         self.remaining
     }
 }
 
-impl<'a> Iterator for NonBracketedIter<'a> {
-    type Item = &'a Spanned<Token<'a>>;
+impl<'a, 'src> Iterator for NonBracketedIter<'a, 'src> {
+    type Item = &'a Spanned<Token<'src>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -54,7 +54,7 @@ impl<'a> Iterator for NonBracketedIter<'a> {
     }
 }
 
-impl<'a> DoubleEndedIterator for NonBracketedIter<'a> {
+impl<'a, 'src> DoubleEndedIterator for NonBracketedIter<'a, 'src> {
     fn next_back(&mut self) -> Option<Self::Item> {
         loop {
             let Some((token, remaining)) = self.remaining.split_last() else {

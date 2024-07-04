@@ -14,13 +14,13 @@ use inkwell::{
     types::{BasicMetadataTypeEnum, BasicType},
 };
 
-impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
-    pub fn generate_function<'a: 'ctx>(
+impl<'ctx> CodegenUnit<'_, 'ctx> {
+    pub fn generate_function(
         &mut self,
-        function: &Function<'a>,
+        function: &Function,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), Diagnostic> {
-        let params: Result<Vec<(&'a str, Type)>, _> = function
+        let params: Result<Vec<(&str, Type)>, _> = function
             .params
             .iter()
             .map(|(n, t)| Ok((*n, Type::new(*t)?)))
@@ -87,9 +87,9 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     }
 
     /// Generates a codeblock: NOTE: this will NOT create a new scope. The caller should create one for this block
-    pub fn generate_codeblock<'a: 'ctx>(
+    pub fn generate_codeblock(
         &mut self,
-        block: &CodeBlock<'a>,
+        block: &CodeBlock,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let mut statements: &[S<Statement>] = &block.body;

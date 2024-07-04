@@ -9,7 +9,9 @@ use crate::{
     T,
 };
 
-pub fn try_parse_if_expression(tokens: TokenStream) -> PResult<Option<Expression>> {
+pub fn try_parse_if_expression<'src>(
+    tokens: &TokenStream<'src>,
+) -> PResult<Option<Expression<'src>>> {
     let Some((expr, trailing_tokens)) = try_parse_if_from_front(tokens)? else {
         return Ok(None);
     };
@@ -21,7 +23,9 @@ pub fn try_parse_if_expression(tokens: TokenStream) -> PResult<Option<Expression
     Ok(Some(expr))
 }
 
-pub fn try_parse_if_from_front(tokens: TokenStream) -> PResult<Option<(Expression, TokenStream)>> {
+pub fn try_parse_if_from_front<'a, 'src>(
+    tokens: &'a TokenStream<'src>,
+) -> PResult<Option<(Expression<'src>, &'a TokenStream<'src>)>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some(S(T!("if"), if_span)) = nb_iter.next() else {

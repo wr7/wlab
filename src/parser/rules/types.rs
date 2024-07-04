@@ -5,7 +5,7 @@ use crate::{
     T,
 };
 
-pub fn try_parse_type(tokens: TokenStream) -> PResult<Option<S<&str>>> {
+pub fn try_parse_type<'src>(tokens: &TokenStream<'src>) -> PResult<Option<S<&'src str>>> {
     if let &[S(Token::Identifier(type_), span)] = tokens {
         return Ok(Some(S(type_, span)));
     } else if let &[S(T!("("), s1), S(T!(")"), s2)] = tokens {

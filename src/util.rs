@@ -137,6 +137,8 @@ impl<T> MemoryStore<T> {
             store: UnsafeCell::new(Vec::new()),
         }
     }
+
+    #[allow(clippy::mut_from_ref)]
     pub fn add(&self, item: T) -> &mut T {
         let ptr = Box::into_raw(Box::new(item));
         let store = unsafe { &mut *self.store.get() };
@@ -152,7 +154,7 @@ impl<T> Drop for MemoryStore<T> {
         let mut store = Vec::new();
         mem::swap(&mut store, self.store.get_mut());
 
-        for obj in store.into_iter() {
+        for obj in store {
             unsafe { mem::drop(Box::from_raw(obj)) };
         }
     }

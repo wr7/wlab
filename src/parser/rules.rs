@@ -24,7 +24,7 @@ pub use attributes::try_parse_outer_attributes_from_front;
 pub use bracket_expr::parse_statement_list;
 use wutil::Span;
 
-fn try_parse_expr(tokens: TokenStream) -> PResult<Option<Expression>> {
+fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression<'src>>> {
     if tokens.is_empty() {
         return Ok(None);
     }
@@ -74,9 +74,9 @@ fn try_parse_expr(tokens: TokenStream) -> PResult<Option<Expression>> {
 }
 
 /// A statement. This can be either an expression or a few other things.
-fn try_parse_statement_from_front(
-    tokens: TokenStream,
-) -> PResult<Option<(Statement, TokenStream)>> {
+fn try_parse_statement_from_front<'a, 'src>(
+    tokens: &'a TokenStream<'src>,
+) -> PResult<Option<(Statement<'src>, &'a TokenStream<'src>)>> {
     if tokens.is_empty() {
         return Ok(None);
     }
@@ -112,7 +112,7 @@ fn try_parse_statement_from_front(
 }
 
 /// A plain identifier
-fn try_parse_identifier(tokens: TokenStream) -> Option<Expression> {
+fn try_parse_identifier<'src>(tokens: &TokenStream<'src>) -> Option<Expression<'src>> {
     if let [S(Token::Identifier(ident), _)] = tokens {
         return Some(Expression::Identifier(ident));
     }
@@ -121,7 +121,7 @@ fn try_parse_identifier(tokens: TokenStream) -> Option<Expression> {
 }
 
 /// A literal
-fn try_parse_literal(tokens: TokenStream) -> Option<Expression> {
+fn try_parse_literal<'src>(tokens: &TokenStream<'src>) -> Option<Expression<'src>> {
     match tokens {
         [S(Token::Identifier(ident), _)] => {
             if ident.chars().next().unwrap().is_ascii_digit() {
@@ -129,7 +129,7 @@ fn try_parse_literal(tokens: TokenStream) -> Option<Expression> {
             }
         }
         [S(Token::StringLiteral(lit), _)] => {
-            return Some(Expression::Literal(Literal::String(lit)));
+            return Some(Expression::Literal(Literal::String(lit.clone())));
         }
         _ => {}
     }
@@ -138,7 +138,7 @@ fn try_parse_literal(tokens: TokenStream) -> Option<Expression> {
 }
 
 /// A variable assignment. Eg `foo = bar * (fizz + buzz)`
-fn try_parse_assign(tokens: TokenStream) -> PResult<Option<Statement>> {
+fn try_parse_assign<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Statement<'src>>> {
     let Some(([S(Token::Identifier(var_name), _), S(T!("="), equal_span)], tokens)) =
         tokens.split_first_chunk::<2>()
     else {
@@ -155,7 +155,7 @@ fn try_parse_assign(tokens: TokenStream) -> PResult<Option<Statement>> {
 }
 
 /// A variable initialization. Eg `let foo = bar * (fizz + buzz)`
-fn try_parse_let(tokens: TokenStream) -> PResult<Option<Statement>> {
+fn try_parse_let<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Statement<'src>>> {
     let Some(([S(T!("let"), _), S(Token::Identifier(var_name), name_span)], tokens)) =
         tokens.split_first_chunk::<2>()
     else {
@@ -179,10 +179,10 @@ fn try_parse_let(tokens: TokenStream) -> PResult<Option<Statement>> {
 }
 
 /// A binary expression. Eg `a + b`
-fn try_parse_binary_operator<'a>(
-    tokens: TokenStream<'a>,
-    opcodes: &[(Token<'a>, OpCode)],
-) -> PResult<Option<Expression<'a>>> {
+fn try_parse_binary_operator<'src>(
+    tokens: &TokenStream<'src>,
+    opcodes: &'static [(Token<'static>, OpCode)],
+) -> PResult<Option<Expression<'src>>> {
     for tok in NonBracketedIter::new(tokens).rev() {
         let i = tokens.elem_offset(tok).unwrap();
 

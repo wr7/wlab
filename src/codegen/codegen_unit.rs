@@ -28,10 +28,10 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
         }
     }
 
-    pub fn generate_statement<'a: 'ctx>(
+    pub fn generate_statement(
         &mut self,
         scope: &mut Scope<'_, 'ctx>,
-        statement: S<&Statement<'a>>,
+        statement: S<&Statement>,
     ) -> Result<(), Diagnostic> {
         match *statement {
             Statement::Expression(expr) => {

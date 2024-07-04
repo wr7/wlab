@@ -9,10 +9,10 @@ mod util;
 pub use error::ParseError;
 use wutil::Span;
 
-pub type TokenStream<'a> = &'a [S<Token<'a>>];
+pub type TokenStream<'src> = [S<Token<'src>>];
 pub type Path<'a> = Vec<S<&'a str>>;
 
-pub fn parse_module(mut tokens: TokenStream) -> Result<Module, ParseError> {
+pub fn parse_module<'src>(mut tokens: &TokenStream<'src>) -> Result<Module<'src>, ParseError> {
     error::check_brackets(tokens)?;
 
     let attributes;
@@ -42,9 +42,9 @@ pub fn parse_module(mut tokens: TokenStream) -> Result<Module, ParseError> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Module<'a> {
+pub struct Module<'src> {
     pub attributes: Vec<S<Attribute>>,
-    pub functions: Vec<S<Function<'a>>>,
+    pub functions: Vec<S<Function<'src>>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -60,27 +60,27 @@ pub enum Visibility {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Function<'a> {
-    pub name: &'a str,
-    pub params: Vec<(&'a str, S<&'a str>)>,
-    pub return_type: Option<S<&'a str>>,
+pub struct Function<'src> {
+    pub name: &'src str,
+    pub params: Vec<(&'src str, S<&'src str>)>,
+    pub return_type: Option<S<&'src str>>,
     pub attributes: Vec<S<Attribute>>,
     pub visibility: Visibility,
-    pub body: S<CodeBlock<'a>>,
+    pub body: S<CodeBlock<'src>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Statement<'a> {
-    Expression(Expression<'a>),
-    Let(&'a str, Box<S<Expression<'a>>>),
-    Assign(&'a str, Box<S<Expression<'a>>>),
-    Function(Function<'a>),
+pub enum Statement<'src> {
+    Expression(Expression<'src>),
+    Let(&'src str, Box<S<Expression<'src>>>),
+    Assign(&'src str, Box<S<Expression<'src>>>),
+    Function(Function<'src>),
 }
 
-impl<'a> TryFrom<Statement<'a>> for Function<'a> {
+impl<'src> TryFrom<Statement<'src>> for Function<'src> {
     type Error = ();
 
-    fn try_from(stmnt: Statement<'a>) -> Result<Self, Self::Error> {
+    fn try_from(stmnt: Statement<'src>) -> Result<Self, Self::Error> {
         if let Statement::Function(f) = stmnt {
             Ok(f)
         } else {
@@ -90,35 +90,35 @@ impl<'a> TryFrom<Statement<'a>> for Function<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Expression<'a> {
-    Identifier(&'a str),
-    Literal(Literal<'a>),
+pub enum Expression<'src> {
+    Identifier(&'src str),
+    Literal(Literal<'src>),
     BinaryOperator(Box<S<Self>>, OpCode, Box<S<Self>>),
-    CompoundExpression(CodeBlock<'a>),
-    FunctionCall(S<Path<'a>>, Vec<S<Expression<'a>>>),
+    CompoundExpression(CodeBlock<'src>),
+    FunctionCall(S<Path<'src>>, Vec<S<Expression<'src>>>),
     If {
         condition: Box<S<Self>>,
-        block: S<CodeBlock<'a>>,
-        else_block: Option<S<CodeBlock<'a>>>,
+        block: S<CodeBlock<'src>>,
+        else_block: Option<S<CodeBlock<'src>>>,
     },
 }
 
-impl<'a> From<Expression<'a>> for Statement<'a> {
-    fn from(expr: Expression<'a>) -> Self {
+impl<'src> From<Expression<'src>> for Statement<'src> {
+    fn from(expr: Expression<'src>) -> Self {
         Statement::Expression(expr)
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct CodeBlock<'a> {
-    pub body: Vec<S<Statement<'a>>>,
+pub struct CodeBlock<'src> {
+    pub body: Vec<S<Statement<'src>>>,
     pub trailing_semicolon: Option<Span>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Literal<'a> {
-    Number(&'a str),
-    String(&'a str),
+pub enum Literal<'src> {
+    Number(&'src str),
+    String(String),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -46,7 +46,6 @@ fn main() {
     let mut src_files = Vec::new();
 
     let src_store = MemoryStore::new();
-    let tok_store = MemoryStore::new(); // TODO fix parser lifetime hell and remove lex store
 
     for file in wlang_src {
         let file = file.unwrap();
@@ -62,7 +61,7 @@ fn main() {
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .collect();
 
-        asts.push(parse_file(&tok_store, &file_name, source));
+        asts.push(parse_file(&file_name, source));
         src_files.push(source);
     }
 
@@ -72,12 +71,7 @@ fn main() {
     };
 }
 
-// TODO fix parser lifetime hell and remove lex store
-fn parse_file<'s, 'a: 's>(
-    lex_store: &'s MemoryStore<Vec<Spanned<Token<'a>>>>,
-    file_name: &str,
-    file: &'a str,
-) -> Module<'s> {
+fn parse_file<'a>(file_name: &str, file: &'a str) -> Module<'a> {
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(file).collect();
 
     let tokens = match tokens {
@@ -88,13 +82,11 @@ fn parse_file<'s, 'a: 's>(
         }
     };
 
-    let tokens = &*lex_store.add(tokens);
-
     let mut lex_file = std::fs::File::create(format!("./compiler_output/{file_name}.lex")).unwrap();
     write!(&mut lex_file, "{tokens:#?}").unwrap();
 
     let ast = parser::parse_module(&tokens);
-    let ast: Module<'s> = match ast {
+    let ast: Module<'a> = match ast {
         Ok(ast) => ast,
         Err(err) => {
             eprintln!("\n{}", err.render(file));

@@ -12,9 +12,9 @@ use crate::{
 
 use wutil::iter::IterExt as _;
 
-pub fn try_parse_attributes_from_front(
-    tokens: TokenStream,
-) -> PResult<Option<(Vec<S<Attribute>>, TokenStream)>> {
+pub fn try_parse_attributes_from_front<'a, 'src>(
+    tokens: &'a TokenStream<'src>,
+) -> PResult<Option<(Vec<S<Attribute>>, &'a TokenStream<'src>)>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some([S(T!("#"), _), S(T!("["), _)]) = nb_iter.collect_n() else {
@@ -32,9 +32,9 @@ pub fn try_parse_attributes_from_front(
     Ok(Some((attributes, nb_iter.remainder())))
 }
 
-pub fn try_parse_outer_attributes_from_front(
-    tokens: TokenStream,
-) -> PResult<Option<(Vec<S<Attribute>>, TokenStream)>> {
+pub fn try_parse_outer_attributes_from_front<'a, 'src>(
+    tokens: &'a TokenStream<'src>,
+) -> PResult<Option<(Vec<S<Attribute>>, &'a TokenStream<'src>)>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some([S(T!("#"), _), S(T!("!"), _), S(T!("["), _)]) = nb_iter.collect_n() else {
@@ -52,13 +52,13 @@ pub fn try_parse_outer_attributes_from_front(
     Ok(Some((attributes, nb_iter.remainder())))
 }
 
-fn parse_attribute_list(tokens: TokenStream) -> PResult<Vec<S<Attribute>>> {
+fn parse_attribute_list(tokens: &TokenStream) -> PResult<Vec<S<Attribute>>> {
     TokenSplit::new(tokens, |t| t == &T!(","))
         .filter_map(|(toks, _)| parse_attribute(toks))
         .collect()
 }
 
-fn parse_attribute(tokens: TokenStream) -> Option<PResult<S<Attribute>>> {
+fn parse_attribute(tokens: &TokenStream) -> Option<PResult<S<Attribute>>> {
     Some(Ok(S(
         match *tokens {
             [S(T!("no_mangle"), _)] => Attribute::NoMangle,

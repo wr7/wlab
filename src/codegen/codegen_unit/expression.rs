@@ -15,12 +15,13 @@ use inkwell::{
 };
 use wutil::Span;
 
-impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
-    pub fn generate_expression<'a: 'ctx>(
+impl<'ctx> CodegenUnit<'_, 'ctx> {
+    pub fn generate_expression(
         &mut self,
-        expression: S<&Expression<'a>>,
+        expression: S<&Expression>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
+        // not in match statement due to rustc bug
         match *expression {
             Expression::Identifier(ident) => match *ident {
                 "true" => Ok(TypedValue {
@@ -36,10 +37,7 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                     .cloned()
                     .ok_or(codegen::error::undefined_variable(S(ident, expression.1))),
             },
-            Expression::Literal(Literal::Number(lit)) => {
-                self.generate_number_literal(lit, expression.1)
-            }
-            Expression::Literal(Literal::String(lit)) => Ok(self.generate_string_literal(lit)),
+            Expression::Literal(lit) => self.generate_literal(S(lit, expression.1)),
             Expression::BinaryOperator(a_expr, operator, b_expr) => {
                 let a = self.generate_expression(a_expr.as_sref(), scope)?;
                 let b = self.generate_expression(b_expr.as_sref(), scope)?;
@@ -61,12 +59,12 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
         }
     }
 
-    fn generate_if<'a: 'ctx>(
+    fn generate_if(
         &mut self,
         scope: &mut Scope<'_, 'ctx>,
-        condition: &S<Expression<'a>>,
-        block: S<&CodeBlock<'a>>,
-        else_block: &Option<S<CodeBlock<'a>>>,
+        condition: &S<Expression>,
+        block: S<&CodeBlock>,
+        else_block: &Option<S<CodeBlock>>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let condition_span = condition.1;
         let condition = self.generate_expression(condition.as_sref(), scope)?;
@@ -158,7 +156,14 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
         Ok(retval)
     }
 
-    fn generate_string_literal<'a: 'ctx>(&self, lit: &'a str) -> TypedValue<'ctx> {
+    fn generate_literal(&self, literal: S<&Literal>) -> Result<TypedValue<'ctx>, Diagnostic> {
+        match *literal {
+            Literal::Number(num) => self.generate_number_literal(num, literal.1),
+            Literal::String(str) => Ok(self.generate_string_literal(str)),
+        }
+    }
+
+    fn generate_string_literal(&self, lit: &str) -> TypedValue<'ctx> {
         let string = self.c.context.const_string(lit.as_bytes(), false);
 
         let string_global = self.module.add_global(
@@ -186,9 +191,9 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
         }
     }
 
-    fn generate_number_literal<'a: 'ctx>(
+    fn generate_number_literal(
         &self,
-        lit: &'a str,
+        lit: &str,
         span: Span,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         Ok(TypedValue {
@@ -203,12 +208,12 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
         })
     }
 
-    fn generate_function_call<'a: 'ctx>(
+    fn generate_function_call(
         &mut self,
         span: Span,
         scope: &mut Scope<'_, 'ctx>,
-        fn_name: &S<Path<'a>>,
-        arguments: &[S<Expression<'a>>],
+        fn_name: &S<Path>,
+        arguments: &[S<Expression>],
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let fn_name = if fn_name.len() == 1 {
             *fn_name.first().unwrap()

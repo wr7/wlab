@@ -5,20 +5,20 @@ use crate::{error_handling::Spanned, lexer::Token, util::SliceExt};
 use super::NonBracketedIter;
 
 /// Splits by tokens that patch a predicate. This takes brackets into consideration.
-pub struct TokenSplit<'a, P>
+pub struct TokenSplit<'a, 'src, P>
 where
-    P: FnMut(&'a Token<'a>) -> bool,
+    P: FnMut(&'a Token<'src>) -> bool,
 {
-    tokens: &'a [Spanned<Token<'a>>],
-    nb_iter: Option<NonBracketedIter<'a>>,
+    tokens: &'a [Spanned<Token<'src>>],
+    nb_iter: Option<NonBracketedIter<'a, 'src>>,
     predicate: P,
 }
 
-impl<'a, P> TokenSplit<'a, P>
+impl<'a, 'src, P> TokenSplit<'a, 'src, P>
 where
-    P: FnMut(&'a Token<'a>) -> bool,
+    P: FnMut(&'a Token<'src>) -> bool,
 {
-    pub fn new(tokens: &'a [Spanned<Token<'a>>], predicate: P) -> Self {
+    pub fn new(tokens: &'a [Spanned<Token<'src>>], predicate: P) -> Self {
         Self {
             tokens,
             nb_iter: Some(NonBracketedIter::new(tokens)),
@@ -27,11 +27,11 @@ where
     }
 }
 
-impl<'a, P> Iterator for TokenSplit<'a, P>
+impl<'a, 'src, P> Iterator for TokenSplit<'a, 'src, P>
 where
-    P: FnMut(&'a Token<'a>) -> bool,
+    P: FnMut(&'a Token<'src>) -> bool,
 {
-    type Item = (&'a [Spanned<Token<'a>>], Option<&'a Spanned<Token<'a>>>);
+    type Item = (&'a [Spanned<Token<'src>>], Option<&'a Spanned<Token<'src>>>);
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut span: Span = (self.tokens.len()..self.tokens.len()).into();

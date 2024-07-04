@@ -43,10 +43,8 @@ impl<'ctx> CodegenContext<'ctx> {
 }
 
 impl<'ctx> CodegenContext<'ctx> {
-    pub fn generate_code<'a, 'b: 'ctx>(
-        &'a mut self,
-        ast: &'b Module<'b>,
-    ) -> Result<(), Diagnostic> {
+    #[allow(clippy::match_wildcard_for_single_variants)]
+    pub fn generate_code(&mut self, ast: &Module) -> Result<(), Diagnostic> {
         let mut crate_name = None;
         for attr in &ast.attributes {
             match **attr {

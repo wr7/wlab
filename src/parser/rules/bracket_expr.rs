@@ -14,7 +14,9 @@ use crate::{
 use super::{try_parse_statement_from_front, PResult};
 
 /// A statement surrounded in brackets eg `(foo + bar)` or `{biz+bang; do_thing*f}`. The latter case is a compound statement
-pub fn try_parse_bracket_expr(tokens: TokenStream) -> PResult<Option<Expression>> {
+pub fn try_parse_bracket_expr<'src>(
+    tokens: &TokenStream<'src>,
+) -> PResult<Option<Expression<'src>>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     if let Some([S(T!("("), _), close_bracket]) = nb_iter.collect_n() {
@@ -36,9 +38,9 @@ pub fn try_parse_bracket_expr(tokens: TokenStream) -> PResult<Option<Expression>
 }
 
 /// A code block eg `{biz+bang; do_thing()}`
-pub fn try_parse_code_block_from_front(
-    tokens: TokenStream,
-) -> PResult<Option<(S<CodeBlock>, TokenStream)>> {
+pub fn try_parse_code_block_from_front<'a, 'src>(
+    tokens: &'a TokenStream<'src>,
+) -> PResult<Option<(S<CodeBlock<'src>>, &'a TokenStream<'src>)>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some([S(T!("{"), _), close_bracket]) = nb_iter.collect_n() else {
@@ -68,7 +70,7 @@ pub fn try_parse_code_block_from_front(
     )))
 }
 
-pub fn parse_statement_list(tokens: TokenStream) -> PResult<Vec<S<Statement>>> {
+pub fn parse_statement_list<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<S<Statement<'src>>>> {
     let mut items = Vec::new();
 
     let mut queued_tokens = None;
