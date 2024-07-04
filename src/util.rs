@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::ops::Range;
+use std::{cell::UnsafeCell, mem, ops::Range};
 
 pub trait StrExt {
     /// Gets the index of a substring in a string
@@ -125,4 +125,35 @@ fn column_number(src: &str, byte_position: usize) -> usize {
     }
 
     col_no
+}
+
+pub struct MemoryStore<T> {
+    store: UnsafeCell<Vec<*mut T>>,
+}
+
+impl<T> MemoryStore<T> {
+    pub fn new() -> Self {
+        Self {
+            store: UnsafeCell::new(Vec::new()),
+        }
+    }
+    pub fn add(&self, item: T) -> &mut T {
+        let ptr = Box::into_raw(Box::new(item));
+        let store = unsafe { &mut *self.store.get() };
+
+        store.push(ptr);
+
+        unsafe { &mut *ptr }
+    }
+}
+
+impl<T> Drop for MemoryStore<T> {
+    fn drop(&mut self) {
+        let mut store = Vec::new();
+        mem::swap(&mut store, self.store.get_mut());
+
+        for obj in store.into_iter() {
+            unsafe { mem::drop(Box::from_raw(obj)) };
+        }
+    }
 }

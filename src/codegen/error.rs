@@ -86,11 +86,30 @@ pub fn mismatched_if_else(if_block: S<&Type>, else_block: S<&Type>) -> Diagnosti
         ]
     }
 }
+
 pub fn non_function_attribute(attr: &S<Attribute>) -> Diagnostic {
     d! {
         "Invalid function attribute",
         [
             Hint::new_error("", attr.1),
+        ]
+    }
+}
+
+pub fn non_module_attribute(attr: &S<Attribute>) -> Diagnostic {
+    d! {
+        "Invalid module attribute",
+        [
+            Hint::new_error("", attr.1),
+        ]
+    }
+}
+
+pub fn missing_crate_name() -> Diagnostic {
+    d! {
+        "No crate name declared",
+        [
+            Hint::new_error("try #![declare_crate(crate_name)]", Span::at(0)),
         ]
     }
 }

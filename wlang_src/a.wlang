@@ -1,4 +1,4 @@
-#![declare_crate(test)]
+#![declare_crate(a)]
 
 fn println(val: str) {
     write(1, val);

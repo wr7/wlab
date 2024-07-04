@@ -15,6 +15,8 @@ use std::{io::Write as _, process};
 
 use error_handling::WLangError;
 use lexer::{Lexer, LexerError};
+use parser::Module;
+use util::MemoryStore;
 
 use crate::{error_handling::Spanned, lexer::Token};
 
@@ -38,35 +40,70 @@ mod parser;
  */
 
 fn main() {
-    let input: &str = &String::from_utf8(std::fs::read("./a.wlang").unwrap()).unwrap();
+    let wlang_src = std::fs::read_dir("wlang_src").unwrap();
 
-    let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(input).collect();
+    let mut asts = Vec::new();
+    let mut src_files = Vec::new();
+
+    let src_store = MemoryStore::new();
+    let tok_store = MemoryStore::new(); // TODO fix parser lifetime hell and remove lex store
+
+    for file in wlang_src {
+        let file = file.unwrap();
+        let file_path = file.path();
+        let source: &str =
+            src_store.add(String::from_utf8(std::fs::read(&file_path).unwrap()).unwrap());
+
+        let file_name: String = file_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect();
+
+        asts.push(parse_file(&tok_store, &file_name, source));
+        src_files.push(source);
+    }
+
+    if let Err((file_no, err)) = codegen::generate_code(&asts) {
+        eprintln!("\n{}", err.render(src_files[file_no]));
+        process::exit(1);
+    };
+}
+
+// TODO fix parser lifetime hell and remove lex store
+fn parse_file<'s, 'a: 's>(
+    lex_store: &'s MemoryStore<Vec<Spanned<Token<'a>>>>,
+    file_name: &str,
+    file: &'a str,
+) -> Module<'s> {
+    let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(file).collect();
 
     let tokens = match tokens {
         Ok(tokens) => tokens,
         Err(err) => {
-            eprintln!("\n{}", err.render(input));
+            eprintln!("\n{}", err.render(file));
             process::exit(1);
         }
     };
 
-    let mut lex_file = std::fs::File::create("./a.lex").unwrap();
+    let tokens = &*lex_store.add(tokens);
+
+    let mut lex_file = std::fs::File::create(format!("./compiler_output/{file_name}.lex")).unwrap();
     write!(&mut lex_file, "{tokens:#?}").unwrap();
 
     let ast = parser::parse_module(&tokens);
-    let ast = match ast {
+    let ast: Module<'s> = match ast {
         Ok(ast) => ast,
         Err(err) => {
-            eprintln!("\n{}", err.render(input));
+            eprintln!("\n{}", err.render(file));
             process::exit(1);
         }
     };
 
-    let mut ast_file = std::fs::File::create("./a.ast").unwrap();
+    let mut ast_file = std::fs::File::create(format!("./compiler_output/{file_name}.ast")).unwrap();
     write!(&mut ast_file, "{ast:#?}").unwrap();
 
-    if let Err(err) = codegen::generate_code(&ast) {
-        eprintln!("\n{}", err.render(input));
-        process::exit(1);
-    };
+    ast
 }

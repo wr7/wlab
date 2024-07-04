@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use inkwell::{
     context::Context,
     targets::TargetMachine,
@@ -9,7 +7,7 @@ use inkwell::{
 
 use crate::{error_handling::Diagnostic, parser::Module};
 
-use self::{codegen_context::CodegenContext, scope::Scope};
+use self::codegen_context::CodegenContext;
 
 mod codegen_context;
 mod codegen_unit;
@@ -50,42 +48,13 @@ impl<'ctx> CoreTypes<'ctx> {
     }
 }
 
-pub fn generate_code(ast: &Module) -> Result<(), Diagnostic> {
+pub fn generate_code(crates: &[Module]) -> Result<(), (usize, Diagnostic)> {
     let context = Context::create();
     let mut codegen_context = CodegenContext::new(&context);
 
-    let mut generator = CodegenUnit::new(&mut codegen_context);
-    let mut scope = Scope::new_global();
-
-    intrinsics::add_intrinsics(&generator, &mut scope);
-
-    for function in &ast.functions {
-        generator.generate_function(function, &mut scope)?;
+    for (i, crate_) in crates.iter().enumerate() {
+        codegen_context.generate_code(crate_).map_err(|e| (i, e))?;
     }
-
-    let llvm_ir = generator.module.to_string();
-
-    std::fs::write("./a.llvm", llvm_ir).unwrap();
-
-    generator
-        .c
-        .target
-        .write_to_file(
-            &generator.module,
-            inkwell::targets::FileType::Object,
-            Path::new("./a.o"),
-        )
-        .unwrap();
-
-    generator
-        .c
-        .target
-        .write_to_file(
-            &generator.module,
-            inkwell::targets::FileType::Assembly,
-            Path::new("./a.asm"),
-        )
-        .unwrap();
 
     Ok(())
 }
