@@ -5,12 +5,10 @@ use inkwell::{
     AddressSpace,
 };
 
-use crate::{error_handling::Diagnostic, parser::Module};
-
-use self::codegen_context::CodegenContext;
-
 mod codegen_context;
 mod codegen_unit;
+
+pub use codegen_context::CodegenContext;
 
 mod error;
 mod intrinsics;
@@ -46,15 +44,4 @@ impl<'ctx> CoreTypes<'ctx> {
             ),
         }
     }
-}
-
-pub fn generate_code(crates: &[Module]) -> Result<(), (usize, Diagnostic)> {
-    let context = Context::create();
-    let mut codegen_context = CodegenContext::new(&context);
-
-    for (i, crate_) in crates.iter().enumerate() {
-        codegen_context.generate_code(crate_).map_err(|e| (i, e))?;
-    }
-
-    Ok(())
 }

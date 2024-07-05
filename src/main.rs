@@ -13,10 +13,10 @@
 
 use std::{io::Write as _, process};
 
+use codegen::CodegenContext;
 use error_handling::WLangError;
 use lexer::{Lexer, LexerError};
 use parser::Module;
-use util::MemoryStore;
 
 use crate::{error_handling::Spanned, lexer::Token};
 
@@ -42,16 +42,13 @@ mod parser;
 fn main() {
     let wlang_src = std::fs::read_dir("wlang_src").unwrap();
 
-    let mut asts = Vec::new();
-    let mut src_files = Vec::new();
-
-    let src_store = MemoryStore::new();
+    let context = inkwell::context::Context::create();
+    let mut codegen_context = CodegenContext::new(&context);
 
     for file in wlang_src {
         let file = file.unwrap();
         let file_path = file.path();
-        let source: &str =
-            src_store.add(String::from_utf8(std::fs::read(&file_path).unwrap()).unwrap());
+        let source: &str = &String::from_utf8(std::fs::read(&file_path).unwrap()).unwrap();
 
         let file_name: String = file_path
             .file_name()
@@ -61,14 +58,13 @@ fn main() {
             .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
             .collect();
 
-        asts.push(parse_file(&file_name, source));
-        src_files.push(source);
-    }
+        let ast = parse_file(&file_name, source);
 
-    if let Err((file_no, err)) = codegen::generate_code(&asts) {
-        eprintln!("\n{}", err.render(src_files[file_no]));
-        process::exit(1);
-    };
+        if let Err(err) = codegen_context.generate_module(&ast) {
+            eprintln!("\n{}", err.render(source));
+            process::exit(1);
+        }
+    }
 }
 
 fn parse_file<'a>(file_name: &str, file: &'a str) -> Module<'a> {
