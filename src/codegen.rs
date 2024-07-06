@@ -12,6 +12,7 @@ pub use codegen_context::CodegenContext;
 
 mod error;
 mod intrinsics;
+mod namestore;
 mod scope;
 mod types;
 

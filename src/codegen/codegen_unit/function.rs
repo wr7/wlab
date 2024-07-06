@@ -1,18 +1,16 @@
 use crate::{
     codegen::{
         self,
+        namestore::NameStoreEntry,
         scope::{FunctionInfo, FunctionSignature, Scope},
         types::{Type, TypedValue},
         CodegenUnit,
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::{Attribute, CodeBlock, Expression, Function, Statement, Visibility},
+    parser::{CodeBlock, Expression, Function, Statement},
 };
 
-use inkwell::{
-    module::Linkage,
-    types::{BasicMetadataTypeEnum, BasicType},
-};
+use wutil::Span;
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
     pub fn generate_function(
@@ -20,6 +18,17 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         function: &Function,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), Diagnostic> {
+        let Ok(NameStoreEntry::Function(function_info)) = self
+            .c
+            .name_store
+            .get_item_in_crate(self.crate_name, S(function.name, Span::at(0)))
+        else {
+            unreachable!()
+        };
+
+        let function_info = function_info.clone();
+        let ll_function = function_info.function;
+
         let params: Result<Vec<(&str, Type)>, _> = function
             .params
             .iter()
@@ -27,33 +36,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .collect();
         let params = params?;
 
-        let llvm_param_types: Vec<BasicMetadataTypeEnum<'ctx>> = params
-            .iter()
-            .map(|(_, type_)| type_.get_llvm_type(self).into())
-            .collect();
-
-        let return_type = function.return_type.map_or(Ok(Type::unit), Type::new)?;
-
-        let mut no_mangle = false;
-
-        for attr in &function.attributes {
-            match **attr {
-                Attribute::DeclareCrate(_) => {
-                    return Err(codegen::error::non_function_attribute(attr))
-                }
-                Attribute::NoMangle => no_mangle = true,
-            }
-        }
-
-        let private = function.visibility == Visibility::Private && !no_mangle;
-
-        let ll_function = self.module.add_function(
-            if no_mangle { function.name } else { "" },
-            return_type
-                .get_llvm_type(self)
-                .fn_type(&llvm_param_types, false),
-            private.then_some(Linkage::Internal),
-        );
+        let return_type = function_info.signature.return_type;
 
         let main_block = self.c.context.append_basic_block(ll_function, "");
         self.position_at_end(main_block);

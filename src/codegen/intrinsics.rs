@@ -1,4 +1,7 @@
-use inkwell::values::{IntValue, StructValue};
+use inkwell::{
+    module::Linkage,
+    values::{IntValue, StructValue},
+};
 
 use super::{
     scope::{FunctionInfo, FunctionSignature, Scope},
@@ -22,7 +25,7 @@ fn add_write<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
             .core_types
             .unit
             .fn_type(&[i32.into(), str.into()], false),
-        None,
+        Some(Linkage::Internal),
     );
 
     let main_block = unit.c.context.append_basic_block(write, "");
@@ -115,7 +118,7 @@ fn add_exit<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
     let exit = unit.module.add_function(
         "exit",
         unit.c.core_types.unit.fn_type(&[i32.into()], false),
-        None,
+        Some(Linkage::Internal),
     );
 
     let main_block = unit.c.context.append_basic_block(exit, "");

@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-use std::ops::Range;
+use std::{borrow::Borrow, cell::UnsafeCell, collections::HashMap, hash::Hash, mem, ops::Range};
+
+mod intersperse;
+pub use intersperse::Intersperse;
 
 pub trait StrExt {
     /// Gets the index of a substring in a string
@@ -85,6 +88,42 @@ impl<T> SliceExt for [T] {
     }
 }
 
+pub trait HashMapExt {
+    type Key;
+    type Val;
+
+    fn get_or_insert_with_mut<'a, Q, F>(&'a mut self, k: &Q, f: F) -> &'a mut Self::Val
+    where
+        Self::Key: Borrow<Q>,
+        Q: ToOwned<Owned = Self::Key> + Hash + Eq + ?Sized,
+        F: FnOnce() -> Self::Val;
+}
+
+impl<K, V> HashMapExt for HashMap<K, V>
+where
+    K: Hash + Eq,
+{
+    type Key = K;
+    type Val = V;
+
+    fn get_or_insert_with_mut<'a, Q, F>(&'a mut self, k: &Q, f: F) -> &'a mut V
+    where
+        K: Borrow<Q>,
+        Q: ToOwned<Owned = K> + Hash + Eq + ?Sized,
+        F: FnOnce() -> V,
+    {
+        if self.get(k).is_none() {
+            self.insert(k.to_owned(), f());
+        }
+
+        let Some(val) = self.get_mut(k) else {
+            unreachable!()
+        };
+
+        val
+    }
+}
+
 /// Gets the line and column number of a byte in some text
 pub fn line_and_col(src: &str, byte_position: usize) -> (usize, usize) {
     (
@@ -125,4 +164,37 @@ fn column_number(src: &str, byte_position: usize) -> usize {
     }
 
     col_no
+}
+
+pub struct MemoryStore<T> {
+    store: UnsafeCell<Vec<*mut T>>,
+}
+
+impl<T> MemoryStore<T> {
+    pub fn new() -> Self {
+        Self {
+            store: UnsafeCell::new(Vec::new()),
+        }
+    }
+
+    #[allow(clippy::mut_from_ref)]
+    pub fn add(&self, item: T) -> &mut T {
+        let ptr = Box::into_raw(Box::new(item));
+        let store = unsafe { &mut *self.store.get() };
+
+        store.push(ptr);
+
+        unsafe { &mut *ptr }
+    }
+}
+
+impl<T> Drop for MemoryStore<T> {
+    fn drop(&mut self) {
+        let mut store = Vec::new();
+        mem::swap(&mut store, self.store.get_mut());
+
+        for obj in store {
+            unsafe { mem::drop(Box::from_raw(obj)) };
+        }
+    }
 }

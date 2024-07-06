@@ -5,7 +5,6 @@ fn println(val: str) {
     write(1, "\n");
 }
 
-#[no_mangle]
-fn _start() {
-    println("this is b");
+pub fn print_thing() {
+    println("hello from b!");
 }

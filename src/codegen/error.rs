@@ -1,7 +1,8 @@
 use crate::{
     diagnostic as d,
     error_handling::{Diagnostic, Hint, Spanned as S},
-    parser::{Attribute, CodeBlock, OpCode},
+    parser::{Attribute, CodeBlock, Function, OpCode, Path},
+    util,
 };
 
 use wutil::Span;
@@ -110,6 +111,57 @@ pub fn missing_crate_name() -> Diagnostic {
         "No crate name declared",
         [
             Hint::new_error("try #![declare_crate(crate_name)]", Span::at(0)),
+        ]
+    }
+}
+
+pub fn not_module(lhs: S<&str>) -> Diagnostic {
+    d! {
+        format!("`::` syntax can only be used with types and modules; `{}` is not a module", *lhs),
+        [
+            Hint::new_error("non-module item here", lhs.1)
+        ]
+    }
+}
+
+pub fn no_item(parent: Option<&str>, item: S<&str>) -> Diagnostic {
+    if let Some(parent) = parent {
+        d! {
+            format!("no item named `{}` in `{parent}`", *item),
+            [
+                Hint::new_error("", item.1)
+            ]
+        }
+    } else {
+        d! {
+            format!("no crate/item named `{}`", *item),
+            [
+                Hint::new_error("", item.1)
+            ]
+        }
+    }
+}
+
+pub fn not_function(name: S<&str>) -> Diagnostic {
+    d! {
+        format!("cannot call non-function item `{}`", *name),
+        [
+            Hint::new_error("", name.1)
+        ]
+    }
+}
+
+pub fn not_function_path(path: &S<Path>) -> Diagnostic {
+    let name: String = util::Intersperse::new(path.iter().map(|n| **n), "::").collect();
+
+    not_function(S(&name, path.1))
+}
+
+pub fn function_already_defined(function: &S<Function>) -> Diagnostic {
+    d! {
+        format!("a function named {} already exists", function.name),
+        [
+            Hint::new_error("", function.1)
         ]
     }
 }

@@ -11,20 +11,26 @@ mod function;
 
 pub struct CodegenUnit<'m, 'ctx> {
     pub(super) c: &'m mut CodegenContext<'ctx>,
+    pub(super) module: &'m Module<'ctx>,
     pub(super) builder: Builder<'ctx>,
-    pub(super) module: Module<'ctx>,
     pub(super) current_block: Option<BasicBlock<'ctx>>,
+    pub(super) crate_name: &'m str,
 }
 
 impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
-    pub fn new(c: &'m mut CodegenContext<'ctx>) -> Self {
+    pub fn new(
+        c: &'m mut CodegenContext<'ctx>,
+        module: &'m Module<'ctx>,
+        crate_name: &'m str,
+    ) -> Self {
         let context = c.context;
 
         Self {
             c,
-            module: context.create_module("my_module"),
+            module,
             builder: context.create_builder(),
             current_block: None,
+            crate_name,
         }
     }
 

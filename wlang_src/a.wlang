@@ -7,17 +7,8 @@ fn println(val: str) {
 
 #[no_mangle]
 fn _start() {
-    println("what's 9 + 10?");
-
-    if 9 + 10 == 21 {
-        println("21");
-    } else {
-        println("19");
-    }
-
-    let x = if 9 + 10 == 21 {"goteem"} else {":("};
-
-    println(x);
+    println("hello from a!");
+    b::print_thing();
 
     exit(0);
 }

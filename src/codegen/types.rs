@@ -4,10 +4,12 @@ use inkwell::{builder::Builder, types::BasicTypeEnum, values::BasicValueEnum};
 use wutil::Span;
 
 use crate::{
-    codegen::{self, CodegenUnit},
+    codegen,
     error_handling::{Diagnostic, Spanned as S},
     parser::OpCode,
 };
+
+use super::CodegenContext;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 #[allow(non_camel_case_types)]
@@ -48,12 +50,12 @@ impl Type {
         })
     }
 
-    pub fn get_llvm_type<'ctx>(&self, generator: &CodegenUnit<'_, 'ctx>) -> BasicTypeEnum<'ctx> {
+    pub fn get_llvm_type<'ctx>(&self, context: &CodegenContext<'ctx>) -> BasicTypeEnum<'ctx> {
         match self {
-            Type::i32 => generator.c.core_types.i32.into(),
-            Type::str => generator.c.core_types.str.into(),
-            Type::unit => generator.c.core_types.unit.into(),
-            Type::bool => generator.c.core_types.bool.into(),
+            Type::i32 => context.core_types.i32.into(),
+            Type::str => context.core_types.str.into(),
+            Type::unit => context.core_types.unit.into(),
+            Type::bool => context.core_types.bool.into(),
         }
     }
 }

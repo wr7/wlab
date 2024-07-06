@@ -17,6 +17,7 @@ use codegen::CodegenContext;
 use error_handling::WLangError;
 use lexer::{Lexer, LexerError};
 use parser::Module;
+use util::MemoryStore;
 
 use crate::{error_handling::Spanned, lexer::Token};
 
@@ -31,12 +32,12 @@ mod util;
 
 mod parser;
 
-/* Long term TODO list
- *  - Add function definition to errors
- *  - Add a "function already defined" error
- *  - Allow out-of-order and recursive functions
+/* TODO list
  *  - Add intrinsic attribute
+ *  - Enforce function visibility in name-store
+ *  - Allow functions inside of code blocks
  *  - Use function-based errors for parser
+ *  - Add debug information
  */
 
 fn main() {
@@ -45,10 +46,15 @@ fn main() {
     let context = inkwell::context::Context::create();
     let mut codegen_context = CodegenContext::new(&context);
 
+    let src_store = MemoryStore::new();
+    let mut crates = Vec::new();
+
     for file in wlang_src {
         let file = file.unwrap();
         let file_path = file.path();
-        let source: &str = &String::from_utf8(std::fs::read(&file_path).unwrap()).unwrap();
+
+        let source: &str =
+            src_store.add(String::from_utf8(std::fs::read(&file_path).unwrap()).unwrap());
 
         let file_name: String = file_path
             .file_name()
@@ -60,7 +66,19 @@ fn main() {
 
         let ast = parse_file(&file_name, source);
 
-        if let Err(err) = codegen_context.generate_module(&ast) {
+        let crate_ = match codegen_context.create_crate(&ast) {
+            Ok(crate_) => crate_,
+            Err(err) => {
+                eprintln!("\n{}", err.render(source));
+                process::exit(1);
+            }
+        };
+
+        crates.push((source, ast, crate_));
+    }
+
+    for (source, ast, crate_) in crates {
+        if let Err(err) = codegen_context.generate_crate(&crate_, &ast) {
             eprintln!("\n{}", err.render(source));
             process::exit(1);
         }
