@@ -2,9 +2,10 @@ use crate::{
     error_handling::{self, Spanned as S},
     lexer::Token,
     parser::{
+        ast::Attribute,
         rules::PResult,
         util::{NonBracketedIter, TokenSplit},
-        Attribute, TokenStream,
+        TokenStream,
     },
     util::SliceExt as _,
     T,

@@ -17,7 +17,7 @@ use crate::{
         CoreTypes,
     },
     error_handling::Diagnostic,
-    parser::{self, Attribute, Visibility},
+    parser::ast::{self, Visibility},
 };
 
 pub struct Crate<'ctx> {
@@ -60,11 +60,11 @@ impl<'ctx> CodegenContext<'ctx> {
 }
 
 impl<'ctx> CodegenContext<'ctx> {
-    pub fn create_crate(&mut self, ast: &parser::Module) -> Result<Crate<'ctx>, Diagnostic> {
+    pub fn create_crate(&mut self, ast: &ast::Module) -> Result<Crate<'ctx>, Diagnostic> {
         let mut crate_name = None;
         for attr in &ast.attributes {
             match **attr {
-                crate::parser::Attribute::DeclareCrate(name) => crate_name = Some(name),
+                crate::parser::ast::Attribute::DeclareCrate(name) => crate_name = Some(name),
                 _ => return Err(codegen::error::non_module_attribute(attr)),
             }
         }
@@ -94,11 +94,11 @@ impl<'ctx> CodegenContext<'ctx> {
 
             for attr in &function.attributes {
                 match **attr {
-                    Attribute::DeclareCrate(_) => {
+                    ast::Attribute::DeclareCrate(_) => {
                         return Err(codegen::error::non_function_attribute(attr))
                     }
-                    Attribute::NoMangle => no_mangle = true,
-                    Attribute::Intrinsic(_) => {}
+                    ast::Attribute::NoMangle => no_mangle = true,
+                    ast::Attribute::Intrinsic(_) => {}
                 }
             }
 
@@ -143,7 +143,7 @@ impl<'ctx> CodegenContext<'ctx> {
     pub fn generate_crate(
         &mut self,
         crate_: &Crate<'ctx>,
-        ast: &parser::Module,
+        ast: &ast::Module,
     ) -> Result<(), Diagnostic> {
         let crate_name = &crate_.crate_name;
 

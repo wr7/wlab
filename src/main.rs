@@ -17,7 +17,7 @@ use std::{io::Write as _, process};
 use codegen::CodegenContext;
 use error_handling::WLangError;
 use lexer::{Lexer, LexerError};
-use parser::Module;
+use parser::ast;
 use util::MemoryStore;
 
 use crate::{error_handling::Spanned, lexer::Token};
@@ -85,7 +85,7 @@ fn main() {
     }
 }
 
-fn parse_file<'a>(file_name: &str, file: &'a str) -> Module<'a> {
+fn parse_file<'a>(file_name: &str, file: &'a str) -> ast::Module<'a> {
     let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(file).collect();
 
     let tokens = match tokens {
@@ -100,7 +100,7 @@ fn parse_file<'a>(file_name: &str, file: &'a str) -> Module<'a> {
     write!(&mut lex_file, "{tokens:#?}").unwrap();
 
     let ast = parser::parse_module(&tokens);
-    let ast: Module<'a> = match ast {
+    let ast: ast::Module<'a> = match ast {
         Ok(ast) => ast,
         Err(err) => {
             eprintln!("\n{}", err.render(file));

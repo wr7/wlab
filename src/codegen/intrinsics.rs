@@ -4,13 +4,13 @@ use wutil::Span;
 use crate::{
     codegen::{self, namestore::FunctionInfo, types::Type, CodegenUnit},
     error_handling::{Diagnostic, Spanned as S},
-    parser::Function,
+    parser::ast,
 };
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
     pub fn add_intrinsic(
         &self,
-        function: &S<Function>,
+        function: &S<ast::Function>,
         function_info: &FunctionInfo,
         params: &[(&str, Type)],
         intrinsic: S<&str>,

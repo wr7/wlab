@@ -1,13 +1,12 @@
 use crate::{
+    codegen::types::Type,
     diagnostic as d,
     error_handling::{Diagnostic, Hint, Spanned as S},
-    parser::{Attribute, CodeBlock, Function, OpCode, Path},
+    parser::ast::{Attribute, CodeBlock, Function, OpCode, Path},
     util,
 };
 
 use wutil::Span;
-
-use super::types::Type;
 
 pub fn undefined_variable(name: S<&str>) -> Diagnostic {
     d! {

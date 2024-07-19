@@ -3,12 +3,13 @@
 use crate::{
     error_handling::{self, Spanned as S},
     lexer::Token,
+    parser::{
+        ast::{Expression, Literal, OpCode, Statement},
+        util::NonBracketedIter,
+        ParseError, TokenStream,
+    },
     util::SliceExt,
     T,
-};
-
-use super::{
-    util::NonBracketedIter, Expression, Literal, OpCode, ParseError, Statement, TokenStream,
 };
 
 type PResult<T> = Result<T, ParseError>;

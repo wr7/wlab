@@ -3,7 +3,7 @@ use wutil::Span;
 use crate::{
     error_handling::{self, Spanned as S},
     lexer::Token,
-    parser::{rules::PResult, ParseError, Path, TokenStream},
+    parser::{ast::Path, rules::PResult, ParseError, TokenStream},
     util::SliceExt,
     T,
 };

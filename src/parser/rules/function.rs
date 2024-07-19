@@ -2,15 +2,17 @@ use crate::{
     error_handling::{self, Spanned as S},
     lexer::Token,
     parser::{
-        rules::try_parse_expr,
+        ast::{Expression, Function, Statement, Visibility},
+        rules::{
+            attributes, bracket_expr::try_parse_code_block_from_front, path, try_parse_expr,
+            PResult,
+        },
         util::{NonBracketedIter, TokenSplit},
-        Expression, Function, ParseError, Statement, TokenStream, Visibility,
+        ParseError, TokenStream,
     },
     util::SliceExt,
     T,
 };
-
-use super::{attributes, bracket_expr::try_parse_code_block_from_front, path, PResult};
 
 /// A function. Eg `fn foo() {let x = ten; x}`
 pub fn try_parse_function_from_front<'a, 'src>(

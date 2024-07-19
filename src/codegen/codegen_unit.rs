@@ -1,11 +1,11 @@
 use std::cell::Cell;
 
-use inkwell::{basic_block::BasicBlock, builder::Builder, module::Module};
+use inkwell::{basic_block::BasicBlock, builder::Builder, module::Module as LlvmModule};
 
 use crate::{
     codegen::{codegen_context::CodegenContext, scope::Scope},
     error_handling::{Diagnostic, Spanned as S},
-    parser::Statement,
+    parser::ast::{self, Statement},
 };
 
 mod expression;
@@ -13,7 +13,7 @@ mod function;
 
 pub struct CodegenUnit<'m, 'ctx> {
     pub(super) c: &'m mut CodegenContext<'ctx>,
-    pub(super) module: &'m Module<'ctx>,
+    pub(super) module: &'m LlvmModule<'ctx>,
     pub(super) builder: Builder<'ctx>,
     pub(super) current_block: Cell<Option<BasicBlock<'ctx>>>,
     pub(super) crate_name: &'m str,
@@ -22,7 +22,7 @@ pub struct CodegenUnit<'m, 'ctx> {
 impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     pub fn new(
         c: &'m mut CodegenContext<'ctx>,
-        module: &'m Module<'ctx>,
+        module: &'m LlvmModule<'ctx>,
         crate_name: &'m str,
     ) -> Self {
         let context = c.context;
@@ -39,7 +39,7 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     pub fn generate_statement(
         &self,
         scope: &mut Scope<'_, 'ctx>,
-        statement: S<&Statement>,
+        statement: S<&ast::Statement>,
     ) -> Result<(), Diagnostic> {
         match *statement {
             Statement::Expression(expr) => {

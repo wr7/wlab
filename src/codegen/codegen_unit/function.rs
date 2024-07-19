@@ -7,7 +7,7 @@ use crate::{
         CodegenUnit,
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::{Attribute, CodeBlock, Expression, Function, Statement},
+    parser::ast::{self, Attribute},
 };
 
 use wutil::Span;
@@ -15,7 +15,7 @@ use wutil::Span;
 impl<'ctx> CodegenUnit<'_, 'ctx> {
     pub fn generate_function(
         &mut self,
-        function: &S<Function>,
+        function: &S<ast::Function>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), Diagnostic> {
         let Ok(NameStoreEntry::Function(function_info)) = self
@@ -82,15 +82,15 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
     /// Generates a codeblock: NOTE: this will NOT create a new scope. The caller should create one for this block
     pub fn generate_codeblock(
         &self,
-        block: &CodeBlock,
+        block: &ast::CodeBlock,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
-        let mut statements: &[S<Statement>] = &block.body;
-        let implicit_return: Option<S<&Expression>>;
+        let mut statements: &[S<ast::Statement>] = &block.body;
+        let implicit_return: Option<S<&ast::Expression>>;
 
         if block.trailing_semicolon.is_none() {
             if let Some((last_statement, statements_)) = statements.split_last() {
-                if let Statement::Expression(expr) = &**last_statement {
+                if let ast::Statement::Expression(expr) = &**last_statement {
                     implicit_return = Some(S(expr, last_statement.1));
                     statements = statements_;
                 } else {

@@ -3,15 +3,14 @@ use wutil::iter::IterExt;
 use crate::{
     error_handling::{self, Spanned as S},
     parser::{
-        rules,
+        ast::{CodeBlock, Expression, Statement},
+        rules::{self, try_parse_statement_from_front, PResult},
         util::{NonBracketedIter, TokenSplit},
-        CodeBlock, Expression, Statement, TokenStream,
+        TokenStream,
     },
     util::SliceExt,
     T,
 };
-
-use super::{try_parse_statement_from_front, PResult};
 
 /// A statement surrounded in brackets eg `(foo + bar)` or `{biz+bang; do_thing*f}`. The latter case is a compound statement
 pub fn try_parse_bracket_expr<'src>(

@@ -4,12 +4,10 @@ use inkwell::{builder::Builder, types::BasicTypeEnum, values::BasicValueEnum};
 use wutil::Span;
 
 use crate::{
-    codegen,
+    codegen::{self, CodegenContext},
     error_handling::{Diagnostic, Spanned as S},
-    parser::OpCode,
+    parser::ast::OpCode,
 };
-
-use super::CodegenContext;
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 #[allow(non_camel_case_types)]

@@ -6,7 +6,7 @@ use crate::{
         types::{Type, TypedValue},
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::{CodeBlock, Expression, Literal, Path},
+    parser::ast::{self, Expression, Literal, Path},
 };
 
 use inkwell::{
@@ -19,7 +19,7 @@ use wutil::Span;
 impl<'ctx> CodegenUnit<'_, 'ctx> {
     pub fn generate_expression(
         &self,
-        expression: S<&Expression>,
+        expression: S<&ast::Expression>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         // not in match statement due to rustc bug
@@ -63,9 +63,9 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
     fn generate_if(
         &self,
         scope: &mut Scope<'_, 'ctx>,
-        condition: &S<Expression>,
-        block: S<&CodeBlock>,
-        else_block: &Option<S<CodeBlock>>,
+        condition: &S<ast::Expression>,
+        block: S<&ast::CodeBlock>,
+        else_block: &Option<S<ast::CodeBlock>>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let condition_span = condition.1;
         let condition = self.generate_expression(condition.as_sref(), scope)?;
@@ -157,7 +157,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         Ok(retval)
     }
 
-    fn generate_literal(&self, literal: S<&Literal>) -> Result<TypedValue<'ctx>, Diagnostic> {
+    fn generate_literal(&self, literal: S<&ast::Literal>) -> Result<TypedValue<'ctx>, Diagnostic> {
         match *literal {
             Literal::Number(num) => self.generate_number_literal(num, literal.1),
             Literal::String(str) => Ok(self.generate_string_literal(str)),
@@ -214,7 +214,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         span: Span,
         scope: &mut Scope<'_, 'ctx>,
         fn_name: &S<Path>,
-        arguments: &[S<Expression>],
+        arguments: &[S<ast::Expression>],
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let function = if let [fn_name] = &***fn_name {
             self.c
