@@ -34,7 +34,9 @@ fn _start() {
 ```
 
 ### Error messages
-The following code:
+Some sample errors:
+
+src:
 ```
 #![declare_crate(test_error)]
 
@@ -45,7 +47,7 @@ fn _start() {
 )
 ```
 
-Will make WLAB give the following error:
+error:
 ```
  Error while parsing code: mismatched brackets
 ------------------------------------------------
@@ -60,4 +62,30 @@ Will make WLAB give the following error:
 7 | )
   | ^
   | closing bracket here
+```
+##
+src:
+```
+#![declare_crate(test_error)]
+
+fn add_ten(num: i32) -> i32 {
+    num + 10
+}
+
+#[no_mangle]
+fn _start() {
+    let cool_number = add_ten("nine");
+
+    std::exit(0);
+}
+```
+error:
+```
+ Unexpected type: expected `i32`; got `str`
+---------------------------------------------
+7 | #[no_mangle]
+8 | fn _start() {
+9 |     let cool_number = add_ten("nine");
+  |                               ^^^^^^
+  | value here of type `str`
 ```
