@@ -13,11 +13,12 @@ use inkwell::{
     types::StringRadix,
     values::{BasicMetadataValueEnum, BasicValueEnum},
 };
+
 use wutil::Span;
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
     pub fn generate_expression(
-        &mut self,
+        &self,
         expression: S<&Expression>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
@@ -60,7 +61,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
     }
 
     fn generate_if(
-        &mut self,
+        &self,
         scope: &mut Scope<'_, 'ctx>,
         condition: &S<Expression>,
         block: S<&CodeBlock>,
@@ -81,7 +82,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             unreachable!()
         };
 
-        let Some(base_bb) = self.current_block else {
+        let Some(base_bb) = self.current_block.get() else {
             unreachable!()
         };
 
@@ -209,7 +210,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
     }
 
     fn generate_function_call(
-        &mut self,
+        &self,
         span: Span,
         scope: &mut Scope<'_, 'ctx>,
         fn_name: &S<Path>,
@@ -234,6 +235,17 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 .ok_or_else(|| codegen::error::not_function_path(fn_name))?
                 .clone()
         };
+
+        let fn_name = &function.name;
+
+        // Add a declaration to this module if it doesn't already exist //
+        let mod_function = self.module.get_function(fn_name).unwrap_or_else(|| {
+            self.module.add_function(
+                fn_name,
+                function.function.get_type(),
+                Some(inkwell::module::Linkage::External),
+            )
+        });
 
         let signature = &function.signature;
 
@@ -265,7 +277,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         let ret_val = self
             .builder
-            .build_direct_call(function.function, &metadata_arguments, "")
+            .build_direct_call(mod_function, &metadata_arguments, "")
             .unwrap();
 
         Ok(TypedValue {

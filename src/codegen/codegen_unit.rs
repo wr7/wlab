@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use inkwell::{basic_block::BasicBlock, builder::Builder, module::Module};
 
 use crate::{
@@ -13,7 +15,7 @@ pub struct CodegenUnit<'m, 'ctx> {
     pub(super) c: &'m mut CodegenContext<'ctx>,
     pub(super) module: &'m Module<'ctx>,
     pub(super) builder: Builder<'ctx>,
-    pub(super) current_block: Option<BasicBlock<'ctx>>,
+    pub(super) current_block: Cell<Option<BasicBlock<'ctx>>>,
     pub(super) crate_name: &'m str,
 }
 
@@ -29,13 +31,13 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
             c,
             module,
             builder: context.create_builder(),
-            current_block: None,
+            current_block: None.into(),
             crate_name,
         }
     }
 
     pub fn generate_statement(
-        &mut self,
+        &self,
         scope: &mut Scope<'_, 'ctx>,
         statement: S<&Statement>,
     ) -> Result<(), Diagnostic> {
@@ -53,8 +55,8 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
         Ok(())
     }
 
-    pub(super) fn position_at_end(&mut self, basic_block: BasicBlock<'ctx>) {
+    pub(super) fn position_at_end(&self, basic_block: BasicBlock<'ctx>) {
         self.builder.position_at_end(basic_block);
-        self.current_block = Some(basic_block);
+        self.current_block.replace(Some(basic_block));
     }
 }

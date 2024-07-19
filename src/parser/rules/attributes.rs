@@ -14,7 +14,7 @@ use wutil::iter::IterExt as _;
 
 pub fn try_parse_attributes_from_front<'a, 'src>(
     tokens: &'a TokenStream<'src>,
-) -> PResult<Option<(Vec<S<Attribute>>, &'a TokenStream<'src>)>> {
+) -> PResult<Option<(Vec<S<Attribute<'src>>>, &'a TokenStream<'src>)>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some([S(T!("#"), _), S(T!("["), _)]) = nb_iter.collect_n() else {
@@ -34,7 +34,7 @@ pub fn try_parse_attributes_from_front<'a, 'src>(
 
 pub fn try_parse_outer_attributes_from_front<'a, 'src>(
     tokens: &'a TokenStream<'src>,
-) -> PResult<Option<(Vec<S<Attribute>>, &'a TokenStream<'src>)>> {
+) -> PResult<Option<(Vec<S<Attribute<'src>>>, &'a TokenStream<'src>)>> {
     let mut nb_iter = NonBracketedIter::new(tokens);
 
     let Some([S(T!("#"), _), S(T!("!"), _), S(T!("["), _)]) = nb_iter.collect_n() else {
@@ -52,18 +52,21 @@ pub fn try_parse_outer_attributes_from_front<'a, 'src>(
     Ok(Some((attributes, nb_iter.remainder())))
 }
 
-fn parse_attribute_list(tokens: &TokenStream) -> PResult<Vec<S<Attribute>>> {
+fn parse_attribute_list<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<S<Attribute<'src>>>> {
     TokenSplit::new(tokens, |t| t == &T!(","))
         .filter_map(|(toks, _)| parse_attribute(toks))
         .collect()
 }
 
-fn parse_attribute(tokens: &TokenStream) -> Option<PResult<S<Attribute>>> {
+fn parse_attribute<'src>(tokens: &TokenStream<'src>) -> Option<PResult<S<Attribute<'src>>>> {
     Some(Ok(S(
         match *tokens {
             [S(T!("no_mangle"), _)] => Attribute::NoMangle,
+            [S(T!("intrinsic"), _), S(T!("("), _), S(Token::Identifier(intrinsic), _), S(T!(")"), _)] => {
+                Attribute::Intrinsic(intrinsic)
+            }
             [S(T!("declare_crate"), _), S(T!("("), _), S(Token::Identifier(crate_name), _), S(T!(")"), _)] => {
-                Attribute::DeclareCrate(crate_name.into())
+                Attribute::DeclareCrate(crate_name)
             }
             _ => {
                 return Some(Err(crate::parser::ParseError::InvalidAttribute(

@@ -14,6 +14,7 @@ pub struct FunctionSignature {
 pub struct FunctionInfo<'ctx> {
     pub signature: FunctionSignature,
     pub function: FunctionValue<'ctx>,
+    pub name: String,
 }
 
 pub struct Scope<'p, 'ctx> {

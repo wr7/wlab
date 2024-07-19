@@ -1,14 +1,12 @@
 #![declare_crate(a)]
 
-fn println(val: str) {
-    write(1, val);
-    write(1, "\n");
-}
-
 #[no_mangle]
 fn _start() {
-    println("hello from a!");
-    b::print_thing();
+    std::println("hello from wlang!");
 
-    exit(0);
+    if 9 + 10 != 21 {
+        std::println("9 + 10 isn't 21 \n\n :( ");
+    }
+
+    std::exit(0);
 }

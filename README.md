@@ -13,28 +13,23 @@ Simple example project:
 ```
 #![declare_crate(hello_world)]
 
-fn println(val: str) {
-    write(1, val);
-    write(1, "\n");
-}
-
 #[no_mangle]
 fn _start() {
-    println("hello from wlang!");
+    std::println("hello from wlang!");
 
     let twenty_one = 21;
 
     if 9 + 10 == twenty_one - 2 {
-        println("This will be printed");
+        std::println("This will be printed");
     } else {
-        println("This will not be printed");
+        std::println("This will not be printed");
     }
 
     let text = if true {"this will also be printed"} else {"this wont"};
 
-    println(text);
+    std::println(text);
 
-    exit(0);
+    std::exit(0);
 }
 ```
 
@@ -46,7 +41,7 @@ The following code:
 #[no_mangle]
 fn _start() {
 
-    exit(0);
+    std::exit(0);
 )
 ```
 
@@ -61,7 +56,7 @@ Will make WLAB give the following error:
   | opening bracket here
  ...
 5 |
-6 |     exit(0);
+6 |     std::exit(0);
 7 | )
   | ^
   | closing bracket here

@@ -106,6 +106,16 @@ pub fn non_module_attribute(attr: &S<Attribute>) -> Diagnostic {
     }
 }
 
+pub fn multiple_intrinsic_attributes(first_intrinsic: Span, second_intrinsic: Span) -> Diagnostic {
+    d! {
+        "Multiple intrinsic attributes on function",
+        [
+            Hint::new_error("First intrinsic here", first_intrinsic),
+            Hint::new_error("Second intrinsic here", second_intrinsic),
+        ]
+    }
+}
+
 pub fn missing_crate_name() -> Diagnostic {
     d! {
         "No crate name declared",
@@ -162,6 +172,42 @@ pub fn function_already_defined(function: &S<Function>) -> Diagnostic {
         format!("a function named {} already exists", function.name),
         [
             Hint::new_error("", function.1)
+        ]
+    }
+}
+
+pub fn non_empty_intrinsic(body: Span) -> Diagnostic {
+    d! {
+        "intrinsic function body is not empty",
+        [
+            Hint::new_error("this should be empty `{}`", body)
+        ]
+    }
+}
+
+pub fn invalid_intrinsic(intrinsic: S<&str>) -> Diagnostic {
+    d! {
+        format!("invalid intrinsic `{}`", *intrinsic),
+        [
+            Hint::new_error("", intrinsic.1)
+        ]
+    }
+}
+
+pub fn invalid_intrinsic_params(function_span: Span, expected_params: &str) -> Diagnostic {
+    d! {
+        format!("invalid intrinsic parameters; Expected parameters `{}`", expected_params),
+        [
+            Hint::new_error("", function_span)
+        ]
+    }
+}
+
+pub fn invalid_intrinsic_ret_type(function_span: Span, expected_ret_type: &Type) -> Diagnostic {
+    d! {
+        format!("invalid intrinsic return type; Expected type `{}`", expected_ret_type),
+        [
+            Hint::new_error("", function_span)
         ]
     }
 }

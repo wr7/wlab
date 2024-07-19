@@ -2,12 +2,12 @@ use crate::{
     codegen::{
         self,
         namestore::NameStoreEntry,
-        scope::{FunctionInfo, FunctionSignature, Scope},
+        scope::Scope,
         types::{Type, TypedValue},
         CodegenUnit,
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::{CodeBlock, Expression, Function, Statement},
+    parser::{Attribute, CodeBlock, Expression, Function, Statement},
 };
 
 use wutil::Span;
@@ -15,7 +15,7 @@ use wutil::Span;
 impl<'ctx> CodegenUnit<'_, 'ctx> {
     pub fn generate_function(
         &mut self,
-        function: &Function,
+        function: &S<Function>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<(), Diagnostic> {
         let Ok(NameStoreEntry::Function(function_info)) = self
@@ -26,7 +26,6 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             unreachable!()
         };
 
-        let function_info = function_info.clone();
         let ll_function = function_info.function;
 
         let params: Result<Vec<(&str, Type)>, _> = function
@@ -36,7 +35,29 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .collect();
         let params = params?;
 
-        let return_type = function_info.signature.return_type;
+        let return_type = function_info.signature.return_type.clone();
+
+        let mut intrinsic_span = None;
+
+        for attr in &function.attributes {
+            if let Attribute::Intrinsic(intrinsic) = **attr {
+                if let Some(first_intrinsic) = intrinsic_span {
+                    return Err(codegen::error::multiple_intrinsic_attributes(
+                        first_intrinsic,
+                        attr.1,
+                    ));
+                }
+
+                self.add_intrinsic(function, function_info, &params, S(intrinsic, attr.1))?;
+
+                intrinsic_span = Some(attr.1);
+            }
+        }
+
+        if intrinsic_span.is_some() {
+            // there was an intrinsic attribute; skip body generation //
+            return Ok(());
+        }
 
         let main_block = self.c.context.append_basic_block(ll_function, "");
         self.position_at_end(main_block);
@@ -55,23 +76,14 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         self.builder.build_return(Some(&return_value.val)).unwrap();
 
-        scope.create_function(
-            function.name,
-            FunctionInfo {
-                signature: FunctionSignature {
-                    params: params.into_iter().map(|(_, t)| t).collect(),
-                    return_type,
-                },
-                function: ll_function,
-            },
-        );
+        scope.create_function(function.name, function_info.clone());
 
         Ok(())
     }
 
     /// Generates a codeblock: NOTE: this will NOT create a new scope. The caller should create one for this block
     pub fn generate_codeblock(
-        &mut self,
+        &self,
         block: &CodeBlock,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {

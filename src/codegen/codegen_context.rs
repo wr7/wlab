@@ -11,7 +11,7 @@ use crate::{
     codegen::{
         self,
         codegen_unit::CodegenUnit,
-        intrinsics,
+        namestore::NameStore,
         scope::{FunctionInfo, FunctionSignature, Scope},
         types::Type,
         CoreTypes,
@@ -19,8 +19,6 @@ use crate::{
     error_handling::Diagnostic,
     parser::{self, Attribute, Visibility},
 };
-
-use super::namestore::NameStore;
 
 pub struct Crate<'ctx> {
     llvm_module: LlvmModule<'ctx>,
@@ -66,7 +64,7 @@ impl<'ctx> CodegenContext<'ctx> {
         let mut crate_name = None;
         for attr in &ast.attributes {
             match **attr {
-                crate::parser::Attribute::DeclareCrate(ref name) => crate_name = Some(name.clone()),
+                crate::parser::Attribute::DeclareCrate(name) => crate_name = Some(name),
                 _ => return Err(codegen::error::non_module_attribute(attr)),
             }
         }
@@ -75,7 +73,7 @@ impl<'ctx> CodegenContext<'ctx> {
             return Err(codegen::error::missing_crate_name());
         };
 
-        let module = self.context.create_module(&crate_name);
+        let module = self.context.create_module(crate_name);
 
         for function in &ast.functions {
             let params: Result<Vec<(&str, Type)>, _> = function
@@ -100,24 +98,25 @@ impl<'ctx> CodegenContext<'ctx> {
                         return Err(codegen::error::non_function_attribute(attr))
                     }
                     Attribute::NoMangle => no_mangle = true,
+                    Attribute::Intrinsic(_) => {}
                 }
             }
 
             let private = function.visibility == Visibility::Private && !no_mangle;
 
+            let fn_name = if no_mangle {
+                Cow::from(function.name)
+            } else {
+                Cow::from(format!("{crate_name}::{}", function.name))
+            };
+
             let ll_function = module.add_function(
-                &if no_mangle {
-                    Cow::from(function.name)
-                } else {
-                    Cow::from(format!("{crate_name}::{}", function.name))
-                },
+                &fn_name,
                 return_type
                     .get_llvm_type(self)
                     .fn_type(&llvm_param_types, false),
                 private.then_some(Linkage::Internal),
             );
-
-            let crate_name: &str = &crate_name;
 
             if !self.name_store.add_function(
                 &[crate_name, function.name],
@@ -127,6 +126,7 @@ impl<'ctx> CodegenContext<'ctx> {
                         return_type,
                     },
                     function: ll_function,
+                    name: fn_name.into(),
                 },
             ) {
                 return Err(codegen::error::function_already_defined(function));
@@ -135,7 +135,7 @@ impl<'ctx> CodegenContext<'ctx> {
 
         Ok(Crate {
             llvm_module: module,
-            crate_name,
+            crate_name: crate_name.into(),
         })
     }
 
@@ -150,8 +150,6 @@ impl<'ctx> CodegenContext<'ctx> {
         let mut generator = CodegenUnit::new(self, &crate_.llvm_module, crate_name);
         let mut scope = Scope::new_global();
 
-        intrinsics::add_intrinsics(&generator, &mut scope);
-
         for function in &ast.functions {
             generator.generate_function(function, &mut scope)?;
         }
@@ -164,7 +162,7 @@ impl<'ctx> CodegenContext<'ctx> {
             .c
             .target
             .write_to_file(
-                &generator.module,
+                generator.module,
                 inkwell::targets::FileType::Object,
                 Path::new(&format!("./compiler_output/{crate_name}.o")),
             )
@@ -174,7 +172,7 @@ impl<'ctx> CodegenContext<'ctx> {
             .c
             .target
             .write_to_file(
-                &generator.module,
+                generator.module,
                 inkwell::targets::FileType::Assembly,
                 Path::new(&format!("./compiler_output/{crate_name}.asm")),
             )

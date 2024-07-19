@@ -43,13 +43,14 @@ pub fn parse_module<'src>(mut tokens: &TokenStream<'src>) -> Result<Module<'src>
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Module<'src> {
-    pub attributes: Vec<S<Attribute>>,
+    pub attributes: Vec<S<Attribute<'src>>>,
     pub functions: Vec<S<Function<'src>>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Attribute {
-    DeclareCrate(String),
+pub enum Attribute<'src> {
+    DeclareCrate(&'src str),
+    Intrinsic(&'src str),
     NoMangle,
 }
 
@@ -64,7 +65,7 @@ pub struct Function<'src> {
     pub name: &'src str,
     pub params: Vec<(&'src str, S<&'src str>)>,
     pub return_type: Option<S<&'src str>>,
-    pub attributes: Vec<S<Attribute>>,
+    pub attributes: Vec<S<Attribute<'src>>>,
     pub visibility: Visibility,
     pub body: S<CodeBlock<'src>>,
 }

@@ -1,34 +1,57 @@
-use inkwell::{
-    module::Linkage,
-    values::{IntValue, StructValue},
+use inkwell::values::{IntValue, StructValue};
+use wutil::Span;
+
+use crate::{
+    codegen::{self, scope::FunctionInfo, types::Type, CodegenUnit},
+    error_handling::{Diagnostic, Spanned as S},
+    parser::Function,
 };
 
-use super::{
-    scope::{FunctionInfo, FunctionSignature, Scope},
-    types::Type,
-    CodegenUnit,
-};
+impl<'ctx> CodegenUnit<'_, 'ctx> {
+    pub fn add_intrinsic(
+        &self,
+        function: &S<Function>,
+        function_info: &FunctionInfo,
+        params: &[(&str, Type)],
+        intrinsic: S<&str>,
+    ) -> Result<(), Diagnostic> {
+        if !function.body.body.is_empty() {
+            return Err(codegen::error::non_empty_intrinsic(function.body.1));
+        }
 
-pub fn add_intrinsics<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
-    add_write(unit, scope);
-    add_exit(unit, scope);
+        match *intrinsic {
+            "write" => add_write(function.1, self, function_info, params),
+            "exit" => add_exit(function.1, self, function_info, params),
+            _ => Err(codegen::error::invalid_intrinsic(intrinsic)),
+        }
+    }
 }
 
-fn add_write<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
+fn add_write(
+    function_span: Span,
+    unit: &CodegenUnit<'_, '_>,
+    function_info: &FunctionInfo,
+    params: &[(&str, Type)],
+) -> Result<(), Diagnostic> {
+    if !matches!(params, [(_, Type::i32), (_, Type::str)]) {
+        return Err(codegen::error::invalid_intrinsic_params(
+            function_span,
+            "(i32, str)",
+        ));
+    }
+
+    if function_info.signature.return_type != Type::unit {
+        return Err(codegen::error::invalid_intrinsic_ret_type(
+            function_span,
+            &Type::unit,
+        ));
+    }
+
     let i64 = unit.c.context.i64_type();
-    let i32 = unit.c.core_types.i32;
-    let str = unit.c.core_types.str;
 
-    let write = unit.module.add_function(
-        "write",
-        unit.c
-            .core_types
-            .unit
-            .fn_type(&[i32.into(), str.into()], false),
-        Some(Linkage::Internal),
-    );
+    let function = function_info.function;
 
-    let main_block = unit.c.context.append_basic_block(write, "");
+    let main_block = unit.c.context.append_basic_block(function, "");
     unit.builder.position_at_end(main_block);
 
     let syscall_type = i64.fn_type(
@@ -56,7 +79,7 @@ fn add_write<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
     let fd = unit
         .builder
         .build_int_z_extend(
-            IntValue::try_from(write.get_nth_param(0).unwrap()).unwrap(),
+            IntValue::try_from(function.get_nth_param(0).unwrap()).unwrap(),
             i64,
             "",
         )
@@ -65,7 +88,7 @@ fn add_write<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
     let data_ptr = unit
         .builder
         .build_extract_value(
-            StructValue::try_from(write.get_nth_param(1).unwrap()).unwrap(),
+            StructValue::try_from(function.get_nth_param(1).unwrap()).unwrap(),
             0,
             "",
         )
@@ -74,7 +97,7 @@ fn add_write<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
     let str_len = unit
         .builder
         .build_extract_value(
-            StructValue::try_from(write.get_nth_param(1).unwrap()).unwrap(),
+            StructValue::try_from(function.get_nth_param(1).unwrap()).unwrap(),
             1,
             "",
         )
@@ -99,29 +122,34 @@ fn add_write<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
     let zero = unit.c.core_types.unit.const_zero();
     unit.builder.build_return(Some(&zero)).unwrap();
 
-    scope.create_function(
-        "write",
-        FunctionInfo {
-            signature: FunctionSignature {
-                params: vec![Type::i32, Type::str],
-                return_type: Type::unit,
-            },
-            function: write,
-        },
-    );
+    Ok(())
 }
 
-fn add_exit<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
+fn add_exit(
+    function_span: Span,
+    unit: &CodegenUnit<'_, '_>,
+    function_info: &FunctionInfo,
+    params: &[(&str, Type)],
+) -> Result<(), Diagnostic> {
+    if !matches!(params, [(_, Type::i32)]) {
+        return Err(codegen::error::invalid_intrinsic_params(
+            function_span,
+            "(i32)",
+        ));
+    }
+
+    if function_info.signature.return_type != Type::unit {
+        return Err(codegen::error::invalid_intrinsic_ret_type(
+            function_span,
+            &Type::unit,
+        ));
+    }
+
     let i64 = unit.c.context.i64_type();
-    let i32 = unit.c.core_types.i32;
 
-    let exit = unit.module.add_function(
-        "exit",
-        unit.c.core_types.unit.fn_type(&[i32.into()], false),
-        Some(Linkage::Internal),
-    );
+    let function = function_info.function;
 
-    let main_block = unit.c.context.append_basic_block(exit, "");
+    let main_block = unit.c.context.append_basic_block(function, "");
     unit.builder.position_at_end(main_block);
 
     let syscall_type = i64.fn_type(&[i64.into(), i64.into()], false);
@@ -141,7 +169,7 @@ fn add_exit<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
     let exit_code = unit
         .builder
         .build_int_z_extend(
-            IntValue::try_from(exit.get_nth_param(0).unwrap()).unwrap(),
+            IntValue::try_from(function.get_nth_param(0).unwrap()).unwrap(),
             i64,
             "",
         )
@@ -161,14 +189,5 @@ fn add_exit<'ctx>(unit: &CodegenUnit<'_, 'ctx>, scope: &mut Scope<'_, 'ctx>) {
     let zero = unit.c.core_types.unit.const_zero();
     unit.builder.build_return(Some(&zero)).unwrap();
 
-    scope.create_function(
-        "exit",
-        FunctionInfo {
-            signature: FunctionSignature {
-                params: vec![Type::i32],
-                return_type: Type::unit,
-            },
-            function: exit,
-        },
-    );
+    Ok(())
 }
