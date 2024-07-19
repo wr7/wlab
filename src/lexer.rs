@@ -28,6 +28,7 @@ pub struct Lexer<'a> {
 pub enum LexerError {
     InvalidToken(Span),
     UnclosedString(Span),
+    UnclosedComment(Span),
     InvalidEscape(Span),
 }
 
@@ -41,6 +42,10 @@ impl WLangError for LexerError {
             LexerError::UnclosedString(span) => d! {
                 "unclosed string",
                 [Hint::new_error("string starts here", *span)],
+            },
+            LexerError::UnclosedComment(span) => d! {
+                "unclosed comment",
+                [Hint::new_error("comment starts here", *span)],
             },
             LexerError::InvalidEscape(span) => d! {
                 format!("invalid escape sequence \"\\{}\"", &code[*span]),
@@ -83,12 +88,59 @@ impl<'a> Iterator for Lexer<'a> {
                 return Some(self.lex_string(byte_index));
             }
 
+            if char == '/' {
+                match self.try_lex_comment() {
+                    Ok(true) => continue,
+                    Ok(false) => {}
+                    Err(err) => return Some(Err(err)),
+                };
+            }
+
             return Some(self.lex_symbol(byte_index, char));
         }
     }
 }
 
 impl<'a> Lexer<'a> {
+    fn try_lex_comment(&mut self) -> Result<bool, LexerError> {
+        let Some(next_char) = self.chars.clone().next() else {
+            return Ok(false);
+        };
+
+        match next_char.1 {
+            '/' => {
+                self.chars
+                    .by_ref()
+                    .take_while(|(_, c)| *c != '\n')
+                    .for_each(|_| {});
+                Ok(true)
+            }
+            '*' => {
+                self.chars.next();
+
+                let mut previous_char = '\0';
+                let mut closed = false;
+
+                for (_, char) in self.chars.by_ref() {
+                    if matches!([previous_char, char], ['*', '/']) {
+                        closed = true;
+                        break;
+                    }
+
+                    previous_char = char;
+                }
+
+                if !closed {
+                    return Err(LexerError::UnclosedComment(
+                        Span::at(next_char.0 - 1).with_len(2),
+                    ));
+                }
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+
     fn lex_ident(&mut self, ident_start: usize) -> Span {
         let ident_end;
 

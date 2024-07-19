@@ -1,10 +1,15 @@
 #![declare_crate(a)]
 
+/****************\
+|* test comment *|
+|*     1234     *|
+\****************/
+
 #[no_mangle]
 fn _start() {
     std::println("hello from wlang!");
 
-    if 9 + 10 != 21 {
+    if 9 + 10 != 21 { // single line comment
         std::println("9 + 10 isn't 21 \n\n :( ");
     }
 
