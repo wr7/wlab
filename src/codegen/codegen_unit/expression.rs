@@ -217,16 +217,12 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         arguments: &[S<Expression>],
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let function = if let [fn_name] = &***fn_name {
-            if let Some(function) = scope.get_function(**fn_name) {
-                function.clone()
-            } else {
-                self.c
-                    .name_store
-                    .get_item_in_crate(self.crate_name, *fn_name)?
-                    .as_function()
-                    .ok_or_else(|| codegen::error::not_function(*fn_name))?
-                    .clone()
-            }
+            self.c
+                .name_store
+                .get_item_in_crate(self.crate_name, *fn_name)?
+                .as_function()
+                .ok_or_else(|| codegen::error::not_function(*fn_name))?
+                .clone()
         } else {
             self.c
                 .name_store

@@ -34,7 +34,6 @@ mod util;
 mod parser;
 
 /* TODO list
- *  - Add intrinsic attribute
  *  - Enforce function visibility in name-store
  *  - Allow functions inside of code blocks
  *  - Use function-based errors for parser

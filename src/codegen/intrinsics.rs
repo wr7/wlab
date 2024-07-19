@@ -2,7 +2,7 @@ use inkwell::values::{IntValue, StructValue};
 use wutil::Span;
 
 use crate::{
-    codegen::{self, scope::FunctionInfo, types::Type, CodegenUnit},
+    codegen::{self, namestore::FunctionInfo, types::Type, CodegenUnit},
     error_handling::{Diagnostic, Spanned as S},
     parser::Function,
 };

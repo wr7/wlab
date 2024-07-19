@@ -11,8 +11,8 @@ use crate::{
     codegen::{
         self,
         codegen_unit::CodegenUnit,
-        namestore::NameStore,
-        scope::{FunctionInfo, FunctionSignature, Scope},
+        namestore::{FunctionInfo, FunctionSignature, NameStore},
+        scope::Scope,
         types::Type,
         CoreTypes,
     },
@@ -107,7 +107,7 @@ impl<'ctx> CodegenContext<'ctx> {
             let fn_name = if no_mangle {
                 Cow::from(function.name)
             } else {
-                Cow::from(format!("{crate_name}::{}", function.name))
+                Cow::from(format!("_WL@{crate_name}::{}", function.name))
             };
 
             let ll_function = module.add_function(

@@ -76,8 +76,6 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         self.builder.build_return(Some(&return_value.val)).unwrap();
 
-        scope.create_function(function.name, function_info.clone());
-
         Ok(())
     }
 

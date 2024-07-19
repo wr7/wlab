@@ -1,12 +1,25 @@
 use std::{borrow::Borrow, collections::HashMap};
 
+use inkwell::values::FunctionValue;
+
 use crate::{
-    codegen,
+    codegen::{self, types::Type},
     error_handling::{Diagnostic, Spanned},
     util::HashMapExt,
 };
 
-use super::scope::FunctionInfo;
+#[derive(Clone, Debug)]
+pub struct FunctionSignature {
+    pub params: Vec<Type>,
+    pub return_type: Type,
+}
+
+#[derive(Clone, Debug)]
+pub struct FunctionInfo<'ctx> {
+    pub signature: FunctionSignature,
+    pub function: FunctionValue<'ctx>,
+    pub name: String,
+}
 
 pub struct NameStore<'ctx> {
     store: HashMap<String, NameStoreEntry<'ctx>>,

@@ -4,23 +4,9 @@ use inkwell::values::FunctionValue;
 
 use super::types::{Type, TypedValue};
 
-#[derive(Clone, Debug)]
-pub struct FunctionSignature {
-    pub params: Vec<Type>,
-    pub return_type: Type,
-}
-
-#[derive(Clone, Debug)]
-pub struct FunctionInfo<'ctx> {
-    pub signature: FunctionSignature,
-    pub function: FunctionValue<'ctx>,
-    pub name: String,
-}
-
 pub struct Scope<'p, 'ctx> {
     parent: Option<&'p Scope<'p, 'ctx>>,
     variables: HashMap<String, TypedValue<'ctx>>,
-    functions: HashMap<String, FunctionInfo<'ctx>>,
 }
 
 impl<'ctx> Scope<'static, 'ctx> {
@@ -28,7 +14,6 @@ impl<'ctx> Scope<'static, 'ctx> {
         Self {
             parent: None,
             variables: HashMap::new(),
-            functions: HashMap::new(),
         }
     }
 }
@@ -38,7 +23,6 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         Self {
             parent: Some(parent),
             variables: HashMap::new(),
-            functions: HashMap::new(),
         }
     }
 
@@ -64,17 +48,9 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         self.variables.insert(name.to_owned(), val);
     }
 
-    pub fn create_function(&mut self, name: &str, function: FunctionInfo<'ctx>) {
-        self.functions.insert(name.to_owned(), function);
-    }
-
     pub fn get_variable(&self, name: &str) -> Option<&TypedValue<'ctx>> {
-        self.variables.get(name)
-    }
-
-    pub fn get_function(&self, name: &str) -> Option<&FunctionInfo<'ctx>> {
-        self.functions
+        self.variables
             .get(name)
-            .or_else(|| self.parent.and_then(|p| p.get_function(name)))
+            .or_else(|| self.parent?.get_variable(name))
     }
 }
