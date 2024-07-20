@@ -17,7 +17,6 @@ use std::{io::Write as _, process};
 use codegen::CodegenContext;
 use error_handling::WLangError;
 use lexer::{Lexer, LexerError};
-use parser::ast;
 use util::MemoryStore;
 
 use crate::{error_handling::Spanned, lexer::Token};
@@ -31,6 +30,7 @@ mod error_handling;
 
 mod util;
 
+mod cmdline;
 mod parser;
 
 /* TODO list
@@ -40,8 +40,29 @@ mod parser;
  *  - Add debug information
  */
 
+#[allow(clippy::needless_pass_by_value)]
+fn handle_io_error<T>(err: std::io::Error) -> T {
+    eprintln!("wlab: {err:?}");
+    process::exit(err.raw_os_error().unwrap_or(1))
+}
+
 fn main() {
-    let wlang_src = std::fs::read_dir("wlang_src").unwrap();
+    let params = cmdline::Parameters::args().unwrap();
+
+    if params.input_files.is_empty() {
+        eprintln!("wlab: at-least one input file must be specified");
+        process::exit(1)
+    }
+
+    let do_codegen_phase = params.generate_ir || params.generate_asm || params.generate_object;
+    let do_parse_phase = do_codegen_phase || params.generate_ast;
+    let do_lex_phase = do_parse_phase || params.lex_files;
+
+    if !do_lex_phase {
+        process::exit(0)
+    }
+
+    std::fs::create_dir_all(&*params.out_dir).unwrap();
 
     let context = inkwell::context::Context::create();
     let mut codegen_context = CodegenContext::new(&context);
@@ -49,67 +70,66 @@ fn main() {
     let src_store = MemoryStore::new();
     let mut crates = Vec::new();
 
-    for file in wlang_src {
-        let file = file.unwrap();
-        let file_path = file.path();
-
+    for file_name in &params.input_files {
         let source: &str =
-            src_store.add(String::from_utf8(std::fs::read(&file_path).unwrap()).unwrap());
+            src_store.add(String::from_utf8(std::fs::read(file_name).unwrap()).unwrap());
 
-        let file_name: String = file_path
-            .file_name()
-            .unwrap()
-            .to_string_lossy()
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
-            .collect();
+        // get base file name
+        let file_name = file_name.split_terminator('/').last().unwrap();
+        let file_name = file_name.strip_suffix(".wlang").unwrap_or(file_name);
 
-        let ast = parse_file(&file_name, source);
+        let tokens: Result<Vec<Spanned<Token<'_>>>, LexerError> = Lexer::new(source).collect();
 
-        let crate_ = match codegen_context.create_crate(&ast) {
-            Ok(crate_) => crate_,
-            Err(err) => {
-                eprintln!("\n{}", err.render(source));
-                process::exit(1);
-            }
-        };
+        let tokens = tokens.unwrap_or_else(|err| {
+            eprintln!("\n{}", err.render(source));
+            process::exit(1)
+        });
+
+        if params.lex_files {
+            let mut lex_file = std::fs::File::create(format!("{}/{file_name}.lex", params.out_dir))
+                .unwrap_or_else(handle_io_error);
+
+            writeln!(lex_file, "{tokens:?}").unwrap_or_else(handle_io_error);
+        }
+
+        if !do_parse_phase {
+            continue;
+        }
+
+        let ast = parser::parse_module(&tokens).unwrap_or_else(|err| {
+            eprintln!("\n{}", err.render(source));
+            process::exit(1);
+        });
+
+        if params.generate_ast {
+            let mut ast_file = std::fs::File::create(format!("{}/{file_name}.ast", params.out_dir))
+                .unwrap_or_else(handle_io_error);
+
+            writeln!(ast_file, "{ast:?}").unwrap_or_else(handle_io_error);
+        }
+
+        if !do_codegen_phase {
+            continue;
+        }
+
+        let crate_ = codegen_context.create_crate(&ast).unwrap_or_else(|err| {
+            eprintln!("\n{}", err.render(source));
+            process::exit(1);
+        });
 
         crates.push((source, ast, crate_));
     }
 
-    for (source, ast, crate_) in crates {
-        if let Err(err) = codegen_context.generate_crate(&crate_, &ast) {
-            eprintln!("\n{}", err.render(source));
-            process::exit(1);
-        }
+    if !do_codegen_phase {
+        return;
     }
-}
 
-fn parse_file<'a>(file_name: &str, file: &'a str) -> ast::Module<'a> {
-    let tokens: Result<Vec<Spanned<Token>>, LexerError> = Lexer::new(file).collect();
-
-    let tokens = match tokens {
-        Ok(tokens) => tokens,
-        Err(err) => {
-            eprintln!("\n{}", err.render(file));
-            process::exit(1);
-        }
-    };
-
-    let mut lex_file = std::fs::File::create(format!("./compiler_output/{file_name}.lex")).unwrap();
-    write!(&mut lex_file, "{tokens:#?}").unwrap();
-
-    let ast = parser::parse_module(&tokens);
-    let ast: ast::Module<'a> = match ast {
-        Ok(ast) => ast,
-        Err(err) => {
-            eprintln!("\n{}", err.render(file));
-            process::exit(1);
-        }
-    };
-
-    let mut ast_file = std::fs::File::create(format!("./compiler_output/{file_name}.ast")).unwrap();
-    write!(&mut ast_file, "{ast:#?}").unwrap();
-
-    ast
+    for (source, ast, crate_) in crates {
+        codegen_context
+            .generate_crate(&crate_, &ast, &params)
+            .unwrap_or_else(|err| {
+                eprintln!("\n{}", err.render(source));
+                process::exit(1);
+            });
+    }
 }

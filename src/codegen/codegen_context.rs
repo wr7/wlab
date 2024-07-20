@@ -8,6 +8,7 @@ use inkwell::{
 };
 
 use crate::{
+    cmdline,
     codegen::{
         self,
         codegen_unit::CodegenUnit,
@@ -144,6 +145,7 @@ impl<'ctx> CodegenContext<'ctx> {
         &mut self,
         crate_: &Crate<'ctx>,
         ast: &ast::Module,
+        params: &cmdline::Parameters,
     ) -> Result<(), Diagnostic> {
         let crate_name = &crate_.crate_name;
 
@@ -154,29 +156,34 @@ impl<'ctx> CodegenContext<'ctx> {
             generator.generate_function(function, &mut scope)?;
         }
 
-        let llvm_ir = generator.module.to_string();
+        if params.generate_ir {
+            let llvm_ir = generator.module.to_string();
+            std::fs::write(format!("{}/{crate_name}.ll", &*params.out_dir), llvm_ir).unwrap();
+        }
 
-        std::fs::write(format!("./compiler_output/{crate_name}.ll"), llvm_ir).unwrap();
+        if params.generate_asm {
+            generator
+                .c
+                .target
+                .write_to_file(
+                    generator.module,
+                    inkwell::targets::FileType::Assembly,
+                    Path::new(&format!("{}/{crate_name}.asm", &*params.out_dir)),
+                )
+                .unwrap();
+        }
 
-        generator
-            .c
-            .target
-            .write_to_file(
-                generator.module,
-                inkwell::targets::FileType::Object,
-                Path::new(&format!("./compiler_output/{crate_name}.o")),
-            )
-            .unwrap();
-
-        generator
-            .c
-            .target
-            .write_to_file(
-                generator.module,
-                inkwell::targets::FileType::Assembly,
-                Path::new(&format!("./compiler_output/{crate_name}.asm")),
-            )
-            .unwrap();
+        if params.generate_object {
+            generator
+                .c
+                .target
+                .write_to_file(
+                    generator.module,
+                    inkwell::targets::FileType::Object,
+                    Path::new(&format!("{}/{crate_name}.o", &*params.out_dir)),
+                )
+                .unwrap();
+        }
 
         Ok(())
     }
