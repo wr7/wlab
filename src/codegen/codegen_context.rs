@@ -127,6 +127,7 @@ impl<'ctx> CodegenContext<'ctx> {
                         return_type,
                     },
                     function: ll_function,
+                    visibility: function.visibility,
                     name: fn_name.into(),
                 },
             ) {

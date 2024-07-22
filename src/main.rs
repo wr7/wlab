@@ -34,7 +34,6 @@ mod cmdline;
 mod parser;
 
 /* TODO list
- *  - Enforce function visibility in name-store
  *  - Allow functions inside of code blocks
  *  - Use function-based errors for parser
  *  - Add debug information

@@ -6,7 +6,7 @@ use crate::{
         types::{Type, TypedValue},
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::ast::{self, Expression, Literal, Path},
+    parser::ast::{self, Expression, Literal, Path, Visibility},
 };
 
 use inkwell::{
@@ -223,13 +223,25 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 .as_function()
                 .ok_or_else(|| codegen::error::not_function(*fn_name))?
                 .clone()
-        } else {
-            self.c
+        } else if let [parent_crate, fn_direct_name] = &***fn_name {
+            let func = self
+                .c
                 .name_store
                 .get_item(fn_name)?
                 .as_function()
                 .ok_or_else(|| codegen::error::not_function_path(fn_name))?
-                .clone()
+                .clone();
+
+            if func.visibility != Visibility::Public && **parent_crate != self.crate_name {
+                return Err(codegen::error::private_function(
+                    *parent_crate,
+                    *fn_direct_name,
+                ));
+            }
+
+            func
+        } else {
+            todo!("modules are not implemented yet")
         };
 
         let fn_name = &function.name;

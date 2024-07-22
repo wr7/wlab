@@ -1,7 +1,7 @@
 use crate::{
     codegen::types::Type,
     diagnostic as d,
-    error_handling::{Diagnostic, Hint, Spanned as S},
+    error_handling::{self, Diagnostic, Hint, Spanned as S},
     parser::ast::{Attribute, CodeBlock, Function, OpCode, Path},
     util,
 };
@@ -207,6 +207,15 @@ pub fn invalid_intrinsic_ret_type(function_span: Span, expected_ret_type: &Type)
         format!("invalid intrinsic return type; Expected type `{}`", expected_ret_type),
         [
             Hint::new_error("", function_span)
+        ]
+    }
+}
+
+pub fn private_function(crate_name: S<&str>, fn_name: S<&str>) -> Diagnostic {
+    d! {
+        format!("Cannot access private item `{}::{}`", *crate_name, *fn_name),
+        [
+            Hint::new_error("", error_handling::span_of(&[crate_name, fn_name]).unwrap())
         ]
     }
 }

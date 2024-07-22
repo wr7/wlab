@@ -5,6 +5,7 @@ use inkwell::values::FunctionValue;
 use crate::{
     codegen::{self, types::Type},
     error_handling::{Diagnostic, Spanned},
+    parser::ast,
     util::HashMapExt,
 };
 
@@ -18,6 +19,7 @@ pub struct FunctionSignature {
 pub struct FunctionInfo<'ctx> {
     pub signature: FunctionSignature,
     pub function: FunctionValue<'ctx>,
+    pub visibility: ast::Visibility,
     pub name: String,
 }
 

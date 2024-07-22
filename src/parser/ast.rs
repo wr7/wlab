@@ -19,7 +19,7 @@ pub enum Attribute<'src> {
     NoMangle,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Visibility {
     Public,
     Private,
