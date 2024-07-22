@@ -20,29 +20,29 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         }
 
         match *intrinsic {
-            "write" => add_write(function.1, self, function_info, params),
-            "exit" => add_exit(function.1, self, function_info, params),
+            "write" => add_write(function.params.1, self, function_info, params),
+            "exit" => add_exit(function.params.1, self, function_info, params),
             _ => Err(codegen::error::invalid_intrinsic(intrinsic)),
         }
     }
 }
 
 fn add_write(
-    function_span: Span,
+    params_span: Span,
     unit: &CodegenUnit<'_, '_>,
     function_info: &FunctionInfo,
     params: &[(&str, Type)],
 ) -> Result<(), Diagnostic> {
     if !matches!(params, [(_, Type::i32), (_, Type::str)]) {
         return Err(codegen::error::invalid_intrinsic_params(
-            function_span,
+            params_span,
             "(i32, str)",
         ));
     }
 
     if function_info.signature.return_type != Type::unit {
         return Err(codegen::error::invalid_intrinsic_ret_type(
-            function_span,
+            params_span,
             &Type::unit,
         ));
     }
@@ -126,21 +126,21 @@ fn add_write(
 }
 
 fn add_exit(
-    function_span: Span,
+    params_span: Span,
     unit: &CodegenUnit<'_, '_>,
     function_info: &FunctionInfo,
     params: &[(&str, Type)],
 ) -> Result<(), Diagnostic> {
     if !matches!(params, [(_, Type::i32)]) {
         return Err(codegen::error::invalid_intrinsic_params(
-            function_span,
+            params_span,
             "(i32)",
         ));
     }
 
     if function_info.signature.return_type != Type::unit {
         return Err(codegen::error::invalid_intrinsic_ret_type(
-            function_span,
+            params_span,
             &Type::unit,
         ));
     }

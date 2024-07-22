@@ -28,7 +28,7 @@ pub enum Visibility {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function<'src> {
     pub name: &'src str,
-    pub params: Vec<(&'src str, S<&'src str>)>,
+    pub params: S<Vec<(&'src str, S<&'src str>)>>,
     pub return_type: Option<S<&'src str>>,
     pub attributes: Vec<S<Attribute<'src>>>,
     pub visibility: Visibility,

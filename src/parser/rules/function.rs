@@ -87,7 +87,7 @@ pub fn try_parse_function_from_front<'a, 'src>(
     Ok(Some((
         Statement::Function(Function {
             name,
-            params,
+            params: S(params, left_paren.1.with_end(right_paren.1.end)),
             return_type,
             attributes,
             visibility,

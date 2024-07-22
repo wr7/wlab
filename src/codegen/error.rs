@@ -193,11 +193,11 @@ pub fn invalid_intrinsic(intrinsic: S<&str>) -> Diagnostic {
     }
 }
 
-pub fn invalid_intrinsic_params(function_span: Span, expected_params: &str) -> Diagnostic {
+pub fn invalid_intrinsic_params(params_span: Span, expected_params: &str) -> Diagnostic {
     d! {
         format!("invalid intrinsic parameters; Expected parameters `{}`", expected_params),
         [
-            Hint::new_error("", function_span)
+            Hint::new_error("", params_span)
         ]
     }
 }
@@ -213,7 +213,7 @@ pub fn invalid_intrinsic_ret_type(function_span: Span, expected_ret_type: &Type)
 
 pub fn private_function(crate_name: S<&str>, fn_name: S<&str>) -> Diagnostic {
     d! {
-        format!("Cannot access private item `{}::{}`", *crate_name, *fn_name),
+        format!("cannot access private item `{}::{}`", *crate_name, *fn_name),
         [
             Hint::new_error("", error_handling::span_of(&[crate_name, fn_name]).unwrap())
         ]
