@@ -42,7 +42,7 @@ impl<'ctx> CodegenContext<'ctx> {
                 &TargetMachine::get_default_triple(),
                 TargetMachine::get_host_cpu_name().to_str().unwrap(),
                 TargetMachine::get_host_cpu_features().to_str().unwrap(),
-                inkwell::OptimizationLevel::Default,
+                inkwell::OptimizationLevel::None, // IMPORTANT: if changed, change DebugContext OPT_LEVEL to match
                 inkwell::targets::RelocMode::Default,
                 inkwell::targets::CodeModel::Default,
             )
@@ -147,15 +147,20 @@ impl<'ctx> CodegenContext<'ctx> {
         crate_: &Crate<'ctx>,
         ast: &ast::Module,
         params: &cmdline::Parameters,
+        file_path: &str,
+        source: &str,
     ) -> Result<(), Diagnostic> {
         let crate_name = &crate_.crate_name;
 
-        let mut generator = CodegenUnit::new(self, &crate_.llvm_module, crate_name);
+        let mut generator =
+            CodegenUnit::new(self, &crate_.llvm_module, crate_name, file_path, source);
         let mut scope = Scope::new_global();
 
         for function in &ast.functions {
             generator.generate_function(function, &mut scope)?;
         }
+
+        generator.debug_context.builder.finalize();
 
         if params.generate_ir {
             let llvm_ir = generator.module.to_string();

@@ -36,7 +36,11 @@ mod parser;
 /* TODO list
  *  - Allow functions inside of code blocks
  *  - Use function-based errors for parser
- *  - Add debug information
+ *      - Remove WLangError trait
+ *  - Debug info
+ *      - Create DILexicalScope for all code blocks (not just functions)
+ *      - Add debug info for variables
+ *      - Fix mangled names in debug info
  */
 
 #[allow(clippy::needless_pass_by_value)]
@@ -74,8 +78,10 @@ fn main() {
             src_store.add(String::from_utf8(std::fs::read(file_name).unwrap()).unwrap());
 
         // get base file name
-        let file_name = file_name.split_terminator('/').last().unwrap();
-        let file_name = file_name.strip_suffix(".wlang").unwrap_or(file_name);
+        let file_base_name = file_name.split_terminator('/').last().unwrap();
+        let file_base_name = file_base_name
+            .strip_suffix(".wlang")
+            .unwrap_or(file_base_name);
 
         let tokens: Result<Vec<Spanned<Token<'_>>>, LexerError> = Lexer::new(source).collect();
 
@@ -85,8 +91,9 @@ fn main() {
         });
 
         if params.lex_files {
-            let mut lex_file = std::fs::File::create(format!("{}/{file_name}.lex", params.out_dir))
-                .unwrap_or_else(handle_io_error);
+            let mut lex_file =
+                std::fs::File::create(format!("{}/{file_base_name}.lex", params.out_dir))
+                    .unwrap_or_else(handle_io_error);
 
             writeln!(lex_file, "{tokens:?}").unwrap_or_else(handle_io_error);
         }
@@ -101,8 +108,9 @@ fn main() {
         });
 
         if params.generate_ast {
-            let mut ast_file = std::fs::File::create(format!("{}/{file_name}.ast", params.out_dir))
-                .unwrap_or_else(handle_io_error);
+            let mut ast_file =
+                std::fs::File::create(format!("{}/{file_base_name}.ast", params.out_dir))
+                    .unwrap_or_else(handle_io_error);
 
             writeln!(ast_file, "{ast:?}").unwrap_or_else(handle_io_error);
         }
@@ -123,9 +131,9 @@ fn main() {
         return;
     }
 
-    for (source, ast, crate_) in crates {
+    for (i, (source, ast, crate_)) in crates.iter().enumerate() {
         codegen_context
-            .generate_crate(&crate_, &ast, &params)
+            .generate_crate(&crate_, &ast, &params, &params.input_files[i], source)
             .unwrap_or_else(|err| {
                 eprintln!("\n{}", err.render(source));
                 process::exit(1);

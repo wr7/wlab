@@ -7,6 +7,7 @@ use crate::{
     },
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Expression, Literal, Path, Visibility},
+    util,
 };
 
 use inkwell::{
@@ -22,7 +23,18 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         expression: S<&ast::Expression>,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
-        // not in match statement due to rustc bug
+        let (line_no, col_no) = util::line_and_col(self.source, expression.1.start);
+
+        let dbg_location = self.debug_context.builder.create_debug_location(
+            self.c.context,
+            line_no as u32,
+            col_no as u32,
+            self.debug_context.scope,
+            None,
+        );
+
+        self.builder.set_current_debug_location(dbg_location);
+
         match *expression {
             Expression::Identifier(ident) => match *ident {
                 "true" => Ok(TypedValue {

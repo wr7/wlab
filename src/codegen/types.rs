@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
-use inkwell::{builder::Builder, types::BasicTypeEnum, values::BasicValueEnum};
+use inkwell::{builder::Builder, debug_info::DIType, types::BasicTypeEnum, values::BasicValueEnum};
 use wutil::Span;
 
 use crate::{
-    codegen::{self, CodegenContext},
+    codegen::{self, codegen_unit::CodegenUnit, CodegenContext},
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::OpCode,
 };
@@ -55,6 +55,10 @@ impl Type {
             Type::unit => context.core_types.unit.into(),
             Type::bool => context.core_types.bool.into(),
         }
+    }
+
+    pub fn get_dwarf_type<'ctx>(&self, cu: &CodegenUnit<'_, 'ctx>) -> DIType<'ctx> {
+        cu.debug_context.get_type(self)
     }
 }
 

@@ -7,9 +7,11 @@ use crate::{
         CodegenUnit,
     },
     error_handling::{Diagnostic, Spanned as S},
-    parser::ast::{self, Attribute},
+    parser::ast::{self, Attribute, Visibility},
+    util,
 };
 
+use inkwell::debug_info::{AsDIScope, DIFlagsConstants, DIType};
 use wutil::Span;
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
@@ -37,6 +39,53 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         let return_type = function_info.signature.return_type.clone();
 
+        let param_dwarf_types: Vec<DIType> = params
+            .iter()
+            .map(|(_, ty)| ty.get_dwarf_type(self))
+            .collect();
+
+        let di_flags = if function.visibility == ast::Visibility::Public {
+            DIFlagsConstants::PUBLIC
+        } else {
+            DIFlagsConstants::PRIVATE
+        };
+
+        let dwarf_subprogram = self.debug_context.builder.create_subroutine_type(
+            self.debug_context.cu.get_file(),
+            Some(return_type.get_dwarf_type(self)),
+            &param_dwarf_types,
+            di_flags,
+        );
+
+        let (scope_line_no, scope_col_no) = util::line_and_col(self.source, function.body.1.start);
+        let (fn_line_no, _) = util::line_and_col(self.source, function.1.start);
+
+        let func_dbg_scope = self.debug_context.builder.create_function(
+            self.debug_context.scope,
+            function.name,
+            Some(ll_function.get_name().to_str().unwrap()),
+            self.debug_context.cu.get_file(),
+            fn_line_no as u32,
+            dwarf_subprogram,
+            function.visibility == Visibility::Private,
+            true,
+            scope_line_no as u32,
+            di_flags,
+            true,
+        );
+
+        ll_function.set_subprogram(func_dbg_scope);
+
+        let dbg_lexical_block = self.debug_context.builder.create_lexical_block(
+            func_dbg_scope.as_debug_info_scope(),
+            self.debug_context.cu.get_file(),
+            scope_line_no as u32,
+            scope_col_no as u32,
+        );
+
+        let mut dbg_scope = dbg_lexical_block.as_debug_info_scope();
+        std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
+
         let mut intrinsic_span = None;
 
         for attr in &function.attributes {
@@ -56,6 +105,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         if intrinsic_span.is_some() {
             // there was an intrinsic attribute; skip body generation //
+            std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
             return Ok(());
         }
 
@@ -75,6 +125,8 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         }
 
         self.builder.build_return(Some(&return_value.val)).unwrap();
+
+        std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
 
         Ok(())
     }

@@ -3,20 +3,23 @@ use std::cell::Cell;
 use inkwell::{basic_block::BasicBlock, builder::Builder, module::Module as LlvmModule};
 
 use crate::{
-    codegen::{codegen_context::CodegenContext, scope::Scope},
+    codegen::{codegen_context::CodegenContext, codegen_unit::debug::DebugContext, scope::Scope},
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Statement},
 };
 
+pub(super) mod debug;
 mod expression;
 mod function;
 
 pub struct CodegenUnit<'m, 'ctx> {
     pub(super) c: &'m mut CodegenContext<'ctx>,
     pub(super) module: &'m LlvmModule<'ctx>,
+    pub(super) debug_context: DebugContext<'ctx>,
     pub(super) builder: Builder<'ctx>,
     pub(super) current_block: Cell<Option<BasicBlock<'ctx>>>,
     pub(super) crate_name: &'m str,
+    pub(super) source: &'m str,
 }
 
 impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
@@ -24,15 +27,20 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
         c: &'m mut CodegenContext<'ctx>,
         module: &'m LlvmModule<'ctx>,
         crate_name: &'m str,
+        file_path: &str,
+        source: &'m str,
     ) -> Self {
         let context = c.context;
+        let debug_context = DebugContext::new(c, module, file_path);
 
         Self {
             c,
             module,
+            debug_context,
             builder: context.create_builder(),
             current_block: None.into(),
             crate_name,
+            source,
         }
     }
 
