@@ -22,8 +22,8 @@ use crate::{
 };
 
 pub struct Crate<'ctx> {
-    llvm_module: LlvmModule<'ctx>,
-    crate_name: String,
+    pub llvm_module: LlvmModule<'ctx>,
+    pub crate_name: String,
 }
 
 pub struct CodegenContext<'ctx> {
@@ -31,10 +31,11 @@ pub struct CodegenContext<'ctx> {
     pub(super) context: &'ctx Context,
     pub(super) core_types: CoreTypes<'ctx>,
     pub(super) name_store: NameStore<'ctx>,
+    pub(super) params: &'ctx cmdline::Parameters,
 }
 
 impl<'ctx> CodegenContext<'ctx> {
-    pub fn new(context: &'ctx Context) -> Self {
+    pub fn new(context: &'ctx Context, params: &'ctx cmdline::Parameters) -> Self {
         Target::initialize_native(&Default::default()).unwrap();
         let target = Target::get_first().unwrap();
         let target = target
@@ -42,7 +43,7 @@ impl<'ctx> CodegenContext<'ctx> {
                 &TargetMachine::get_default_triple(),
                 TargetMachine::get_host_cpu_name().to_str().unwrap(),
                 TargetMachine::get_host_cpu_features().to_str().unwrap(),
-                inkwell::OptimizationLevel::None, // IMPORTANT: if changed, change DebugContext OPT_LEVEL to match
+                params.opt_level,
                 inkwell::targets::RelocMode::Default,
                 inkwell::targets::CodeModel::Default,
             )
@@ -56,6 +57,7 @@ impl<'ctx> CodegenContext<'ctx> {
             context,
             core_types,
             name_store,
+            params,
         }
     }
 }
@@ -152,8 +154,7 @@ impl<'ctx> CodegenContext<'ctx> {
     ) -> Result<(), Diagnostic> {
         let crate_name = &crate_.crate_name;
 
-        let mut generator =
-            CodegenUnit::new(self, &crate_.llvm_module, crate_name, file_path, source);
+        let mut generator = CodegenUnit::new(self, crate_, file_path, source);
         let mut scope = Scope::new_global();
 
         for function in &ast.functions {

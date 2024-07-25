@@ -6,12 +6,15 @@ pub use args_macro::Parameters;
 mod args_macro {
     use std::borrow::Cow;
 
+    use inkwell::OptimizationLevel;
+
     argwerk::define! {
         /// wlab compiler
         #[usage = "wlab [OPTION]... [INPUT_FILE]..."]
         pub struct Parameters {
             pub input_files: Vec<String>,
             pub out_dir: Cow<'static, str> = Cow::Borrowed("./"),
+            pub opt_level: OptimizationLevel,
             pub lex_files: bool = false,
             pub generate_ast: bool = false,
             pub generate_ir: bool = false,
@@ -27,6 +30,26 @@ mod args_macro {
         /// Sets the output directory to write the generated files to.
         ["--output-directory" | "--output" | "--out" | "-o", output_dir] => {
             out_dir = Cow::Owned(output_dir);
+        }
+
+        /// Disables all compiler optimization
+        ["-O0"] => {
+            opt_level = OptimizationLevel::None;
+        }
+
+        /// Sets optimization level to 1.
+        ["-O1"] => {
+            opt_level = OptimizationLevel::Less;
+        }
+
+        /// Sets optimization level to 2 (default).
+        ["-O2"] => {
+            opt_level = OptimizationLevel::Default;
+        }
+
+        /// Sets optimization level to 3 (maximum).
+        ["-O3"] => {
+            opt_level = OptimizationLevel::Aggressive;
         }
 
         /// Generates a `.lex` file for each input.

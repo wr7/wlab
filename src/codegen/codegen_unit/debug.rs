@@ -3,6 +3,7 @@ use inkwell::{
         AsDIScope, DIBasicType, DICompileUnit, DIFlagsConstants, DIScope, DIType, DebugInfoBuilder,
     },
     module::Module as LlvmModule,
+    OptimizationLevel,
 };
 
 use crate::codegen::{types::Type, CodegenContext};
@@ -36,7 +37,7 @@ impl<'ctx> DebugContext<'ctx> {
             file_name,
             directory,
             "wlab",
-            false, // OPT_LEVEL
+            c.params.opt_level != OptimizationLevel::None,
             "",
             0,
             "",

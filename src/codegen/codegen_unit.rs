@@ -8,6 +8,8 @@ use crate::{
     parser::ast::{self, Statement},
 };
 
+use super::codegen_context::Crate;
+
 pub(super) mod debug;
 mod expression;
 mod function;
@@ -25,12 +27,13 @@ pub struct CodegenUnit<'m, 'ctx> {
 impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     pub fn new(
         c: &'m mut CodegenContext<'ctx>,
-        module: &'m LlvmModule<'ctx>,
-        crate_name: &'m str,
+        crate_: &'m Crate<'ctx>,
         file_path: &str,
         source: &'m str,
     ) -> Self {
         let context = c.context;
+        let module = &crate_.llvm_module;
+        let crate_name = &crate_.crate_name;
         let debug_context = DebugContext::new(c, module, file_path);
 
         Self {

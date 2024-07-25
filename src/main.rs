@@ -68,7 +68,7 @@ fn main() {
     std::fs::create_dir_all(&*params.out_dir).unwrap();
 
     let context = inkwell::context::Context::create();
-    let mut codegen_context = CodegenContext::new(&context);
+    let mut codegen_context = CodegenContext::new(&context, &params);
 
     let src_store = MemoryStore::new();
     let mut crates = Vec::new();
