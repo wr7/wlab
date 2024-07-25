@@ -1,0 +1,8 @@
+[package]
+name = "wllvm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+llvm-sys = "181.1.0"
+wutil = "0.0.6"
