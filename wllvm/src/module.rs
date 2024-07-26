@@ -39,7 +39,7 @@ impl<'ctx> Module<'ctx> {
             FnValue::from_raw(LLVMAddFunction(
                 self.ptr,
                 name.as_ptr(),
-                function_type.into_raw(),
+                function_type.raw(),
             ))
         }
     }

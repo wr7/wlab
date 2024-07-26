@@ -1,14 +1,26 @@
-use std::{ffi::CStr, fmt::Debug, marker::PhantomData, ops::Deref};
+use std::{
+    ffi::{c_char, c_ulonglong, CStr},
+    fmt::Debug,
+    marker::PhantomData,
+    ops::Deref,
+};
 
 use llvm_sys::{
     core::{
+        LLVMConstInt, LLVMConstIntOfArbitraryPrecision, LLVMConstIntOfStringAndSize, LLVMConstNull,
         LLVMCountParamTypes, LLVMGetIntTypeWidth, LLVMGetParamTypes, LLVMGetReturnType,
-        LLVMIsFunctionVarArg, LLVMPrintTypeToString,
+        LLVMGetTypeKind, LLVMIsFunctionVarArg, LLVMPrintTypeToString,
     },
+    prelude::LLVMBool,
     LLVMType,
 };
 
-use crate::util::LLVMString;
+use crate::{
+    util::LLVMString,
+    value::{FnValue, IntValue, StructValue, Value},
+};
+
+pub use llvm_sys::LLVMTypeKind;
 
 /// An LLVM type reference
 #[repr(transparent)]
@@ -29,8 +41,16 @@ impl<'ctx> Type<'ctx> {
         }
     }
 
-    pub fn into_raw(self) -> *mut LLVMType {
+    pub fn raw(self) -> *mut LLVMType {
         self.ptr
+    }
+
+    pub fn kind(self) -> LLVMTypeKind {
+        unsafe { LLVMGetTypeKind(self.ptr) }
+    }
+
+    pub fn const_null(self) -> Value<'ctx> {
+        unsafe { Value::from_raw(LLVMConstNull(self.ptr)) }
     }
 
     /// Prints the type into an [`LLVMString`].
@@ -48,7 +68,10 @@ impl Debug for Type<'_> {
 }
 
 macro_rules! specialized_type {
-    {$(#[doc = $doc:literal])* pub struct $name:ident;} => {
+    {
+        $(#[doc = $doc:literal])*
+        pub struct $name:ident $(: $value:ident)?
+    } => {
         $(#[doc = $doc])*
         #[repr(transparent)]
         #[derive(Clone, Copy)]
@@ -60,6 +83,12 @@ macro_rules! specialized_type {
             pub unsafe fn from_raw(raw: *mut LLVMType) -> Self {
                 Self {type_: Type::from_raw(raw)}
             }
+
+            $(
+                pub fn const_null(self) -> $value<'ctx> {
+                    unsafe { $value::from_raw(LLVMConstNull(self.ptr)) }
+                }
+            )?
         }
 
         impl<'ctx> Deref for $name<'ctx> {
@@ -92,23 +121,53 @@ macro_rules! specialized_type {
 
 specialized_type! {
     /// An LLVM integer type reference
-    pub struct IntType;
+    pub struct IntType: IntValue
 }
 
 specialized_type! {
     /// An LLVM function type reference
-    pub struct FnType;
+    pub struct FnType: FnValue
 }
 
 specialized_type! {
     /// An LLVM struct type reference
-    pub struct StructType;
+    pub struct StructType: StructValue
 }
 
 impl<'ctx> IntType<'ctx> {
     /// Gets the width (in bits) of the integer type
     pub fn width(self) -> u32 {
         unsafe { LLVMGetIntTypeWidth(self.ptr) }
+    }
+
+    pub fn const_(self, val: c_ulonglong, sign_extend: bool) -> IntValue<'ctx> {
+        unsafe { IntValue::from_raw(LLVMConstInt(self.ptr, val, sign_extend as LLVMBool)) }
+    }
+
+    pub fn const_arbitrary_precision(self, num: &[u64]) -> IntValue<'ctx> {
+        unsafe {
+            IntValue::from_raw(LLVMConstIntOfArbitraryPrecision(
+                self.ptr,
+                num.len() as u32,
+                num.as_ptr(),
+            ))
+        }
+    }
+
+    pub fn const_from_string<S>(self, str: &S, radix: u8) -> IntValue<'ctx>
+    where
+        S: AsRef<[u8]> + ?Sized,
+    {
+        let s = str.as_ref();
+
+        let ptr = s.as_ptr().cast::<c_char>();
+        let len = s.len();
+
+        unsafe {
+            IntValue::from_raw(LLVMConstIntOfStringAndSize(
+                self.ptr, ptr, len as u32, radix,
+            ))
+        }
     }
 }
 

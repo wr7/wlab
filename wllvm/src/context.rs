@@ -2,16 +2,18 @@ use std::ffi::CStr;
 
 use llvm_sys::{
     core::{
-        LLVMContextCreate, LLVMContextDispose, LLVMFunctionType, LLVMIntTypeInContext,
+        LLVMConstStructInContext, LLVMContextCreate, LLVMContextDispose,
+        LLVMCreateBuilderInContext, LLVMFunctionType, LLVMIntTypeInContext,
         LLVMModuleCreateWithNameInContext, LLVMStructTypeInContext,
     },
     prelude::LLVMBool,
-    LLVMContext, LLVMType,
+    LLVMContext, LLVMType, LLVMValue,
 };
 
 use crate::{
     type_::{FnType, IntType, StructType},
-    Module, Type,
+    value::{StructValue, Value},
+    Builder, Module, Type,
 };
 
 /// An LLVM Context
@@ -27,6 +29,10 @@ impl Context {
 
     pub fn create_module<'ctx>(&'ctx self, name: &CStr) -> Module<'ctx> {
         unsafe { Module::from_raw(LLVMModuleCreateWithNameInContext(name.as_ptr(), self.ptr)) }
+    }
+
+    pub fn create_builder<'ctx>(&'ctx self) -> Builder<'ctx> {
+        unsafe { Builder::from_raw(LLVMCreateBuilderInContext(self.ptr)) }
     }
 
     pub fn struct_type<'ctx>(
@@ -46,6 +52,23 @@ impl Context {
         }
     }
 
+    pub fn const_struct<'ctx>(
+        &'ctx self,
+        elements: &[Value<'ctx>],
+        packed: bool,
+    ) -> StructValue<'ctx> {
+        let elements_ptr = elements.as_ptr().cast::<*mut LLVMValue>().cast_mut();
+
+        unsafe {
+            StructValue::from_raw(LLVMConstStructInContext(
+                self.ptr,
+                elements_ptr,
+                elements.len() as u32,
+                packed as LLVMBool,
+            ))
+        }
+    }
+
     pub fn fn_type<'ctx>(
         &'ctx self,
         return_type: Type<'ctx>,
@@ -56,7 +79,7 @@ impl Context {
 
         unsafe {
             FnType::<'ctx>::from_raw(LLVMFunctionType(
-                return_type.into_raw(),
+                return_type.raw(),
                 param_types_ptr,
                 param_types.len() as u32,
                 is_var_arg as LLVMBool,
