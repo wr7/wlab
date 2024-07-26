@@ -8,8 +8,8 @@ use std::{
 use llvm_sys::{
     core::{
         LLVMConstInt, LLVMConstIntOfArbitraryPrecision, LLVMConstIntOfStringAndSize, LLVMConstNull,
-        LLVMCountParamTypes, LLVMGetIntTypeWidth, LLVMGetParamTypes, LLVMGetReturnType,
-        LLVMGetTypeKind, LLVMIsFunctionVarArg, LLVMPrintTypeToString,
+        LLVMCountParamTypes, LLVMGetInlineAsm, LLVMGetIntTypeWidth, LLVMGetParamTypes,
+        LLVMGetReturnType, LLVMGetTypeKind, LLVMIsFunctionVarArg, LLVMPrintTypeToString,
     },
     prelude::LLVMBool,
     LLVMType,
@@ -17,10 +17,10 @@ use llvm_sys::{
 
 use crate::{
     util::LLVMString,
-    value::{FnValue, IntValue, StructValue, Value},
+    value::{FnValue, IntValue, PtrValue, StructValue, Value},
 };
 
-pub use llvm_sys::LLVMTypeKind;
+pub use llvm_sys::{LLVMInlineAsmDialect, LLVMTypeKind};
 
 /// An LLVM type reference
 #[repr(transparent)]
@@ -125,6 +125,11 @@ specialized_type! {
 }
 
 specialized_type! {
+    /// An LLVM integer type reference
+    pub struct PtrType: PtrValue
+}
+
+specialized_type! {
     /// An LLVM function type reference
     pub struct FnType: FnValue
 }
@@ -154,10 +159,11 @@ impl<'ctx> IntType<'ctx> {
         }
     }
 
-    pub fn const_from_string<S>(self, str: &S, radix: u8) -> IntValue<'ctx>
-    where
-        S: AsRef<[u8]> + ?Sized,
-    {
+    pub fn const_from_string<S>(
+        self,
+        str: &(impl ?Sized + AsRef<[u8]>),
+        radix: u8,
+    ) -> IntValue<'ctx> {
         let s = str.as_ref();
 
         let ptr = s.as_ptr().cast::<c_char>();
@@ -172,6 +178,39 @@ impl<'ctx> IntType<'ctx> {
 }
 
 impl<'ctx> FnType<'ctx> {
+    pub fn inline_asm(
+        self,
+        asm: &(impl ?Sized + AsRef<[u8]>),
+        constraints: &(impl ?Sized + AsRef<[u8]>),
+        side_effects: bool,
+        align_stack: bool,
+        dialect: LLVMInlineAsmDialect,
+        can_throw: bool,
+    ) -> PtrValue<'ctx> {
+        let asm = asm.as_ref();
+        let constraints = constraints.as_ref();
+        let side_effects = side_effects as LLVMBool;
+        let align_stack = align_stack as LLVMBool;
+        let can_throw = can_throw as LLVMBool;
+
+        let asm_ptr = asm.as_ptr().cast::<c_char>();
+        let constraints_ptr = constraints.as_ptr().cast::<c_char>();
+
+        unsafe {
+            PtrValue::from_raw(LLVMGetInlineAsm(
+                self.ptr,
+                asm_ptr,
+                asm.len(),
+                constraints_ptr,
+                constraints.len(),
+                side_effects,
+                align_stack,
+                dialect,
+                can_throw,
+            ))
+        }
+    }
+
     pub fn var_args(self) -> bool {
         unsafe { LLVMIsFunctionVarArg(self.ptr) != 0 }
     }

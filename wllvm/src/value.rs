@@ -1,16 +1,22 @@
-use std::{ffi::CStr, marker::PhantomData, ops::Deref};
+use std::{
+    ffi::{c_char, CStr},
+    marker::PhantomData,
+    mem::MaybeUninit,
+    ops::Deref,
+    slice,
+};
 
 use llvm_sys::{
     core::{
-        LLVMAppendBasicBlockInContext, LLVMCountParams, LLVMGetParam, LLVMGetTypeContext,
-        LLVMTypeOf,
+        LLVMAddIncoming, LLVMAppendBasicBlockInContext, LLVMCountParams, LLVMGetParam,
+        LLVMGetTypeContext, LLVMGetValueName2, LLVMSetValueName2, LLVMTypeOf,
     },
-    LLVMTypeKind, LLVMValue,
+    LLVMBasicBlock, LLVMTypeKind, LLVMValue,
 };
 
 use crate::{
     basic_block::BasicBlock,
-    type_::{FnType, IntType, StructType},
+    type_::{FnType, IntType, PtrType, StructType},
     Type,
 };
 
@@ -34,8 +40,33 @@ impl<'ctx> Value<'ctx> {
         self.ptr
     }
 
+    // TODO: test with no name and with inline asm value
+    pub fn name(&self) -> &'ctx [u8] {
+        unsafe {
+            let mut len = MaybeUninit::uninit();
+            let ptr = LLVMGetValueName2(self.ptr, len.as_mut_ptr());
+
+            let len = len.assume_init();
+            slice::from_raw_parts(ptr.cast::<u8>(), len)
+        }
+    }
+
+    pub fn set_name<S>(&self, name: &S)
+    where
+        S: ?Sized + AsRef<[u8]>,
+    {
+        let name = name.as_ref();
+        unsafe { LLVMSetValueName2(self.ptr, name.as_ptr().cast::<c_char>(), name.len()) }
+    }
+
     pub fn type_(self) -> Type<'ctx> {
         unsafe { Type::from_raw(LLVMTypeOf(self.ptr)) }
+    }
+}
+
+macro_rules! noop_ident {
+    {$ident:ident} => {
+        ""
     }
 }
 
@@ -43,7 +74,7 @@ macro_rules! specialized_values {
     {
         $(
             $(#[doc = $doc:literal])*
-            pub struct $name:ident : $type:ident @ $type_kind:ident
+            pub struct $name:ident $( : $type:ident @ $type_kind:ident)?;
         )+
     } => {
         $(
@@ -59,9 +90,11 @@ macro_rules! specialized_values {
                     Self {value: Value::from_raw(raw)}
                 }
 
-                pub fn type_(self) -> $type<'ctx> {
-                    unsafe { $type::from_raw((*self).type_().raw()) }
-                }
+                $(
+                    pub fn type_(self) -> $type<'ctx> {
+                        unsafe { $type::from_raw((*self).type_().raw()) }
+                    }
+                )?
             }
 
             impl<'ctx> Deref for $name<'ctx> {
@@ -87,20 +120,21 @@ macro_rules! specialized_values {
 
         /// Returned by [`Value::downcast`]
         pub enum ValueEnum<'ctx> {
-            $(
+            $($(
+                #[doc = noop_ident!($type_kind)] // to match $type_kind
                 $name($name<'ctx>),
-            )+
+            )?)+
         }
 
         impl<'ctx> Value<'ctx> {
             /// Tries to downcast a generic `Value` into a more-specific value type.
             pub fn downcast(self) -> Option<ValueEnum<'ctx>> {
                 Some(match self.type_().kind() {
-                    $(
+                    $($(
                         LLVMTypeKind::$type_kind => {
                             ValueEnum::$name(unsafe { $name::from_raw(self.raw()) })
                         }
-                    )+
+                    )?)+
                     _ => return None,
                 })
             }
@@ -110,13 +144,19 @@ macro_rules! specialized_values {
 
 specialized_values! {
     /// An LLVM function value reference
-    pub struct FnValue: FnType @ LLVMFunctionTypeKind
+    pub struct FnValue: FnType @ LLVMFunctionTypeKind;
 
     /// An LLVM integer value reference
-    pub struct IntValue: IntType @ LLVMIntegerTypeKind
+    pub struct IntValue: IntType @ LLVMIntegerTypeKind;
+
+    /// An LLVM pointer value reference
+    pub struct PtrValue: PtrType @ LLVMPointerTypeKind;
 
     /// An LLVM integer value reference
-    pub struct StructValue: StructType @ LLVMStructTypeKind
+    pub struct StructValue: StructType @ LLVMStructTypeKind;
+
+    /// An LLVM phi value reference
+    pub struct PhiValue;
 }
 
 impl<'ctx> FnValue<'ctx> {
@@ -137,5 +177,23 @@ impl<'ctx> FnValue<'ctx> {
 
     pub fn param(self, idx: u32) -> Option<Value<'ctx>> {
         (idx < self.num_params()).then(|| unsafe { Value::from_raw(LLVMGetParam(self.ptr, idx)) })
+    }
+}
+
+impl<'ctx> PhiValue<'ctx> {
+    /// Adds an incoming block and value.
+    ///
+    /// Returns `false` iff `values.len()` != `block.len()`
+    pub fn add_incoming(self, values: &[Value<'ctx>], blocks: &[BasicBlock<'ctx>]) -> bool {
+        if values.len() != blocks.len() {
+            return false;
+        }
+
+        let values_ptr = values.as_ptr().cast::<*mut LLVMValue>().cast_mut();
+        let blocks_ptr = blocks.as_ptr().cast::<*mut LLVMBasicBlock>().cast_mut();
+
+        unsafe { LLVMAddIncoming(self.ptr, values_ptr, blocks_ptr, values.len() as u32) }
+
+        true
     }
 }

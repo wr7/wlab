@@ -1,7 +1,7 @@
 use std::{
     ffi::{c_char, CStr},
     marker::PhantomData,
-    ptr::{self, addr_of_mut},
+    mem::MaybeUninit,
 };
 
 use llvm_sys::{
@@ -51,13 +51,13 @@ impl<'ctx> Module<'ctx> {
 
     /// Converts the module to human-readable LLVM IR and then writes it to a file
     pub fn print_to_file(&self, filename: &CStr) -> Result<(), LLVMErrorString> {
-        let mut err_msg: *mut c_char = ptr::null_mut();
+        let mut err_msg: MaybeUninit<*mut c_char> = MaybeUninit::uninit();
 
         let result =
-            unsafe { LLVMPrintModuleToFile(self.ptr, filename.as_ptr(), addr_of_mut!(err_msg)) };
+            unsafe { LLVMPrintModuleToFile(self.ptr, filename.as_ptr(), err_msg.as_mut_ptr()) };
 
         if result != 0 {
-            unsafe { Err(LLVMErrorString::from_raw(err_msg)) }
+            unsafe { Err(LLVMErrorString::from_raw(err_msg.assume_init())) }
         } else {
             Ok(())
         }
