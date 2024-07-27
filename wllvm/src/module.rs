@@ -6,12 +6,17 @@ use std::{
 
 use llvm_sys::{
     core::{LLVMAddFunction, LLVMDisposeModule, LLVMPrintModuleToFile, LLVMPrintModuleToString},
+    target,
+    target_machine::{
+        LLVMCodeGenFileType, LLVMTargetMachineEmitToFile, LLVMTargetMachineEmitToMemoryBuffer,
+    },
     LLVMModule,
 };
 
 use crate::{
+    target::TargetMachine,
     type_::FnType,
-    util::{LLVMErrorString, LLVMString},
+    util::{LLVMErrorString, LLVMString, MemoryBuffer},
     value::FnValue,
 };
 
@@ -41,6 +46,56 @@ impl<'ctx> Module<'ctx> {
                 name.as_ptr(),
                 function_type.raw(),
             ))
+        }
+    }
+
+    pub fn compile_to_buffer(
+        &self,
+        target: &TargetMachine,
+        output_type: LLVMCodeGenFileType,
+    ) -> Result<MemoryBuffer, LLVMString> {
+        unsafe {
+            let mut buf = MaybeUninit::uninit();
+            let mut err_msg = MaybeUninit::uninit();
+
+            let succ = LLVMTargetMachineEmitToMemoryBuffer(
+                target.raw(),
+                self.ptr,
+                output_type,
+                err_msg.as_mut_ptr(),
+                buf.as_mut_ptr(),
+            ) == 0;
+
+            if succ {
+                Ok(MemoryBuffer::from_raw(buf.assume_init()))
+            } else {
+                Err(LLVMString::from_raw(err_msg.assume_init()))
+            }
+        }
+    }
+
+    pub fn compile(
+        &self,
+        target: &TargetMachine,
+        file_name: &CStr,
+        output_type: LLVMCodeGenFileType,
+    ) -> Result<(), LLVMString> {
+        unsafe {
+            let mut err_msg = MaybeUninit::uninit();
+
+            let succ = LLVMTargetMachineEmitToFile(
+                target.raw(),
+                self.ptr,
+                file_name.as_ptr(),
+                output_type,
+                err_msg.as_mut_ptr(),
+            ) == 0;
+
+            if succ {
+                Ok(())
+            } else {
+                Err(LLVMString::from_raw(err_msg.assume_init()))
+            }
         }
     }
 

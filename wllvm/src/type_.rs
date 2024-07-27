@@ -54,69 +54,17 @@ impl<'ctx> Type<'ctx> {
     }
 
     /// Prints the type into an [`LLVMString`].
-    pub fn as_string(&self) -> LLVMString {
+    pub fn to_string(&self) -> LLVMString {
         unsafe { LLVMString::from_raw(LLVMPrintTypeToString(self.ptr)) }
     }
 }
 
 impl Debug for Type<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let cstr: &CStr = &*self.as_string();
+        let cstr: &CStr = &*self.to_string();
 
         Debug::fmt(cstr, f)
     }
-}
-
-macro_rules! specialized_type {
-    {
-        $(#[doc = $doc:literal])*
-        pub struct $name:ident $(: $value:ident)?
-    } => {
-        $(#[doc = $doc])*
-        #[repr(transparent)]
-        #[derive(Clone, Copy)]
-        pub struct $name<'ctx> {
-            type_: Type<'ctx>,
-        }
-
-        impl<'ctx> $name<'ctx> {
-            pub unsafe fn from_raw(raw: *mut LLVMType) -> Self {
-                Self {type_: Type::from_raw(raw)}
-            }
-
-            $(
-                pub fn const_null(self) -> $value<'ctx> {
-                    unsafe { $value::from_raw(LLVMConstNull(self.ptr)) }
-                }
-            )?
-        }
-
-        impl<'ctx> Deref for $name<'ctx> {
-            type Target = Type<'ctx>;
-
-            fn deref(&self) -> &Self::Target {
-                &self.type_
-            }
-        }
-
-        impl<'ctx> AsRef<Type<'ctx>> for $name<'ctx> {
-            fn as_ref(&self) -> &Type<'ctx> {
-                &**self
-            }
-        }
-
-        impl<'ctx> From<$name<'ctx>> for Type<'ctx> {
-            fn from(value: $name<'ctx>) -> Self {
-                value.type_
-            }
-        }
-
-        impl<'ctx> Debug for $name<'ctx> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                Debug::fmt(&**self, f)
-            }
-        }
-    };
 }
 
 specialized_type! {
@@ -236,3 +184,57 @@ impl<'ctx> FnType<'ctx> {
         params
     }
 }
+
+macro_rules! specialized_type {
+    {
+        $(#[doc = $doc:literal])*
+        pub struct $name:ident $(: $value:ident)?
+    } => {
+        $(#[doc = $doc])*
+        #[repr(transparent)]
+        #[derive(Clone, Copy)]
+        pub struct $name<'ctx> {
+            type_: Type<'ctx>,
+        }
+
+        impl<'ctx> $name<'ctx> {
+            pub unsafe fn from_raw(raw: *mut LLVMType) -> Self {
+                Self {type_: Type::from_raw(raw)}
+            }
+
+            $(
+                pub fn const_null(self) -> $value<'ctx> {
+                    unsafe { $value::from_raw(LLVMConstNull(self.ptr)) }
+                }
+            )?
+        }
+
+        impl<'ctx> Deref for $name<'ctx> {
+            type Target = Type<'ctx>;
+
+            fn deref(&self) -> &Self::Target {
+                &self.type_
+            }
+        }
+
+        impl<'ctx> AsRef<Type<'ctx>> for $name<'ctx> {
+            fn as_ref(&self) -> &Type<'ctx> {
+                &**self
+            }
+        }
+
+        impl<'ctx> From<$name<'ctx>> for Type<'ctx> {
+            fn from(value: $name<'ctx>) -> Self {
+                value.type_
+            }
+        }
+
+        impl<'ctx> Debug for $name<'ctx> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                Debug::fmt(&**self, f)
+            }
+        }
+    };
+}
+
+pub(self) use specialized_type;

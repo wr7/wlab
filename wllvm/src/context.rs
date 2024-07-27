@@ -4,14 +4,16 @@ use llvm_sys::{
     core::{
         LLVMConstStructInContext, LLVMContextCreate, LLVMContextDispose,
         LLVMCreateBuilderInContext, LLVMFunctionType, LLVMIntTypeInContext,
-        LLVMModuleCreateWithNameInContext, LLVMStructTypeInContext,
+        LLVMModuleCreateWithNameInContext, LLVMPointerTypeInContext, LLVMStructTypeInContext,
     },
     prelude::LLVMBool,
+    target::LLVMIntPtrTypeInContext,
     LLVMContext, LLVMType, LLVMValue,
 };
 
 use crate::{
-    type_::{FnType, IntType, StructType},
+    target::TargetData,
+    type_::{FnType, IntType, PtrType, StructType},
     value::{StructValue, Value},
     Builder, Module, Type,
 };
@@ -89,6 +91,14 @@ impl Context {
 
     pub fn int_type<'ctx>(&'ctx self, num_bits: u32) -> IntType<'ctx> {
         unsafe { IntType::<'ctx>::from_raw(LLVMIntTypeInContext(self.ptr, num_bits)) }
+    }
+
+    pub fn ptr_sized_int_type<'ctx>(&'ctx self, target_data: &TargetData) -> IntType<'ctx> {
+        unsafe { IntType::from_raw(LLVMIntPtrTypeInContext(self.ptr, target_data.raw())) }
+    }
+
+    pub fn ptr_type<'ctx>(&'ctx self) -> PtrType<'ctx> {
+        unsafe { PtrType::from_raw(LLVMPointerTypeInContext(self.ptr, 0)) }
     }
 }
 

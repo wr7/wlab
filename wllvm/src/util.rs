@@ -1,23 +1,77 @@
-use core::ffi::c_char;
-use std::{ffi::CStr, fmt::Debug, ops::Deref};
+use core::slice;
+use std::{ops::Deref, ptr};
 
-use llvm_sys::{core::LLVMDisposeMessage, error::LLVMDisposeErrorMessage};
+use llvm_sys::{
+    core::{LLVMDisposeMemoryBuffer, LLVMDisposeMessage, LLVMGetBufferSize, LLVMGetBufferStart},
+    error::LLVMDisposeErrorMessage,
+    LLVMMemoryBuffer,
+};
+
+llvm_string_type! {
+    /// An owned string obtained from LLVM. `LLVMDisposeMessage` is automatically used to free this string.
+    pub struct LLVMString;
+    LLVMDisposeMessage
+}
+
+llvm_string_type! {
+    /// An owned error string obtained from LLVM. `LLVMDisposeErrorMessage` is automatically used to free this string.
+    pub struct LLVMErrorString;
+    LLVMDisposeErrorMessage
+}
+
+pub struct MemoryBuffer {
+    raw: *mut LLVMMemoryBuffer,
+    ptr: *const [u8],
+}
+
+impl MemoryBuffer {
+    pub unsafe fn from_raw(raw: *mut LLVMMemoryBuffer) -> Self {
+        unsafe {
+            let len = LLVMGetBufferSize(raw);
+            let ptr = LLVMGetBufferStart(raw).cast::<u8>();
+
+            let ptr = ptr::from_ref(slice::from_raw_parts(ptr, len));
+
+            Self { raw, ptr }
+        }
+    }
+}
+
+impl Drop for MemoryBuffer {
+    fn drop(&mut self) {
+        unsafe { LLVMDisposeMemoryBuffer(self.raw) }
+    }
+}
+
+impl AsRef<[u8]> for MemoryBuffer {
+    fn as_ref(&self) -> &[u8] {
+        unsafe { &*self.ptr }
+    }
+}
+
+impl Deref for MemoryBuffer {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
+    }
+}
 
 macro_rules! llvm_string_type {
-    {$(#[doc = $doc:literal])* pub struct $name:ident; $destructor:ident} => {
+    {$(#[doc = $doc:literal])* $vis:vis struct $name:ident; $destructor:ident} => {
         $(
             #[doc = $doc]
         )*
         #[repr(transparent)]
-        pub struct $name {
-            ptr: *mut c_char,
+        $vis struct $name {
+            ptr: *mut ::core::ffi::c_char,
         }
 
         impl $name {
             /// Wraps a raw LLVM string. Upon dropping, `
-            #[doc = ::std::stringify!($destructor)]
+            #[doc = ::core::stringify!($destructor)]
             ///` will be called on it.
-            pub unsafe fn from_raw(ptr: *mut c_char) -> Self {
+            pub unsafe fn from_raw(ptr: *mut ::core::ffi::c_char) -> Self {
                 Self { ptr }
             }
 
@@ -33,7 +87,7 @@ macro_rules! llvm_string_type {
 
                 let ptr = self.ptr.cast::<u8>();
 
-                unsafe { std::slice::from_raw_parts(ptr, len) }
+                unsafe { ::core::slice::from_raw_parts(ptr, len) }
             }
         }
 
@@ -43,36 +97,26 @@ macro_rules! llvm_string_type {
             }
         }
 
-        impl Deref for $name {
-            type Target = CStr;
+        impl ::core::ops::Deref for $name {
+            type Target = ::core::ffi::CStr;
 
             fn deref(&self) -> &Self::Target {
-                unsafe { CStr::from_ptr(self.ptr) }
+                unsafe { ::core::ffi::CStr::from_ptr(self.ptr) }
             }
         }
 
-        impl AsRef<CStr> for $name {
-            fn as_ref(&self) -> &CStr {
+        impl AsRef<::core::ffi::CStr> for $name {
+            fn as_ref(&self) -> &::core::ffi::CStr {
                 &*self
             }
         }
 
-        impl Debug for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                Debug::fmt(&**self, f)
+        impl ::core::fmt::Debug for $name {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                ::core::fmt::Debug::fmt(&**self, f)
             }
         }
     };
 }
 
-llvm_string_type! {
-    /// An owned string obtained from LLVM. `LLVMDisposeMessage` is automatically used to free this string.
-    pub struct LLVMString;
-    LLVMDisposeMessage
-}
-
-llvm_string_type! {
-    /// An owned error string obtained from LLVM. `LLVMDisposeErrorMessage` is automatically used to free this string.
-    pub struct LLVMErrorString;
-    LLVMDisposeErrorMessage
-}
+pub(crate) use llvm_string_type;

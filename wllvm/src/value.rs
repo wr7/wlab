@@ -64,6 +64,62 @@ impl<'ctx> Value<'ctx> {
     }
 }
 
+specialized_values! {
+    /// An LLVM function value reference
+    pub struct FnValue: FnType @ LLVMFunctionTypeKind;
+
+    /// An LLVM integer value reference
+    pub struct IntValue: IntType @ LLVMIntegerTypeKind;
+
+    /// An LLVM pointer value reference
+    pub struct PtrValue: PtrType @ LLVMPointerTypeKind;
+
+    /// An LLVM integer value reference
+    pub struct StructValue: StructType @ LLVMStructTypeKind;
+
+    /// An LLVM phi value reference
+    pub struct PhiValue;
+}
+
+impl<'ctx> FnValue<'ctx> {
+    pub fn add_basic_block(self, name: &CStr) -> BasicBlock<'ctx> {
+        unsafe {
+            let context = LLVMGetTypeContext(LLVMTypeOf(self.ptr));
+            BasicBlock::from_raw(LLVMAppendBasicBlockInContext(
+                context,
+                self.ptr,
+                name.as_ptr(),
+            ))
+        }
+    }
+
+    pub fn num_params(self) -> u32 {
+        unsafe { LLVMCountParams(self.ptr) }
+    }
+
+    pub fn param(self, idx: u32) -> Option<Value<'ctx>> {
+        (idx < self.num_params()).then(|| unsafe { Value::from_raw(LLVMGetParam(self.ptr, idx)) })
+    }
+}
+
+impl<'ctx> PhiValue<'ctx> {
+    /// Adds an incoming block and value.
+    ///
+    /// Returns `false` iff `values.len()` != `block.len()`
+    pub fn add_incoming(self, values: &[Value<'ctx>], blocks: &[BasicBlock<'ctx>]) -> bool {
+        if values.len() != blocks.len() {
+            return false;
+        }
+
+        let values_ptr = values.as_ptr().cast::<*mut LLVMValue>().cast_mut();
+        let blocks_ptr = blocks.as_ptr().cast::<*mut LLVMBasicBlock>().cast_mut();
+
+        unsafe { LLVMAddIncoming(self.ptr, values_ptr, blocks_ptr, values.len() as u32) }
+
+        true
+    }
+}
+
 macro_rules! noop_ident {
     {$ident:ident} => {
         ""
@@ -142,58 +198,5 @@ macro_rules! specialized_values {
     };
 }
 
-specialized_values! {
-    /// An LLVM function value reference
-    pub struct FnValue: FnType @ LLVMFunctionTypeKind;
-
-    /// An LLVM integer value reference
-    pub struct IntValue: IntType @ LLVMIntegerTypeKind;
-
-    /// An LLVM pointer value reference
-    pub struct PtrValue: PtrType @ LLVMPointerTypeKind;
-
-    /// An LLVM integer value reference
-    pub struct StructValue: StructType @ LLVMStructTypeKind;
-
-    /// An LLVM phi value reference
-    pub struct PhiValue;
-}
-
-impl<'ctx> FnValue<'ctx> {
-    pub fn add_basic_block(self, name: &CStr) -> BasicBlock<'ctx> {
-        unsafe {
-            let context = LLVMGetTypeContext(LLVMTypeOf(self.ptr));
-            BasicBlock::from_raw(LLVMAppendBasicBlockInContext(
-                context,
-                self.ptr,
-                name.as_ptr(),
-            ))
-        }
-    }
-
-    pub fn num_params(self) -> u32 {
-        unsafe { LLVMCountParams(self.ptr) }
-    }
-
-    pub fn param(self, idx: u32) -> Option<Value<'ctx>> {
-        (idx < self.num_params()).then(|| unsafe { Value::from_raw(LLVMGetParam(self.ptr, idx)) })
-    }
-}
-
-impl<'ctx> PhiValue<'ctx> {
-    /// Adds an incoming block and value.
-    ///
-    /// Returns `false` iff `values.len()` != `block.len()`
-    pub fn add_incoming(self, values: &[Value<'ctx>], blocks: &[BasicBlock<'ctx>]) -> bool {
-        if values.len() != blocks.len() {
-            return false;
-        }
-
-        let values_ptr = values.as_ptr().cast::<*mut LLVMValue>().cast_mut();
-        let blocks_ptr = blocks.as_ptr().cast::<*mut LLVMBasicBlock>().cast_mut();
-
-        unsafe { LLVMAddIncoming(self.ptr, values_ptr, blocks_ptr, values.len() as u32) }
-
-        true
-    }
-}
+pub(self) use noop_ident;
+pub(self) use specialized_values;
