@@ -14,6 +14,7 @@ use llvm_sys::{
 use crate::{
     target::TargetData,
     type_::{FnType, IntType, PtrType, StructType},
+    util,
     value::{StructValue, Value},
     Builder, Module, Type,
 };
@@ -24,9 +25,20 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn new() -> Self {
-        let ptr = unsafe { LLVMContextCreate() };
+    pub unsafe fn from_raw(ptr: *mut LLVMContext) -> Self {
         Self { ptr }
+    }
+
+    pub unsafe fn from_raw_ref<'a>(raw: &'a *mut LLVMContext) -> &'a Self {
+        util::transmute_ref::<*mut LLVMContext, Self>(raw)
+    }
+
+    pub fn raw(&self) -> *mut LLVMContext {
+        self.ptr
+    }
+
+    pub fn new() -> Self {
+        unsafe { Self::from_raw(LLVMContextCreate()) }
     }
 
     pub fn create_module<'ctx>(&'ctx self, name: &CStr) -> Module<'ctx> {

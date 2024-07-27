@@ -57,15 +57,15 @@ impl<'ctx> Type<'ctx> {
         }
     }
 
-    pub fn raw(self) -> *mut LLVMType {
+    pub fn raw(&self) -> *mut LLVMType {
         self.ptr
     }
 
-    pub fn kind(self) -> LLVMTypeKind {
+    pub fn kind(&self) -> LLVMTypeKind {
         unsafe { LLVMGetTypeKind(self.ptr) }
     }
 
-    pub fn const_null(self) -> Value<'ctx> {
+    pub fn const_null(&self) -> Value<'ctx> {
         unsafe { Value::from_raw(LLVMConstNull(self.ptr)) }
     }
 
@@ -105,15 +105,15 @@ specialized_type! {
 
 impl<'ctx> IntType<'ctx> {
     /// Gets the width (in bits) of the integer type
-    pub fn width(self) -> u32 {
+    pub fn width(&self) -> u32 {
         unsafe { LLVMGetIntTypeWidth(self.ptr) }
     }
 
-    pub fn const_(self, val: c_ulonglong, sign_extend: bool) -> IntValue<'ctx> {
+    pub fn const_(&self, val: c_ulonglong, sign_extend: bool) -> IntValue<'ctx> {
         unsafe { IntValue::from_raw(LLVMConstInt(self.ptr, val, sign_extend as LLVMBool)) }
     }
 
-    pub fn const_arbitrary_precision(self, num: &[u64]) -> IntValue<'ctx> {
+    pub fn const_arbitrary_precision(&self, num: &[u64]) -> IntValue<'ctx> {
         unsafe {
             IntValue::from_raw(LLVMConstIntOfArbitraryPrecision(
                 self.ptr,
@@ -124,7 +124,7 @@ impl<'ctx> IntType<'ctx> {
     }
 
     pub fn const_from_string<S>(
-        self,
+        &self,
         str: &(impl ?Sized + AsRef<[u8]>),
         radix: u8,
     ) -> IntValue<'ctx> {
@@ -143,7 +143,7 @@ impl<'ctx> IntType<'ctx> {
 
 impl<'ctx> FnType<'ctx> {
     pub fn inline_asm(
-        self,
+        &self,
         asm: &(impl ?Sized + AsRef<[u8]>),
         constraints: &(impl ?Sized + AsRef<[u8]>),
         side_effects: bool,
@@ -175,19 +175,19 @@ impl<'ctx> FnType<'ctx> {
         }
     }
 
-    pub fn var_args(self) -> bool {
+    pub fn var_args(&self) -> bool {
         unsafe { LLVMIsFunctionVarArg(self.ptr) != 0 }
     }
 
-    pub fn return_type(self) -> Type<'ctx> {
+    pub fn return_type(&self) -> Type<'ctx> {
         unsafe { Type::from_raw(LLVMGetReturnType(self.ptr)) }
     }
 
-    pub fn num_params(self) -> u32 {
+    pub fn num_params(&self) -> u32 {
         unsafe { LLVMCountParamTypes(self.ptr) }
     }
 
-    pub fn params(self) -> Vec<Type<'ctx>> {
+    pub fn params(&self) -> Vec<Type<'ctx>> {
         let num_params = self.num_params() as usize;
 
         let mut params = Vec::<Type<'ctx>>::with_capacity(num_params);
@@ -219,7 +219,7 @@ macro_rules! specialized_type {
             }
 
             $(
-                pub fn const_null(self) -> $value<'ctx> {
+                pub fn const_null(&self) -> $value<'ctx> {
                     unsafe { $value::from_raw(LLVMConstNull(self.ptr)) }
                 }
             )?

@@ -7,6 +7,10 @@ use llvm_sys::{
     LLVMMemoryBuffer,
 };
 
+pub(crate) unsafe fn transmute_ref<'a, Src, Dst>(val: &'a Src) -> &'a Dst {
+    &*ptr::from_ref(val).cast::<Dst>()
+}
+
 llvm_string_type! {
     /// An owned string obtained from LLVM. `LLVMDisposeMessage` is automatically used to free this string.
     pub struct LLVMString;

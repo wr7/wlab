@@ -36,7 +36,7 @@ impl<'ctx> Value<'ctx> {
         }
     }
 
-    pub fn raw(self) -> *mut LLVMValue {
+    pub fn raw(&self) -> *mut LLVMValue {
         self.ptr
     }
 
@@ -59,7 +59,7 @@ impl<'ctx> Value<'ctx> {
         unsafe { LLVMSetValueName2(self.ptr, name.as_ptr().cast::<c_char>(), name.len()) }
     }
 
-    pub fn type_(self) -> Type<'ctx> {
+    pub fn type_(&self) -> Type<'ctx> {
         unsafe { Type::from_raw(LLVMTypeOf(self.ptr)) }
     }
 }
@@ -82,7 +82,7 @@ specialized_values! {
 }
 
 impl<'ctx> FnValue<'ctx> {
-    pub fn add_basic_block(self, name: &CStr) -> BasicBlock<'ctx> {
+    pub fn add_basic_block(&self, name: &CStr) -> BasicBlock<'ctx> {
         unsafe {
             let context = LLVMGetTypeContext(LLVMTypeOf(self.ptr));
             BasicBlock::from_raw(LLVMAppendBasicBlockInContext(
@@ -93,11 +93,11 @@ impl<'ctx> FnValue<'ctx> {
         }
     }
 
-    pub fn num_params(self) -> u32 {
+    pub fn num_params(&self) -> u32 {
         unsafe { LLVMCountParams(self.ptr) }
     }
 
-    pub fn param(self, idx: u32) -> Option<Value<'ctx>> {
+    pub fn param(&self, idx: u32) -> Option<Value<'ctx>> {
         (idx < self.num_params()).then(|| unsafe { Value::from_raw(LLVMGetParam(self.ptr, idx)) })
     }
 }
@@ -106,7 +106,7 @@ impl<'ctx> PhiValue<'ctx> {
     /// Adds an incoming block and value.
     ///
     /// Returns `false` iff `values.len()` != `block.len()`
-    pub fn add_incoming(self, values: &[Value<'ctx>], blocks: &[BasicBlock<'ctx>]) -> bool {
+    pub fn add_incoming(&self, values: &[Value<'ctx>], blocks: &[BasicBlock<'ctx>]) -> bool {
         if values.len() != blocks.len() {
             return false;
         }
@@ -147,8 +147,8 @@ macro_rules! specialized_values {
                 }
 
                 $(
-                    pub fn type_(self) -> $type<'ctx> {
-                        unsafe { $type::from_raw((*self).type_().raw()) }
+                    pub fn type_(&self) -> $type<'ctx> {
+                        unsafe { $type::from_raw((**self).type_().raw()) }
                     }
                 )?
             }
@@ -184,7 +184,7 @@ macro_rules! specialized_values {
 
         impl<'ctx> Value<'ctx> {
             /// Tries to downcast a generic `Value` into a more-specific value type.
-            pub fn downcast(self) -> Option<ValueEnum<'ctx>> {
+            pub fn downcast(&self) -> Option<ValueEnum<'ctx>> {
                 Some(match self.type_().kind() {
                     $($(
                         LLVMTypeKind::$type_kind => {

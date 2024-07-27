@@ -75,7 +75,7 @@ impl Target {
     }
 
     pub fn create_target_machine(
-        self,
+        &self,
         triple: &CStr,
         cpu: &CStr,
         cpu_features: &CStr,
@@ -96,11 +96,11 @@ impl Target {
         }
     }
 
-    pub fn description(self) -> &'static CStr {
+    pub fn description(&self) -> &'static CStr {
         unsafe { CStr::from_ptr(LLVMGetTargetDescription(self.ptr)) }
     }
 
-    pub fn name(self) -> &'static CStr {
+    pub fn name(&self) -> &'static CStr {
         unsafe { CStr::from_ptr(LLVMGetTargetName(self.ptr)) }
     }
 }

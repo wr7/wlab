@@ -10,6 +10,7 @@ mod builder;
 mod context;
 mod module;
 
+pub mod debug_info;
 pub mod target;
 pub mod type_;
 pub mod value;
