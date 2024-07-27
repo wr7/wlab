@@ -1,18 +1,25 @@
 use std::{ffi::CStr, mem::MaybeUninit};
 
-use llvm_sys::target_machine::{
-    LLVMCreateTargetMachine, LLVMGetDefaultTargetTriple, LLVMGetHostCPUFeatures,
-    LLVMGetHostCPUName, LLVMGetTargetDescription, LLVMGetTargetFromTriple, LLVMGetTargetName,
-    LLVMTarget,
+use llvm_sys::{
+    target::{
+        LLVM_InitializeNativeAsmParser, LLVM_InitializeNativeAsmPrinter,
+        LLVM_InitializeNativeDisassembler, LLVM_InitializeNativeTarget,
+    },
+    target_machine::{
+        LLVMCreateTargetMachine, LLVMGetDefaultTargetTriple, LLVMGetHostCPUFeatures,
+        LLVMGetHostCPUName, LLVMGetTargetDescription, LLVMGetTargetFromTriple, LLVMGetTargetName,
+        LLVMTarget,
+    },
 };
 
 use crate::util::{LLVMErrorString, LLVMString};
 
-pub use llvm_sys::target_machine::{LLVMCodeGenOptLevel, LLVMCodeModel, LLVMRelocMode};
+pub use re_exports::{CodeModel, OptLevel, RelocMode};
 
 pub use target_data::TargetData;
 pub use target_machine::TargetMachine;
 
+mod re_exports;
 mod target_data;
 mod target_machine;
 
@@ -27,6 +34,29 @@ impl Target {
         Self { ptr }
     }
 
+    /// Initializes the native target.
+    ///
+    /// Returns `false` if there is no native target.
+    pub fn initialize_native(asm_parser: bool, asm_printer: bool, disassembler: bool) -> bool {
+        let ret_val = unsafe { LLVM_InitializeNativeTarget() == 0 };
+
+        if asm_parser {
+            unsafe { LLVM_InitializeNativeAsmParser() };
+        }
+        if asm_printer {
+            unsafe { LLVM_InitializeNativeAsmPrinter() };
+        }
+        if disassembler {
+            unsafe { LLVM_InitializeNativeDisassembler() };
+        }
+
+        ret_val
+    }
+
+    /// Obtains a target.
+    ///
+    /// The corresponding `initialize` function should be called first or else
+    /// an error will be returned.
     pub fn from_triple(triple: &CStr) -> Result<Self, LLVMErrorString> {
         unsafe {
             let mut err_msg = MaybeUninit::uninit();
@@ -49,9 +79,9 @@ impl Target {
         triple: &CStr,
         cpu: &CStr,
         cpu_features: &CStr,
-        opt_level: LLVMCodeGenOptLevel,
-        reloc_mode: LLVMRelocMode,
-        code_model: LLVMCodeModel,
+        opt_level: OptLevel,
+        reloc_mode: RelocMode,
+        code_model: CodeModel,
     ) -> TargetMachine {
         unsafe {
             TargetMachine::from_raw(LLVMCreateTargetMachine(
@@ -59,9 +89,9 @@ impl Target {
                 triple.as_ptr(),
                 cpu.as_ptr(),
                 cpu_features.as_ptr(),
-                opt_level,
-                reloc_mode,
-                code_model,
+                opt_level.into(),
+                reloc_mode.into(),
+                code_model.into(),
             ))
         }
     }

@@ -6,7 +6,6 @@ use std::{
 
 use llvm_sys::{
     core::{LLVMAddFunction, LLVMDisposeModule, LLVMPrintModuleToFile, LLVMPrintModuleToString},
-    target,
     target_machine::{
         LLVMCodeGenFileType, LLVMTargetMachineEmitToFile, LLVMTargetMachineEmitToMemoryBuffer,
     },
@@ -52,16 +51,22 @@ impl<'ctx> Module<'ctx> {
     pub fn compile_to_buffer(
         &self,
         target: &TargetMachine,
-        output_type: LLVMCodeGenFileType,
+        dont_assemble: bool,
     ) -> Result<MemoryBuffer, LLVMString> {
         unsafe {
             let mut buf = MaybeUninit::uninit();
             let mut err_msg = MaybeUninit::uninit();
 
+            let file_type = if dont_assemble {
+                LLVMCodeGenFileType::LLVMAssemblyFile
+            } else {
+                LLVMCodeGenFileType::LLVMObjectFile
+            };
+
             let succ = LLVMTargetMachineEmitToMemoryBuffer(
                 target.raw(),
                 self.ptr,
-                output_type,
+                file_type,
                 err_msg.as_mut_ptr(),
                 buf.as_mut_ptr(),
             ) == 0;
@@ -78,8 +83,14 @@ impl<'ctx> Module<'ctx> {
         &self,
         target: &TargetMachine,
         file_name: &CStr,
-        output_type: LLVMCodeGenFileType,
+        dont_assemble: bool,
     ) -> Result<(), LLVMString> {
+        let file_type = if dont_assemble {
+            LLVMCodeGenFileType::LLVMAssemblyFile
+        } else {
+            LLVMCodeGenFileType::LLVMObjectFile
+        };
+
         unsafe {
             let mut err_msg = MaybeUninit::uninit();
 
@@ -87,7 +98,7 @@ impl<'ctx> Module<'ctx> {
                 target.raw(),
                 self.ptr,
                 file_name.as_ptr(),
-                output_type,
+                file_type,
                 err_msg.as_mut_ptr(),
             ) == 0;
 

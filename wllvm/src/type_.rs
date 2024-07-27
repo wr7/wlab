@@ -22,6 +22,22 @@ use crate::{
 
 pub use llvm_sys::{LLVMInlineAsmDialect, LLVMTypeKind};
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum AsmDialect {
+    ATT,
+    Intel,
+}
+
+impl From<AsmDialect> for LLVMInlineAsmDialect {
+    fn from(value: AsmDialect) -> Self {
+        match value {
+            AsmDialect::ATT => LLVMInlineAsmDialect::LLVMInlineAsmDialectATT,
+            AsmDialect::Intel => LLVMInlineAsmDialect::LLVMInlineAsmDialectIntel,
+        }
+    }
+}
+
 /// An LLVM type reference
 #[repr(transparent)]
 #[derive(Clone, Copy)]
@@ -132,7 +148,7 @@ impl<'ctx> FnType<'ctx> {
         constraints: &(impl ?Sized + AsRef<[u8]>),
         side_effects: bool,
         align_stack: bool,
-        dialect: LLVMInlineAsmDialect,
+        dialect: AsmDialect,
         can_throw: bool,
     ) -> PtrValue<'ctx> {
         let asm = asm.as_ref();
@@ -153,7 +169,7 @@ impl<'ctx> FnType<'ctx> {
                 constraints.len(),
                 side_effects,
                 align_stack,
-                dialect,
+                dialect.into(),
                 can_throw,
             ))
         }

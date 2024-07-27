@@ -4,9 +4,9 @@ use llvm_sys::{
     core::{
         LLVMBuildAdd, LLVMBuildAnd, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr,
         LLVMBuildExtractValue, LLVMBuildICmp, LLVMBuildMul, LLVMBuildNot, LLVMBuildOr,
-        LLVMBuildPhi, LLVMBuildRet, LLVMBuildSDiv, LLVMBuildSub, LLVMBuildUDiv, LLVMBuildXor,
-        LLVMBuildZExt, LLVMCountStructElementTypes, LLVMDisposeBuilder, LLVMGetInsertBlock,
-        LLVMPositionBuilderAtEnd,
+        LLVMBuildPhi, LLVMBuildRet, LLVMBuildSDiv, LLVMBuildSub, LLVMBuildUDiv,
+        LLVMBuildUnreachable, LLVMBuildXor, LLVMBuildZExt, LLVMCountStructElementTypes,
+        LLVMDisposeBuilder, LLVMGetInsertBlock, LLVMPositionBuilderAtEnd,
     },
     LLVMBuilder, LLVMValue,
 };
@@ -227,6 +227,10 @@ impl<'ctx> Builder<'ctx> {
 
     pub fn build_ret(&self, val: Value<'ctx>) {
         unsafe { LLVMBuildRet(self.ptr, val.raw()) };
+    }
+
+    pub fn build_unreachable(&self) {
+        unsafe { LLVMBuildUnreachable(self.ptr) };
     }
 
     pub fn position_at_end(&self, block: BasicBlock<'ctx>) {
