@@ -35,6 +35,7 @@ mod parser;
 
 /* TODO list
  *  - Allow functions inside of code blocks
+ *  - Don't rely on CodegenUnit.current_block
  *  - Use function-based errors for parser
  *      - Remove WLangError trait
  *  - Debug info
