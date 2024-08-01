@@ -36,6 +36,7 @@ mod parser;
 /* TODO list
  *  - Allow functions inside of code blocks
  *  - Don't rely on CodegenUnit.current_block
+ *  - Fix parser panic when a type isn't specified
  *  - Use function-based errors for parser
  *      - Remove WLangError trait
  *  - Debug info
@@ -113,7 +114,7 @@ fn main() {
                 std::fs::File::create(format!("{}/{file_base_name}.ast", params.out_dir))
                     .unwrap_or_else(handle_io_error);
 
-            writeln!(ast_file, "{ast:?}").unwrap_or_else(handle_io_error);
+            writeln!(ast_file, "{ast:#?}").unwrap_or_else(handle_io_error);
         }
 
         if !do_codegen_phase {

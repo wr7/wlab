@@ -1,4 +1,4 @@
-alias d='cargo build && rust-gdb target/debug/wlab'
+alias d='cargo build && rust-gdb --args target/debug/wlab -l -a -i -S -o compiler_output wlang_src/*.wlang'
 alias c='./clean.sh'
 alias r='c && cargo run -- -l -a -i -S -o compiler_output wlang_src/*.wlang'
 

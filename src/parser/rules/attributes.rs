@@ -3,6 +3,7 @@ use crate::{
     lexer::Token,
     parser::{
         ast::Attribute,
+        macros::match_tokens,
         rules::PResult,
         util::{NonBracketedIter, TokenSplit},
         TokenStream,
@@ -14,23 +15,21 @@ use crate::{
 use wutil::iter::IterExt as _;
 
 pub fn try_parse_attributes_from_front<'a, 'src>(
-    tokens: &'a TokenStream<'src>,
-) -> PResult<Option<(Vec<S<Attribute<'src>>>, &'a TokenStream<'src>)>> {
-    let mut nb_iter = NonBracketedIter::new(tokens);
+    tokens: &mut &'a TokenStream<'src>,
+) -> PResult<Option<Vec<S<Attribute<'src>>>>> {
+    let toks = *tokens;
 
-    let Some([S(T!("#"), _), S(T!("["), _)]) = nb_iter.collect_n() else {
-        return Ok(None);
-    };
-
-    let Some(close_bracket) = nb_iter.next() else {
-        unreachable!()
-    };
-
-    let close_idx = tokens.elem_offset(close_bracket).unwrap();
-
-    let attributes = parse_attribute_list(&tokens[2..close_idx])?;
-
-    Ok(Some((attributes, nb_iter.remainder())))
+    match_tokens! {toks: {
+        required {
+            token("#");
+            bracketed(BracketType::Square: {
+                do(|t| parse_attribute_list(t)?);
+            }) @ (_, attrs, _);
+        };
+    } => |remaining| {
+        *tokens = remaining;
+        Ok(Some(attrs))
+    }}
 }
 
 pub fn try_parse_outer_attributes_from_front<'a, 'src>(

@@ -1,11 +1,13 @@
 use crate::{
-    error_handling::{self, Spanned as S},
+    error_handling::{self, span_of, Spanned as S},
     lexer::Token,
     parser::{
         ast::{Expression, Function, Statement, Visibility},
+        macros::match_tokens,
         rules::{
-            attributes, bracket_expr::try_parse_code_block_from_front, path, try_parse_expr,
-            PResult,
+            attributes::try_parse_attributes_from_front,
+            bracket_expr::try_parse_code_block_from_front, path, try_parse_expr,
+            types::try_parse_type_from_front, PResult,
         },
         util::{NonBracketedIter, TokenSplit},
         ParseError, TokenStream,
@@ -16,86 +18,140 @@ use crate::{
 
 /// A function. Eg `fn foo() {let x = ten; x}`
 pub fn try_parse_function_from_front<'a, 'src>(
-    mut tokens: &'a TokenStream<'src>,
+    tokens: &'a TokenStream<'src>,
 ) -> PResult<Option<(Statement<'src>, &'a TokenStream<'src>)>> {
-    let attributes;
-    if let Some((attributes_, remaining_tokens)) =
-        attributes::try_parse_attributes_from_front(tokens)?
-    {
-        tokens = remaining_tokens;
-        attributes = attributes_;
-    } else {
-        attributes = Vec::new();
-    }
+    match_tokens! {
+        tokens: {
+            do(|toks| try_parse_attributes_from_front(toks)?) @ attributes;
+            token("pub") @ visibility;
 
-    let visibility;
-    if let Some((S(T!("pub"), _), tokens_)) = tokens.split_first() {
-        tokens = tokens_;
-        visibility = Visibility::Public;
-    } else {
-        visibility = Visibility::Private;
-    }
+            required {
+                token("fn");
+                ident() @ (name, name_tok);
 
-    let Some(([S(T!("fn"), _), S(Token::Identifier(name), name_span)], tokens)) =
-        tokens.split_first_chunk::<2>()
-    else {
-        return Ok(None);
-    };
-
-    let mut nb_iter = NonBracketedIter::new(tokens);
-
-    let left_paren = nb_iter.next();
-    let Some(left_paren @ S(T!("("), _)) = left_paren else {
-        let span = left_paren.map_or(name_span.span_after(), |t| t.1);
-
-        return Err(ParseError::ExpectedToken(span, &[T!("(")]));
-    };
-
-    let Some(right_paren @ S(T!(")"), _)) = nb_iter.next() else {
-        unreachable!();
-    };
-
-    let left_paren_idx = tokens.elem_offset(left_paren).unwrap();
-    let right_paren_idx = tokens.elem_offset(right_paren).unwrap();
-
-    let params = left_paren_idx + 1..right_paren_idx;
-    let params = parse_fn_params(&tokens[params])?;
-
-    let tokens = &tokens[right_paren_idx + 1..];
-
-    let body_start = tokens
-        .iter()
-        .position(|t| matches!(&**t, &T!("{")))
-        .unwrap_or(tokens.len());
-
-    let return_type =
-        if let Some((S(T!("->"), arrow_span), return_type)) = &tokens[..body_start].split_first() {
-            let Some(return_type) = super::types::try_parse_type(return_type)? else {
-                return Err(ParseError::ExpectedType(arrow_span.span_after()));
+                bracketed(BracketType::Parenthesis: {
+                    do(|toks| parse_fn_params(toks)?)
+                }) else {
+                    return Err(ParseError::ExpectedToken(name_tok.1.span_after(), &[T!("(")]))
+                } @ (left_paren, params, right_paren);
             };
 
-            Some(return_type)
-        } else {
-            None
-        };
+            all(
+                token("->") @ arrow;
+                expect(do(|toks| try_parse_type_from_front(toks)?)) else {
+                    return Err(ParseError::ExpectedType(arrow.1.span_after()))
+                };
+            ) @ ret_type;
 
-    let Some((body, remaining_tokens)) = try_parse_code_block_from_front(&tokens[body_start..])?
-    else {
-        return Err(ParseError::ExpectedBody(right_paren.1.span_after()));
-    };
+            required(do(|toks| try_parse_code_block_from_front(*toks)?)) else {
+                return Err(ParseError::ExpectedBody(ret_type.map_or(right_paren.1, |(_, ret_ty)| ret_ty.1).span_after()));
+            } @ (body, remaining);
+        } => {
+            let visibility = if visibility.is_some() {
+                Visibility::Public
+            } else {
+                Visibility::Private
+            };
 
-    Ok(Some((
-        Statement::Function(Function {
-            name,
-            params: S(params, left_paren.1.with_end(right_paren.1.end)),
-            return_type,
-            attributes,
-            visibility,
-            body,
-        }),
-        remaining_tokens,
-    )))
+            Ok(Some((
+                Statement::Function(
+                    Function {
+                        name,
+                        params: S(params, span_of(&[left_paren.as_sref(), right_paren.as_sref()]).unwrap()),
+                        return_type: ret_type.map(|(_, t)| t),
+                        attributes: attributes.unwrap_or_default(),
+                        visibility,
+                        body,
+                    }
+                ),
+                remaining
+            )))
+        }
+    }
 }
+
+// pub fn try_parse_function_from_front<'a, 'src>(
+//     mut tokens: &'a TokenStream<'src>,
+// ) -> PResult<Option<(Statement<'src>, &'a TokenStream<'src>)>> {
+//     let attributes;
+//     if let Some((attributes_, remaining_tokens)) =
+//         attributes::try_parse_attributes_from_front(tokens)?
+//     {
+//         tokens = remaining_tokens;
+//         attributes = attributes_;
+//     } else {
+//         attributes = Vec::new();
+//     }
+
+//     let visibility;
+//     if let Some((S(T!("pub"), _), tokens_)) = tokens.split_first() {
+//         tokens = tokens_;
+//         visibility = Visibility::Public;
+//     } else {
+//         visibility = Visibility::Private;
+//     }
+
+//     let Some(([S(T!("fn"), _), S(Token::Identifier(name), name_span)], tokens)) =
+//         tokens.split_first_chunk::<2>()
+//     else {
+//         return Ok(None);
+//     };
+
+//     let mut nb_iter = NonBracketedIter::new(tokens);
+
+//     let left_paren = nb_iter.next();
+//     let Some(left_paren @ S(T!("("), _)) = left_paren else {
+//         let span = left_paren.map_or(name_span.span_after(), |t| t.1);
+
+//         return Err(ParseError::ExpectedToken(span, &[T!("(")]));
+//     };
+
+//     let Some(right_paren @ S(T!(")"), _)) = nb_iter.next() else {
+//         unreachable!();
+//     };
+
+//     let left_paren_idx = tokens.elem_offset(left_paren).unwrap();
+//     let right_paren_idx = tokens.elem_offset(right_paren).unwrap();
+
+//     let params = left_paren_idx + 1..right_paren_idx;
+//     let params = parse_fn_params(&tokens[params])?;
+
+//     let tokens = &tokens[right_paren_idx + 1..];
+
+//     let body_start = tokens
+//         .iter()
+//         .position(|t| matches!(&**t, &T!("{")))
+//         .unwrap_or(tokens.len());
+
+//     let return_type =
+//         if let Some((S(T!("->"), arrow_span), return_type)) = &tokens[..body_start].split_first() {
+//             let Some(return_type) = super::types::try_parse_type(return_type)? else {
+//                 return Err(ParseError::ExpectedType(arrow_span.span_after()));
+//             };
+
+//             Some(return_type)
+//         } else {
+//             None
+//         };
+
+//     let Some((body, remaining_tokens)) = try_parse_code_block_from_front(&tokens[body_start..])?
+//     else {
+//         return Err(ParseError::ExpectedBody(right_paren.1.span_after()));
+//     };
+
+//     Ok(Some((
+//         Statement::Function(Function {
+//             name,
+//             params: S(params, left_paren.1.with_end(right_paren.1.end)),
+//             return_type,
+//             attributes,
+//             visibility,
+//             body,
+//         }),
+//         remaining_tokens,
+//     )))
+//     todo!()
+// }
 
 pub fn try_parse_function_call<'src>(
     tokens: &TokenStream<'src>,

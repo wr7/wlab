@@ -3,6 +3,7 @@ use crate::{error_handling::Spanned as S, lexer::Token};
 pub mod ast;
 
 mod error;
+mod macros;
 mod rules;
 mod util;
 
