@@ -23,7 +23,7 @@ pub fn try_parse_attributes_from_front<'a, 'src>(
         required {
             token("#");
             bracketed(BracketType::Square: {
-                do(|t| parse_attribute_list(t)?);
+                do_(|t| parse_attribute_list(t)?);
             }) @ (_, attrs, _);
         };
     } => |remaining| {

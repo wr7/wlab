@@ -22,7 +22,7 @@ pub fn try_parse_function_from_front<'a, 'src>(
 ) -> PResult<Option<(Statement<'src>, &'a TokenStream<'src>)>> {
     match_tokens! {
         tokens: {
-            do(|toks| try_parse_attributes_from_front(toks)?) @ attributes;
+            do_(|toks| try_parse_attributes_from_front(toks)?) @ attributes;
             token("pub") @ visibility;
 
             required {
@@ -30,7 +30,7 @@ pub fn try_parse_function_from_front<'a, 'src>(
                 ident() @ (name, name_tok);
 
                 bracketed(BracketType::Parenthesis: {
-                    do(|toks| parse_fn_params(toks)?)
+                    do_(|toks| parse_fn_params(toks)?)
                 }) else {
                     return Err(ParseError::ExpectedToken(name_tok.1.span_after(), &[T!("(")]))
                 } @ (left_paren, params, right_paren);
@@ -38,12 +38,12 @@ pub fn try_parse_function_from_front<'a, 'src>(
 
             all(
                 token("->") @ arrow;
-                expect(do(|toks| try_parse_type_from_front(toks)?)) else {
+                expect_(do_(|toks| try_parse_type_from_front(toks)?)) else {
                     return Err(ParseError::ExpectedType(arrow.1.span_after()))
                 };
             ) @ ret_type;
 
-            required(do(|toks| try_parse_code_block_from_front(*toks)?)) else {
+            required(do_(|toks| try_parse_code_block_from_front(*toks)?)) else {
                 return Err(ParseError::ExpectedBody(ret_type.map_or(right_paren.1, |(_, ret_ty)| ret_ty.1).span_after()));
             } @ (body, remaining);
         } => {
