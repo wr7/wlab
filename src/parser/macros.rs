@@ -12,7 +12,7 @@ macro_rules! match_tokens {
             $(;)?
         } => $(|$($remaining_toks:ident)?|)? $body:block
     } => {{
-        let mut _remaining = $tokens_name;
+        let mut _remaining: &$crate::parser::TokenStream = $tokens_name;
 
         $(
             $(let $binding =)? $crate::parser::macros::directives::$directive_name!{_remaining $params $(else $else)?};

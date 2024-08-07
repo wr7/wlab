@@ -236,3 +236,80 @@ macro_rules! all  {
 }
 
 pub(in crate::parser) use all;
+
+/// either(+directives)
+/// Matches the first directive out of a list
+macro_rules! either {
+    {
+            $tokens:ident
+        (
+            $first_directive_name:ident $first_params:tt
+            $(else $first_else:block)?;
+
+            $(
+                $directive_name:ident $params:tt
+                $(else $inner_else:block)?
+            );* $(;)?
+        )
+        $(else $else:block)?
+    } => {{
+        if let Some(_tmp_val) =
+            $crate::parser::macros::directives::$first_directive_name!{
+                $tokens $first_params
+                $(else $first_else)?
+            }
+         {
+            Some(_tmp_val)
+        }
+
+        $(
+             else if let Some(_tmp_val) = $crate::parser::macros::directives::$directive_name! {
+                $tokens $params
+                $(else $inner_else)?
+            } {
+                Some(_tmp_val)
+            }
+        )*
+        else {
+            $crate::parser::macros::generate_else! {$($else)?}
+        }
+    }};
+}
+
+pub(in crate::parser) use either;
+
+macro_rules! map {
+    {
+            $tokens:ident
+        (
+            {$(
+                $directive_name:ident $params:tt
+                $(else $inner_else:block)?
+                $(@ $binding:tt)?
+            );+ $(;)?} => $code:block
+        )
+    } => {{
+        $(
+            $(let $binding = )? $crate::parser::macros::directives::$directive_name! {
+                $tokens $params
+                $(else $inner_else)?
+            };
+        )+
+
+        $code
+    }};
+
+    {
+            $tokens:ident
+        (
+            {$(
+                $directive_name:ident $params:tt
+                $(else $inner_else:block)?
+                $(@ $binding:tt)?
+            );+ $(;)?} => $code:block
+        )
+        else $else:block
+    } => {compile_error!("map directive cannot have an else block")};
+}
+
+pub(in crate::parser) use map;

@@ -9,8 +9,8 @@ use crate::{
 };
 
 pub fn try_parse_path_from_front<'a, 'src>(
-    tokens: &'a TokenStream<'src>,
-) -> PResult<Option<(S<Path<'src>>, &'a TokenStream<'src>)>> {
+    tokens: &mut &'a TokenStream<'src>,
+) -> PResult<Option<S<Path<'src>>>> {
     let mut tok_iter = tokens.iter();
     let mut path = Vec::new();
 
@@ -39,8 +39,7 @@ pub fn try_parse_path_from_front<'a, 'src>(
 
     let path_toks = &tokens[..remaining_range.start];
 
-    Ok(Some((
-        S(path, error_handling::span_of(path_toks).unwrap()),
-        remaining_tokens,
-    )))
+    *tokens = remaining_tokens;
+
+    Ok(Some(S(path, error_handling::span_of(path_toks).unwrap())))
 }

@@ -9,10 +9,9 @@ use crate::{
             bracket_expr::try_parse_code_block_from_front, path, try_parse_expr,
             types::try_parse_type_from_front, PResult,
         },
-        util::{NonBracketedIter, TokenSplit},
+        util::TokenSplit,
         ParseError, TokenStream,
     },
-    util::SliceExt,
     T,
 };
 
@@ -70,117 +69,23 @@ pub fn try_parse_function_from_front<'a, 'src>(
     }
 }
 
-// pub fn try_parse_function_from_front<'a, 'src>(
-//     mut tokens: &'a TokenStream<'src>,
-// ) -> PResult<Option<(Statement<'src>, &'a TokenStream<'src>)>> {
-//     let attributes;
-//     if let Some((attributes_, remaining_tokens)) =
-//         attributes::try_parse_attributes_from_front(tokens)?
-//     {
-//         tokens = remaining_tokens;
-//         attributes = attributes_;
-//     } else {
-//         attributes = Vec::new();
-//     }
-
-//     let visibility;
-//     if let Some((S(T!("pub"), _), tokens_)) = tokens.split_first() {
-//         tokens = tokens_;
-//         visibility = Visibility::Public;
-//     } else {
-//         visibility = Visibility::Private;
-//     }
-
-//     let Some(([S(T!("fn"), _), S(Token::Identifier(name), name_span)], tokens)) =
-//         tokens.split_first_chunk::<2>()
-//     else {
-//         return Ok(None);
-//     };
-
-//     let mut nb_iter = NonBracketedIter::new(tokens);
-
-//     let left_paren = nb_iter.next();
-//     let Some(left_paren @ S(T!("("), _)) = left_paren else {
-//         let span = left_paren.map_or(name_span.span_after(), |t| t.1);
-
-//         return Err(ParseError::ExpectedToken(span, &[T!("(")]));
-//     };
-
-//     let Some(right_paren @ S(T!(")"), _)) = nb_iter.next() else {
-//         unreachable!();
-//     };
-
-//     let left_paren_idx = tokens.elem_offset(left_paren).unwrap();
-//     let right_paren_idx = tokens.elem_offset(right_paren).unwrap();
-
-//     let params = left_paren_idx + 1..right_paren_idx;
-//     let params = parse_fn_params(&tokens[params])?;
-
-//     let tokens = &tokens[right_paren_idx + 1..];
-
-//     let body_start = tokens
-//         .iter()
-//         .position(|t| matches!(&**t, &T!("{")))
-//         .unwrap_or(tokens.len());
-
-//     let return_type =
-//         if let Some((S(T!("->"), arrow_span), return_type)) = &tokens[..body_start].split_first() {
-//             let Some(return_type) = super::types::try_parse_type(return_type)? else {
-//                 return Err(ParseError::ExpectedType(arrow_span.span_after()));
-//             };
-
-//             Some(return_type)
-//         } else {
-//             None
-//         };
-
-//     let Some((body, remaining_tokens)) = try_parse_code_block_from_front(&tokens[body_start..])?
-//     else {
-//         return Err(ParseError::ExpectedBody(right_paren.1.span_after()));
-//     };
-
-//     Ok(Some((
-//         Statement::Function(Function {
-//             name,
-//             params: S(params, left_paren.1.with_end(right_paren.1.end)),
-//             return_type,
-//             attributes,
-//             visibility,
-//             body,
-//         }),
-//         remaining_tokens,
-//     )))
-//     todo!()
-// }
-
 pub fn try_parse_function_call<'src>(
     tokens: &TokenStream<'src>,
 ) -> PResult<Option<Expression<'src>>> {
-    let Some((fn_name, remaining_tokens)) = path::try_parse_path_from_front(tokens)? else {
-        return Ok(None);
-    };
-
-    let tokens = remaining_tokens;
-    let mut nb_iter = NonBracketedIter::new(tokens);
-
-    let Some(S(T!("("), _)) = nb_iter.next() else {
-        return Ok(None);
-    };
-
-    let Some(right_paren @ S(T!(")"), _)) = nb_iter.next() else {
-        unreachable!()
-    };
-
-    let closing_idx = tokens.elem_offset(right_paren).unwrap();
-
-    let trailing_tokens = &tokens[closing_idx + 1..];
-    if let Some(span) = error_handling::span_of(trailing_tokens) {
-        return Err(ParseError::UnexpectedTokens(span));
-    }
-
-    let params = parse_expression_list(&tokens[1..closing_idx])?;
-
-    Ok(Some(Expression::FunctionCall(fn_name, params)))
+    match_tokens!(
+        tokens: {
+            required {
+                do_(|tokens| path::try_parse_path_from_front(tokens)?) @ path;
+                bracketed(
+                    BracketType::Parenthesis: {
+                        do_(|tokens| parse_expression_list(*tokens)?)
+                    }
+                ) @ (_, params, _);
+            };
+        } => {
+            Ok(Some(Expression::FunctionCall(path, params)))
+        }
+    )
 }
 
 fn parse_expression_list<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<S<Expression<'src>>>> {
