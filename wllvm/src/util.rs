@@ -124,3 +124,44 @@ macro_rules! llvm_string_type {
 }
 
 pub(crate) use llvm_string_type;
+
+/// Automatically generates an enum wrapper type along with `From` and `Into` for it's raw type.
+macro_rules! wrap_c_enum {
+    {
+        $(#[$attr:meta])*
+        $vis:vis enum $enum_name:ident: $llvm_enum_name:ident {
+            $($llvm_variant:ident => $variant:ident $( = $expr:expr )?),+
+            $(,)?
+        }
+    } => {
+
+        $(#[$attr])*
+        #[repr(C)]
+        #[derive(Clone, Copy, Debug, PartialEq)]
+        $vis enum $enum_name {
+            $($variant $(= $expr)?,)+
+        }
+
+        impl From<$enum_name> for $llvm_enum_name {
+            fn from(val: $enum_name) -> $llvm_enum_name {
+                match val {
+                    $(
+                        $enum_name::$variant => $llvm_enum_name::$llvm_variant,
+                    )+
+                }
+            }
+        }
+
+        impl From<$llvm_enum_name> for $enum_name {
+            fn from(val: $llvm_enum_name) -> $enum_name {
+                match val {
+                    $(
+                        $llvm_enum_name::$llvm_variant => $enum_name::$variant,
+                    )+
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use wrap_c_enum;

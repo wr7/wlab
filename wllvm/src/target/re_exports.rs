@@ -1,74 +1,37 @@
 use llvm_sys::target_machine::{LLVMCodeGenOptLevel, LLVMCodeModel, LLVMRelocMode};
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum OptLevel {
-    None = 0,
-    Less = 1,
-    Default = 2,
-    Aggressive = 3,
-}
+use crate::util::wrap_c_enum;
 
-impl From<OptLevel> for LLVMCodeGenOptLevel {
-    fn from(value: OptLevel) -> Self {
-        match value {
-            OptLevel::None => LLVMCodeGenOptLevel::LLVMCodeGenLevelNone,
-            OptLevel::Less => LLVMCodeGenOptLevel::LLVMCodeGenLevelLess,
-            OptLevel::Default => LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault,
-            OptLevel::Aggressive => LLVMCodeGenOptLevel::LLVMCodeGenLevelAggressive,
-        }
+wrap_c_enum! {
+    pub enum OptLevel: LLVMCodeGenOptLevel {
+        LLVMCodeGenLevelNone => None = 0,
+        LLVMCodeGenLevelLess => Less = 1,
+        LLVMCodeGenLevelDefault => Default = 2,
+        LLVMCodeGenLevelAggressive => Aggressive = 3,
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[allow(non_camel_case_types)]
-pub enum RelocMode {
-    Default = 0,
-    Static = 1,
-    PIC = 2,
-    DynamicNoPic = 3,
-    ROPI = 4,
-    RWPI = 5,
-    ROPI_RWPI = 6,
-}
-
-impl From<RelocMode> for LLVMRelocMode {
-    fn from(value: RelocMode) -> Self {
-        match value {
-            RelocMode::Default => LLVMRelocMode::LLVMRelocDefault,
-            RelocMode::Static => LLVMRelocMode::LLVMRelocStatic,
-            RelocMode::PIC => LLVMRelocMode::LLVMRelocPIC,
-            RelocMode::DynamicNoPic => LLVMRelocMode::LLVMRelocDynamicNoPic,
-            RelocMode::ROPI => LLVMRelocMode::LLVMRelocROPI,
-            RelocMode::RWPI => LLVMRelocMode::LLVMRelocRWPI,
-            RelocMode::ROPI_RWPI => LLVMRelocMode::LLVMRelocROPI_RWPI,
-        }
+wrap_c_enum! {
+    #[allow(non_camel_case_types)]
+    pub enum RelocMode: LLVMRelocMode {
+        LLVMRelocDefault => Default = 0,
+        LLVMRelocStatic => Static = 1,
+        LLVMRelocPIC => PIC = 2,
+        LLVMRelocDynamicNoPic => DynamicNoPic = 3,
+        LLVMRelocROPI => ROPI = 4,
+        LLVMRelocRWPI => RWPI = 5,
+        LLVMRelocROPI_RWPI => ROPI_RWPI = 6,
     }
 }
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum CodeModel {
-    Default = 0,
-    JITDefault = 1,
-    Tiny = 2,
-    Small = 3,
-    Kernel = 4,
-    Medium = 5,
-    Large = 6,
-}
-
-impl From<CodeModel> for LLVMCodeModel {
-    fn from(value: CodeModel) -> Self {
-        match value {
-            CodeModel::Default => LLVMCodeModel::LLVMCodeModelDefault,
-            CodeModel::JITDefault => LLVMCodeModel::LLVMCodeModelJITDefault,
-            CodeModel::Tiny => LLVMCodeModel::LLVMCodeModelTiny,
-            CodeModel::Small => LLVMCodeModel::LLVMCodeModelSmall,
-            CodeModel::Kernel => LLVMCodeModel::LLVMCodeModelKernel,
-            CodeModel::Medium => LLVMCodeModel::LLVMCodeModelMedium,
-            CodeModel::Large => LLVMCodeModel::LLVMCodeModelLarge,
-        }
+wrap_c_enum! {
+    pub enum CodeModel: LLVMCodeModel {
+        LLVMCodeModelDefault => Default = 0,
+        LLVMCodeModelJITDefault => JITDefault = 1,
+        LLVMCodeModelTiny => Tiny = 2,
+        LLVMCodeModelSmall => Small = 3,
+        LLVMCodeModelKernel => Kernel = 4,
+        LLVMCodeModelMedium => Medium = 5,
+        LLVMCodeModelLarge => Large = 6,
     }
 }

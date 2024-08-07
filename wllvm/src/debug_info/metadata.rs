@@ -68,6 +68,24 @@ metadata_types! {
     /// A scope that can contain lexical blocks, local variables, and debug info locations.
     pub struct DILocalScope
         supertype: DIScope;
+
+    pub struct DIType
+        supertype: DIScope;
+
+    pub struct DISubroutineType
+        kind: LLVMDISubroutineTypeMetadataKind
+        supertype: DIType
+        flags: [is_scope];
+
+    pub struct DIBasicType
+        kind: LLVMDIBasicTypeMetadataKind
+        supertype: DIType
+        flags: [is_scope];
+
+    pub struct DICompositeType
+        kind: LLVMDICompositeTypeMetadataKind
+        supertype: DIType
+        flags: [is_scope];
 }
 
 impl<'ctx> DIScope<'ctx> {
@@ -132,6 +150,10 @@ macro_rules! metadata_types {
                             inner: Metadata::from_raw(ptr),
                         }
                     }
+                }
+
+                pub fn raw(&self) -> *mut LLVMOpaqueMetadata {
+                    self.ptr
                 }
             }
 

@@ -6,7 +6,6 @@ use std::{
 
 use llvm_sys::{
     core::{LLVMAddFunction, LLVMDisposeModule, LLVMPrintModuleToFile, LLVMPrintModuleToString},
-    debuginfo::LLVMCreateDIBuilder,
     target_machine::{
         LLVMCodeGenFileType, LLVMTargetMachineEmitToFile, LLVMTargetMachineEmitToMemoryBuffer,
     },
@@ -14,7 +13,6 @@ use llvm_sys::{
 };
 
 use crate::{
-    debug_info::DIBuilder,
     target::TargetMachine,
     type_::FnType,
     util::{LLVMErrorString, LLVMString, MemoryBuffer},
@@ -37,6 +35,10 @@ impl<'ctx> Module<'ctx> {
             ptr,
             _phantomdata: PhantomData,
         }
+    }
+
+    pub fn raw(&self) -> *mut LLVMModule {
+        self.ptr
     }
 
     /// Creates a function in the module
@@ -129,10 +131,6 @@ impl<'ctx> Module<'ctx> {
         } else {
             Ok(())
         }
-    }
-
-    pub fn create_di_builder(&self) -> DIBuilder<'ctx> {
-        unsafe { DIBuilder::from_raw(LLVMCreateDIBuilder(self.ptr)) }
     }
 }
 
