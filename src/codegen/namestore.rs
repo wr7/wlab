@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, collections::HashMap};
 
-use inkwell::values::FunctionValue;
+use wllvm::value::FnValue;
 
 use crate::{
     codegen::{self, types::Type},
@@ -18,7 +18,7 @@ pub struct FunctionSignature {
 #[derive(Clone, Debug)]
 pub struct FunctionInfo<'ctx> {
     pub signature: FunctionSignature,
-    pub function: FunctionValue<'ctx>,
+    pub function: FnValue<'ctx>,
     pub visibility: ast::Visibility,
     pub name: String,
 }

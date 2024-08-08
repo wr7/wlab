@@ -14,8 +14,8 @@ use crate::{
 
 use wutil::iter::IterExt as _;
 
-pub fn try_parse_attributes_from_front<'a, 'src>(
-    tokens: &mut &'a TokenStream<'src>,
+pub fn try_parse_attributes_from_front<'src>(
+    tokens: &mut &TokenStream<'src>,
 ) -> PResult<Option<Vec<S<Attribute<'src>>>>> {
     let toks = *tokens;
 

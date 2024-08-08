@@ -5,7 +5,10 @@ use std::{
 };
 
 use llvm_sys::{
-    core::{LLVMAddFunction, LLVMDisposeModule, LLVMPrintModuleToFile, LLVMPrintModuleToString},
+    core::{
+        LLVMAddFunction, LLVMAddGlobal, LLVMDisposeModule, LLVMGetNamedFunction,
+        LLVMPrintModuleToFile, LLVMPrintModuleToString,
+    },
     target_machine::{
         LLVMCodeGenFileType, LLVMTargetMachineEmitToFile, LLVMTargetMachineEmitToMemoryBuffer,
     },
@@ -15,8 +18,9 @@ use llvm_sys::{
 use crate::{
     target::TargetMachine,
     type_::FnType,
-    util::{LLVMErrorString, LLVMString, MemoryBuffer},
-    value::FnValue,
+    util::{self, LLVMErrorString, LLVMString, MemoryBuffer},
+    value::{FnValue, GlobalVariable},
+    Type,
 };
 
 /// An LLVM Module
@@ -48,6 +52,34 @@ impl<'ctx> Module<'ctx> {
                 self.ptr,
                 name.as_ptr(),
                 function_type.raw(),
+            ))
+        }
+    }
+
+    /// Gets a function by its name
+    /// NOTE: `name` currently cannot contain any null bytes
+    pub fn get_function(&self, name: &(impl ?Sized + AsRef<[u8]>)) -> Option<FnValue<'ctx>> {
+        let name = util::get_cstr_of(name.as_ref()).unwrap();
+
+        unsafe {
+            let raw = LLVMGetNamedFunction(self.ptr, name.as_ptr().cast::<c_char>());
+
+            util::recycle_cstr(name);
+
+            if raw.is_null() {
+                return None;
+            }
+
+            Some(FnValue::from_raw(raw))
+        }
+    }
+
+    pub fn add_global(&self, type_: Type<'ctx>, name: &CStr) -> GlobalVariable<'ctx> {
+        unsafe {
+            GlobalVariable::from_raw(LLVMAddGlobal(
+                self.ptr,
+                type_.raw(),
+                name.as_ptr().cast::<c_char>(),
             ))
         }
     }

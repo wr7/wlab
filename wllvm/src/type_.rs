@@ -7,17 +7,18 @@ use std::{
 
 use llvm_sys::{
     core::{
-        LLVMConstInt, LLVMConstIntOfArbitraryPrecision, LLVMConstIntOfStringAndSize, LLVMConstNull,
-        LLVMCountParamTypes, LLVMGetInlineAsm, LLVMGetIntTypeWidth, LLVMGetParamTypes,
-        LLVMGetReturnType, LLVMGetTypeKind, LLVMIsFunctionVarArg, LLVMPrintTypeToString,
+        LLVMArrayType2, LLVMConstInt, LLVMConstIntOfArbitraryPrecision,
+        LLVMConstIntOfStringAndSize, LLVMConstNamedStruct, LLVMConstNull, LLVMCountParamTypes,
+        LLVMGetInlineAsm, LLVMGetIntTypeWidth, LLVMGetParamTypes, LLVMGetReturnType,
+        LLVMGetTypeKind, LLVMIsFunctionVarArg, LLVMPrintTypeToString,
     },
     prelude::LLVMBool,
-    LLVMType,
+    LLVMType, LLVMValue,
 };
 
 use crate::{
     util::LLVMString,
-    value::{FnValue, IntValue, PtrValue, StructValue, Value},
+    value::{ArrayValue, FnValue, IntValue, PtrValue, StructValue, Value},
 };
 
 pub use llvm_sys::{LLVMInlineAsmDialect, LLVMTypeKind};
@@ -65,6 +66,10 @@ impl<'ctx> Type<'ctx> {
         unsafe { LLVMGetTypeKind(self.ptr) }
     }
 
+    pub fn array_type(&self, elements: u64) -> ArrayType<'ctx> {
+        unsafe { ArrayType::from_raw(LLVMArrayType2(self.ptr, elements)) }
+    }
+
     pub fn const_null(&self) -> Value<'ctx> {
         unsafe { Value::from_raw(LLVMConstNull(self.ptr)) }
     }
@@ -103,6 +108,11 @@ specialized_type! {
     pub struct StructType: StructValue
 }
 
+specialized_type! {
+    /// An LLVM struct type reference
+    pub struct ArrayType: ArrayValue
+}
+
 impl<'ctx> IntType<'ctx> {
     /// Gets the width (in bits) of the integer type
     pub fn width(&self) -> u32 {
@@ -123,20 +133,24 @@ impl<'ctx> IntType<'ctx> {
         }
     }
 
-    pub fn const_from_string<S>(
+    pub fn const_from_string(
         &self,
         str: &(impl ?Sized + AsRef<[u8]>),
         radix: u8,
-    ) -> IntValue<'ctx> {
+    ) -> Option<IntValue<'ctx>> {
         let s = str.as_ref();
 
         let ptr = s.as_ptr().cast::<c_char>();
         let len = s.len();
 
         unsafe {
-            IntValue::from_raw(LLVMConstIntOfStringAndSize(
-                self.ptr, ptr, len as u32, radix,
-            ))
+            let raw = LLVMConstIntOfStringAndSize(self.ptr, ptr, len as u32, radix);
+
+            if raw.is_null() {
+                return None;
+            }
+
+            Some(IntValue::from_raw(raw))
         }
     }
 }
@@ -198,6 +212,20 @@ impl<'ctx> FnType<'ctx> {
         }
 
         params
+    }
+}
+
+impl<'ctx> StructType<'ctx> {
+    pub fn const_(&self, fields: &[Value]) -> StructValue<'ctx> {
+        let fields_ptr = fields.as_ptr().cast::<*mut LLVMValue>().cast_mut();
+
+        unsafe {
+            StructValue::from_raw(LLVMConstNamedStruct(
+                self.ptr,
+                fields_ptr,
+                fields.len() as u32,
+            ))
+        }
     }
 }
 

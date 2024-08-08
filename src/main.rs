@@ -69,7 +69,7 @@ fn main() {
 
     std::fs::create_dir_all(&*params.out_dir).unwrap();
 
-    let context = inkwell::context::Context::create();
+    let context = wllvm::Context::new();
     let mut codegen_context = CodegenContext::new(&context, &params);
 
     let src_store = MemoryStore::new();
@@ -135,7 +135,7 @@ fn main() {
 
     for (i, (source, ast, crate_)) in crates.iter().enumerate() {
         codegen_context
-            .generate_crate(&crate_, &ast, &params, &params.input_files[i], source)
+            .generate_crate(crate_, ast, &params, &params.input_files[i], source)
             .unwrap_or_else(|err| {
                 eprintln!("\n{}", err.render(source));
                 process::exit(1);

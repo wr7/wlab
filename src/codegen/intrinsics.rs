@@ -1,4 +1,7 @@
-use inkwell::values::{IntValue, StructValue};
+use wllvm::{
+    type_::AsmDialect,
+    value::{IntValue, StructValue},
+};
 use wutil::Span;
 
 use crate::{
@@ -17,15 +20,14 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         intrinsic: S<&str>,
     ) -> Result<(), Diagnostic> {
         let (line_no, col_no) = util::line_and_col(self.source, function.body.1.start);
-        let dbg_location = self.debug_context.builder.create_debug_location(
-            self.c.context,
+        let dbg_location = self.c.context.debug_location(
             line_no as u32,
             col_no as u32,
             self.debug_context.scope,
             None,
         );
 
-        self.builder.set_current_debug_location(dbg_location);
+        self.builder.set_debug_location(dbg_location);
 
         if !function.body.body.is_empty() {
             return Err(codegen::error::non_empty_intrinsic(function.body.1));
@@ -59,80 +61,70 @@ fn add_write(
         ));
     }
 
-    let i64 = unit.c.context.i64_type();
+    let i64 = unit.c.context.int_type(64);
 
     let function = function_info.function;
 
-    let main_block = unit.c.context.append_basic_block(function, "");
+    let main_block = function.add_basic_block(c"");
     unit.builder.position_at_end(main_block);
 
-    let syscall_type = i64.fn_type(
+    let syscall_type = unit.c.context.fn_type(
+        *i64,
         &[
-            i64.into(),
-            i64.into(),
-            unit.c.context.i8_type().ptr_type(Default::default()).into(),
-            unit.c.core_types.isize.into(),
+            *i64,
+            *i64,
+            *unit.c.context.ptr_type(),
+            *unit.c.core_types.isize,
         ],
         false,
     );
 
-    let syscall = unit.c.context.create_inline_asm(
-        syscall_type,
-        "syscall".into(),
-        "=r,{rax},{rdi},{rsi},{rdx}".into(),
+    let syscall = syscall_type.inline_asm(
+        "syscall",
+        "=r,{rax},{rdi},{rsi},{rdx}",
         true,
         false,
-        None,
+        AsmDialect::ATT,
         false,
     );
 
     // params //
 
-    let fd = unit
-        .builder
-        .build_int_z_extend(
-            IntValue::try_from(function.get_nth_param(0).unwrap()).unwrap(),
-            i64,
-            "",
-        )
-        .unwrap();
+    let fd = unit.builder.build_zext(
+        IntValue::try_from(function.param(0).unwrap()).unwrap(),
+        i64,
+        c"",
+    );
 
     let data_ptr = unit
         .builder
         .build_extract_value(
-            StructValue::try_from(function.get_nth_param(1).unwrap()).unwrap(),
+            StructValue::try_from(function.param(1).unwrap()).unwrap(),
             0,
-            "",
+            c"",
         )
         .unwrap();
 
     let str_len = unit
         .builder
         .build_extract_value(
-            StructValue::try_from(function.get_nth_param(1).unwrap()).unwrap(),
+            StructValue::try_from(function.param(1).unwrap()).unwrap(),
             1,
-            "",
+            c"",
         )
         .unwrap();
 
     // do call //
 
-    unit.builder
-        .build_indirect_call(
-            syscall_type,
-            syscall,
-            &[
-                i64.const_int(1, false).into(),
-                fd.into(),
-                data_ptr.into(),
-                str_len.into(),
-            ],
-            "",
-        )
-        .unwrap();
+    unit.builder.build_ptr_call(
+        syscall_type,
+        syscall,
+        &[*i64.const_(1, false), *fd, data_ptr, str_len],
+        c"",
+    );
 
-    let zero = unit.c.core_types.unit.const_zero();
-    unit.builder.build_return(Some(&zero)).unwrap();
+    let zero = unit.c.core_types.unit.const_null();
+    unit.builder.build_ret(*zero);
 
     Ok(())
 }
@@ -157,49 +149,43 @@ fn add_exit(
         ));
     }
 
-    let i64 = unit.c.context.i64_type();
+    let i64 = unit.c.context.int_type(64);
 
     let function = function_info.function;
 
-    let main_block = unit.c.context.append_basic_block(function, "");
+    let main_block = function.add_basic_block(c"");
     unit.builder.position_at_end(main_block);
 
-    let syscall_type = i64.fn_type(&[i64.into(), i64.into()], false);
+    let syscall_type = unit.c.context.fn_type(*i64, &[*i64, *i64], false);
 
-    let syscall = unit.c.context.create_inline_asm(
-        syscall_type,
-        "syscall".into(),
-        "=r,{rax},{rdi}".into(),
+    let syscall = syscall_type.inline_asm(
+        "syscall",
+        "=r,{rax},{rdi}",
         true,
         false,
-        None,
+        AsmDialect::ATT,
         false,
     );
 
     // params //
 
-    let exit_code = unit
-        .builder
-        .build_int_z_extend(
-            IntValue::try_from(function.get_nth_param(0).unwrap()).unwrap(),
-            i64,
-            "",
-        )
-        .unwrap();
+    let exit_code = unit.builder.build_zext(
+        IntValue::try_from(function.param(0).unwrap()).unwrap(),
+        i64,
+        c"",
+    );
 
     // do call //
 
-    unit.builder
-        .build_indirect_call(
-            syscall_type,
-            syscall,
-            &[i64.const_int(60, false).into(), exit_code.into()],
-            "",
-        )
-        .unwrap();
+    unit.builder.build_ptr_call(
+        syscall_type,
+        syscall,
+        &[*i64.const_(60, false), *exit_code],
+        c"",
+    );
 
-    let zero = unit.c.core_types.unit.const_zero();
-    unit.builder.build_return(Some(&zero)).unwrap();
+    let zero = unit.c.core_types.unit.const_null();
+    unit.builder.build_ret(*zero);
 
     Ok(())
 }

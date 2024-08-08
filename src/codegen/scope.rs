@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use inkwell::values::FunctionValue;
+use wllvm::value::FnValue;
 
 use super::types::{Type, TypedValue};
 
@@ -26,9 +26,9 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         }
     }
 
-    pub fn with_params(mut self, params: &[(&str, Type)], function: FunctionValue<'ctx>) -> Self {
+    pub fn with_params(mut self, params: &[(&str, Type)], function: FnValue<'ctx>) -> Self {
         for (i, param) in params.iter().enumerate() {
-            let Some(val) = function.get_nth_param(i as u32) else {
+            let Some(val) = function.param(i as u32) else {
                 unreachable!();
             };
 

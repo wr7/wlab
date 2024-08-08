@@ -7,18 +7,21 @@ use llvm_sys::{
         LLVMBuildPhi, LLVMBuildRet, LLVMBuildSDiv, LLVMBuildSub, LLVMBuildUDiv,
         LLVMBuildUnreachable, LLVMBuildXor, LLVMBuildZExt, LLVMCountStructElementTypes,
         LLVMDisposeBuilder, LLVMGetInsertBlock, LLVMPositionBuilderAtEnd,
+        LLVMSetCurrentDebugLocation2,
     },
     LLVMBuilder, LLVMValue,
 };
 
 use crate::{
     basic_block::BasicBlock,
+    debug_info::DILocation,
     type_::{FnType, IntType},
     value::{FnValue, IntValue, PhiValue, PtrValue, StructValue, Value},
     Type,
 };
 
-pub use llvm_sys::LLVMIntPredicate;
+mod re_exports;
+pub use re_exports::IntPredicate;
 
 #[repr(transparent)]
 pub struct Builder<'ctx> {
@@ -32,6 +35,10 @@ impl<'ctx> Builder<'ctx> {
             ptr,
             _phantomdata: PhantomData,
         }
+    }
+
+    pub fn set_debug_location(&self, location: DILocation<'ctx>) {
+        unsafe { LLVMSetCurrentDebugLocation2(self.ptr, location.raw()) }
     }
 
     pub fn build_ptr_call(
@@ -91,7 +98,7 @@ impl<'ctx> Builder<'ctx> {
 
     pub fn build_icmp(
         &self,
-        op: LLVMIntPredicate,
+        op: IntPredicate,
         lhs: IntValue<'ctx>,
         rhs: IntValue<'ctx>,
         name: &CStr,
@@ -99,7 +106,7 @@ impl<'ctx> Builder<'ctx> {
         unsafe {
             IntValue::from_raw(LLVMBuildICmp(
                 self.ptr,
-                op,
+                op.into(),
                 lhs.raw(),
                 rhs.raw(),
                 name.as_ptr(),

@@ -4,8 +4,8 @@ use std::{marker::PhantomData, mem::MaybeUninit, ops::Deref};
 use llvm_sys::{
     core::LLVMMetadataAsValue,
     debuginfo::{
-        LLVMDIFileGetDirectory, LLVMDIFileGetFilename, LLVMDIFileGetSource, LLVMGetMetadataKind,
-        LLVMMetadataKind,
+        LLVMDIFileGetDirectory, LLVMDIFileGetFilename, LLVMDIFileGetSource, LLVMDIScopeGetFile,
+        LLVMGetMetadataKind, LLVMMetadataKind,
     },
     LLVMOpaqueMetadata,
 };
@@ -89,6 +89,10 @@ metadata_types! {
 }
 
 impl<'ctx> DIScope<'ctx> {
+    pub fn file(&self) -> DIFile<'ctx> {
+        unsafe { DIFile::from_raw(LLVMDIScopeGetFile(self.ptr)) }
+    }
+
     pub fn filename(&self) -> &'ctx [u8] {
         unsafe {
             let mut len = MaybeUninit::uninit();

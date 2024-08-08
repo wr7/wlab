@@ -1,24 +1,34 @@
 use std::{
     ffi::{c_char, CStr},
+    fmt::Debug,
     marker::PhantomData,
     mem::MaybeUninit,
     ops::Deref,
-    slice,
+    ptr, slice,
 };
 
 use llvm_sys::{
     core::{
-        LLVMAddIncoming, LLVMAppendBasicBlockInContext, LLVMCountParams, LLVMGetParam,
-        LLVMGetTypeContext, LLVMGetValueName2, LLVMSetValueName2, LLVMTypeOf,
+        LLVMAddIncoming, LLVMAppendBasicBlockInContext, LLVMCountParams, LLVMGetLinkage,
+        LLVMGetParam, LLVMGetTypeContext, LLVMGetValueKind, LLVMGetValueName2,
+        LLVMGlobalGetValueType, LLVMIsDeclaration, LLVMIsGlobalConstant, LLVMPrintValueToString,
+        LLVMSetGlobalConstant, LLVMSetInitializer, LLVMSetLinkage, LLVMSetValueName2, LLVMTypeOf,
     },
-    LLVMBasicBlock, LLVMTypeKind, LLVMValue,
+    debuginfo::LLVMSetSubprogram,
+    prelude::LLVMBool,
+    LLVMBasicBlock, LLVMTypeKind, LLVMValue, LLVMValueKind,
 };
 
 use crate::{
     basic_block::BasicBlock,
-    type_::{FnType, IntType, PtrType, StructType},
+    debug_info::DISubprogram,
+    type_::{ArrayType, FnType, IntType, PtrType, StructType},
+    util::LLVMString,
     Type,
 };
+
+mod re_exports;
+pub use re_exports::*;
 
 /// A generic LLVM value reference
 #[repr(transparent)]
@@ -62,11 +72,30 @@ impl<'ctx> Value<'ctx> {
     pub fn type_(&self) -> Type<'ctx> {
         unsafe { Type::from_raw(LLVMTypeOf(self.ptr)) }
     }
+
+    pub fn kind(&self) -> LLVMValueKind {
+        unsafe { LLVMGetValueKind(self.ptr) }
+    }
+
+    pub fn print_to_string(&self) -> LLVMString {
+        unsafe { LLVMString::from_raw(LLVMPrintValueToString(self.ptr)) }
+    }
+}
+
+impl Debug for Value<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let str = self.print_to_string();
+        let cstr = String::from_utf8_lossy(str.as_bytes());
+
+        std::fmt::Write::write_str(f, &*cstr)
+    }
 }
 
 specialized_values! {
     /// An LLVM function value reference
-    pub struct FnValue: FnType @ LLVMFunctionTypeKind;
+    pub struct FnValue
+        supertype: GlobalValue
+        value_kind: LLVMFunctionValueKind;
 
     /// An LLVM integer value reference
     pub struct IntValue: IntType @ LLVMIntegerTypeKind;
@@ -77,8 +106,18 @@ specialized_values! {
     /// An LLVM integer value reference
     pub struct StructValue: StructType @ LLVMStructTypeKind;
 
+    pub struct ArrayValue: ArrayType @ LLVMArrayTypeKind;
+
     /// An LLVM phi value reference
-    pub struct PhiValue;
+    pub struct PhiValue
+        value_kind: LLVMMemoryPhiValueKind;
+
+    /// An LLVM global value reference
+    pub struct GlobalValue;
+
+    /// An LLVM global variable reference
+    pub struct GlobalVariable
+        supertype: GlobalValue;
 }
 
 impl<'ctx> FnValue<'ctx> {
@@ -100,6 +139,14 @@ impl<'ctx> FnValue<'ctx> {
     pub fn param(&self, idx: u32) -> Option<Value<'ctx>> {
         (idx < self.num_params()).then(|| unsafe { Value::from_raw(LLVMGetParam(self.ptr, idx)) })
     }
+
+    pub fn set_subprogram(&self, subprogram: DISubprogram<'ctx>) {
+        unsafe { LLVMSetSubprogram(self.ptr, subprogram.raw()) }
+    }
+
+    pub fn type_(&self) -> FnType<'ctx> {
+        unsafe { FnType::from_raw(LLVMGlobalGetValueType(self.ptr)) }
+    }
 }
 
 impl<'ctx> PhiValue<'ctx> {
@@ -120,17 +167,75 @@ impl<'ctx> PhiValue<'ctx> {
     }
 }
 
+impl<'ctx> GlobalValue<'ctx> {
+    pub fn linkage(&self) -> Linkage {
+        unsafe { LLVMGetLinkage(self.ptr) }.into()
+    }
+
+    pub fn set_linkage(&self, linkage: Linkage) {
+        unsafe { LLVMSetLinkage(self.ptr, linkage.into()) }
+    }
+
+    pub fn is_declaration(&self) -> bool {
+        unsafe { LLVMIsDeclaration(self.ptr) != 0 }
+    }
+}
+
+impl<'ctx> GlobalVariable<'ctx> {
+    pub fn set_initializer(&self, initializer: Option<Value<'ctx>>) {
+        let initializer = initializer.map_or(ptr::null_mut(), |i| i.raw());
+
+        unsafe { LLVMSetInitializer(self.ptr, initializer) }
+    }
+
+    pub fn set_constant(&self, constant: bool) {
+        unsafe { LLVMSetGlobalConstant(self.ptr, constant as LLVMBool) }
+    }
+
+    pub fn is_constant(&self) -> bool {
+        unsafe { LLVMIsGlobalConstant(self.ptr) != 0 }
+    }
+
+    pub fn as_ptr(&self) -> PtrValue<'ctx> {
+        unsafe { PtrValue::from_raw(self.ptr) }
+    }
+}
+
 macro_rules! noop_ident {
     {$ident:ident} => {
         ""
     }
 }
 
+macro_rules! generate_deref {
+    {$name:ident} => {
+        impl<'ctx> Deref for $name<'ctx> {
+            type Target = Value<'ctx>;
+
+            fn deref(&self) -> &Self::Target {
+                &self.value
+            }
+        }
+    };
+
+    {$name:ident $supertype:ident} => {
+        impl<'ctx> Deref for $name<'ctx> {
+            type Target = $supertype<'ctx>;
+
+            fn deref(&self) -> &Self::Target {
+                unsafe {::wutil::transmute_ref::<Self, Self::Target>(self)}
+            }
+        }
+    };
+}
+
 macro_rules! specialized_values {
     {
         $(
             $(#[doc = $doc:literal])*
-            pub struct $name:ident $( : $type:ident @ $type_kind:ident)?;
+            pub struct $name:ident $( : $type:ident)? $(@ $type_kind:ident)?
+                $(supertype: $supertype:ident)?
+                $(value_kind: $value_kind:ident)?;
         )+
     } => {
         $(
@@ -148,18 +253,12 @@ macro_rules! specialized_values {
 
                 $(
                     pub fn type_(&self) -> $type<'ctx> {
-                        unsafe { $type::from_raw((**self).type_().raw()) }
+                        unsafe { $type::from_raw(Value::from(*self).type_().raw()) }
                     }
                 )?
             }
 
-            impl<'ctx> Deref for $name<'ctx> {
-                type Target = Value<'ctx>;
-
-                fn deref(&self) -> &Self::Target {
-                    &self.value
-                }
-            }
+            generate_deref!($name $($supertype)?);
 
             impl<'ctx> AsRef<Value<'ctx>> for $name<'ctx> {
                 fn as_ref(&self) -> &Value<'ctx> {
@@ -172,6 +271,44 @@ macro_rules! specialized_values {
                     value.value
                 }
             }
+
+            impl Debug for $name<'_> {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    let val: &Value = self.as_ref();
+                    Debug::fmt(val, f)
+                }
+            }
+
+            $(
+                impl<'ctx> TryFrom<Value<'ctx>> for $name<'ctx> {
+                    type Error = ();
+
+                    fn try_from(value: Value<'ctx>) -> Result<Self, ()> {
+                        #[allow(unused_doc_comments)]
+                        #[doc = noop_ident!($type_kind)] // to match $type_kind
+                        {}
+
+                        if let Some(ValueEnum::$name(val)) = value.downcast() {
+                            Ok(val)
+                        } else {
+                            Err(())
+                        }
+                    }
+                }
+            )?
+
+            $(
+                impl<'ctx> TryFrom<Value<'ctx>> for $name<'ctx> {
+                    type Error = ();
+                    fn try_from(value: Value<'ctx>) -> Result<Self, ()> {
+                        if value.kind() == LLVMValueKind::$value_kind {
+                            Ok(Self {value})
+                        } else {
+                            Err(())
+                        }
+                    }
+                }
+            )?
         )+
 
         /// Returned by [`Value::downcast`]
@@ -198,5 +335,6 @@ macro_rules! specialized_values {
     };
 }
 
+pub(self) use generate_deref;
 pub(self) use noop_ident;
 pub(self) use specialized_values;

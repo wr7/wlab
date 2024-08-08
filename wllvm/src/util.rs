@@ -7,6 +7,30 @@ use llvm_sys::{
     LLVMMemoryBuffer,
 };
 
+mod cstr {
+    use std::{
+        cell::Cell,
+        ffi::{CString, NulError},
+    };
+
+    thread_local! {
+        static CSTR_STORE: Cell<Vec<u8>> = const {Cell::new(Vec::new())};
+    }
+
+    pub fn get_cstr_of(bytes: &[u8]) -> Result<CString, NulError> {
+        let mut cstr: Vec<u8> = CSTR_STORE.take();
+        bytes.clone_into(&mut cstr);
+
+        CString::new(cstr)
+    }
+
+    pub fn recycle_cstr(cstr: CString) {
+        CSTR_STORE.set(cstr.into_bytes_with_nul())
+    }
+}
+
+pub(crate) use cstr::*;
+
 pub(crate) unsafe fn transmute_ref<'a, Src, Dst>(val: &'a Src) -> &'a Dst {
     &*ptr::from_ref(val).cast::<Dst>()
 }
@@ -130,7 +154,10 @@ macro_rules! wrap_c_enum {
     {
         $(#[$attr:meta])*
         $vis:vis enum $enum_name:ident: $llvm_enum_name:ident {
-            $($llvm_variant:ident => $variant:ident $( = $expr:expr )?),+
+            $(
+                $(#[$enum_attr:meta])*
+                $llvm_variant:ident => $variant:ident $( = $expr:expr )?
+            ),+
             $(,)?
         }
     } => {
@@ -139,7 +166,10 @@ macro_rules! wrap_c_enum {
         #[repr(C)]
         #[derive(Clone, Copy, Debug, PartialEq)]
         $vis enum $enum_name {
-            $($variant $(= $expr)?,)+
+            $(
+                $(#[$enum_attr])*
+                $variant $(= $expr)?,
+            )+
         }
 
         impl From<$enum_name> for $llvm_enum_name {

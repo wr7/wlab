@@ -11,7 +11,7 @@ use crate::{
     util,
 };
 
-use inkwell::debug_info::{AsDIScope, DIFlagsConstants, DIType};
+use wllvm::debug_info::{DIFlags, DIType};
 use wutil::Span;
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
@@ -39,20 +39,19 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         let return_type = function_info.signature.return_type.clone();
 
-        let param_dwarf_types: Vec<DIType> = params
-            .iter()
-            .map(|(_, ty)| ty.get_dwarf_type(self))
+        let param_dwarf_types: Vec<DIType> = std::iter::once(&return_type)
+            .chain(params.iter().map(|(_, ty)| ty))
+            .map(|ty| ty.get_dwarf_type(self))
             .collect();
 
         let di_flags = if function.visibility == ast::Visibility::Public {
-            DIFlagsConstants::PUBLIC
+            DIFlags::Public
         } else {
-            DIFlagsConstants::PRIVATE
+            DIFlags::Private
         };
 
-        let dwarf_subprogram = self.debug_context.builder.create_subroutine_type(
-            self.debug_context.cu.get_file(),
-            Some(return_type.get_dwarf_type(self)),
+        let dwarf_subprogram = self.debug_context.builder.subroutine_type(
+            self.debug_context.cu.file(),
             &param_dwarf_types,
             di_flags,
         );
@@ -60,30 +59,30 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let (scope_line_no, scope_col_no) = util::line_and_col(self.source, function.body.1.start);
         let (fn_line_no, _) = util::line_and_col(self.source, function.1.start);
 
-        let func_dbg_scope = self.debug_context.builder.create_function(
+        let subprogram = self.debug_context.builder.subprogram(
             self.debug_context.scope,
             function.name,
-            Some(ll_function.get_name().to_str().unwrap()),
-            self.debug_context.cu.get_file(),
+            ll_function.name(),
+            self.debug_context.cu.file(),
             fn_line_no as u32,
+            scope_line_no as u32,
             dwarf_subprogram,
             function.visibility == Visibility::Private,
             true,
-            scope_line_no as u32,
-            di_flags,
             true,
+            di_flags,
         );
 
-        ll_function.set_subprogram(func_dbg_scope);
+        ll_function.set_subprogram(subprogram);
 
-        let dbg_lexical_block = self.debug_context.builder.create_lexical_block(
-            func_dbg_scope.as_debug_info_scope(),
-            self.debug_context.cu.get_file(),
+        let dbg_lexical_block = self.debug_context.builder.lexical_block(
+            **subprogram,
+            self.debug_context.cu.file(),
             scope_line_no as u32,
             scope_col_no as u32,
         );
 
-        let mut dbg_scope = dbg_lexical_block.as_debug_info_scope();
+        let mut dbg_scope = **dbg_lexical_block;
         std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
 
         let mut intrinsic_span = None;
@@ -109,7 +108,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             return Ok(());
         }
 
-        let main_block = self.c.context.append_basic_block(ll_function, "");
+        let main_block = ll_function.add_basic_block(c"");
         self.position_at_end(main_block);
 
         let mut fn_scope = Scope::new(scope).with_params(&params, ll_function);
@@ -124,7 +123,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             ));
         }
 
-        self.builder.build_return(Some(&return_value.val)).unwrap();
+        self.builder.build_ret(return_value.val);
 
         std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
 
@@ -164,7 +163,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .transpose()?
             .unwrap_or_else(|| TypedValue {
                 type_: Type::unit,
-                val: self.c.core_types.unit.const_zero().into(),
+                val: self.c.core_types.unit.const_null().into(),
             });
 
         Ok(return_value)

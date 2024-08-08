@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use llvm_sys::target::{
-    LLVMCopyStringRepOfTargetData, LLVMDisposeTargetData, LLVMOpaqueTargetData,
+    LLVMCopyStringRepOfTargetData, LLVMDisposeTargetData, LLVMOpaqueTargetData, LLVMPointerSize,
 };
 
 use crate::util::LLVMString;
@@ -18,6 +18,10 @@ impl TargetData {
 
     pub fn raw(&self) -> *mut LLVMOpaqueTargetData {
         self.ptr
+    }
+
+    pub fn ptr_size(&self) -> u32 {
+        unsafe { LLVMPointerSize(self.ptr) }
     }
 
     pub fn to_string(&self) -> LLVMString {

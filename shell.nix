@@ -6,6 +6,6 @@ pkgs.mkShell  {
     libffi
     libxml2
     pkg-config
-    llvmPackages_17.libllvm
+    llvmPackages_18.libllvm
   ];
 }

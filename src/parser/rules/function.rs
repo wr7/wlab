@@ -42,7 +42,7 @@ pub fn try_parse_function_from_front<'a, 'src>(
                 };
             ) @ ret_type;
 
-            required(do_(|toks| try_parse_code_block_from_front(*toks)?)) else {
+            required(do_(|toks| try_parse_code_block_from_front(toks)?)) else {
                 return Err(ParseError::ExpectedBody(ret_type.map_or(right_paren.1, |(_, ret_ty)| ret_ty.1).span_after()));
             } @ (body, remaining);
         } => {
@@ -78,7 +78,7 @@ pub fn try_parse_function_call<'src>(
                 do_(|tokens| path::try_parse_path_from_front(tokens)?) @ path;
                 bracketed(
                     BracketType::Parenthesis: {
-                        do_(|tokens| parse_expression_list(*tokens)?)
+                        do_(|tokens| parse_expression_list(tokens)?)
                     }
                 ) @ (_, params, _);
             };

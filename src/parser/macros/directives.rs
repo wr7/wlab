@@ -1,4 +1,4 @@
-/// do_(?|?remaining_tokens| expr)
+/// do_(?|?`remaining_tokens`| expr)
 /// Evaluates a rust expression for parsing.
 /// The remaining tokens can be accessed with the captured identifier
 macro_rules! do_ {
@@ -239,6 +239,7 @@ pub(in crate::parser) use all;
 
 /// either(+directives)
 /// Matches the first directive out of a list
+#[allow(unused_macros)]
 macro_rules! either {
     {
             $tokens:ident
@@ -276,8 +277,10 @@ macro_rules! either {
     }};
 }
 
+#[allow(unused_imports)]
 pub(in crate::parser) use either;
 
+#[allow(unused_macros)]
 macro_rules! map {
     {
             $tokens:ident
@@ -312,4 +315,5 @@ macro_rules! map {
     } => {compile_error!("map directive cannot have an else block")};
 }
 
+#[allow(unused_imports)]
 pub(in crate::parser) use map;

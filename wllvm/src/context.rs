@@ -1,22 +1,28 @@
-use std::ffi::CStr;
+use std::{
+    ffi::{c_char, CStr},
+    ptr,
+};
 
 use llvm_sys::{
     core::{
-        LLVMConstStructInContext, LLVMContextCreate, LLVMContextDispose,
-        LLVMCreateBuilderInContext, LLVMFunctionType, LLVMIntTypeInContext,
-        LLVMModuleCreateWithNameInContext, LLVMPointerTypeInContext, LLVMStructTypeInContext,
+        LLVMConstStringInContext, LLVMConstStructInContext, LLVMContextCreate, LLVMContextDispose,
+        LLVMCreateBuilderInContext, LLVMFunctionType, LLVMInsertBasicBlockInContext,
+        LLVMIntTypeInContext, LLVMModuleCreateWithNameInContext, LLVMMoveBasicBlockAfter,
+        LLVMPointerTypeInContext, LLVMStructTypeInContext,
     },
+    debuginfo::LLVMDIBuilderCreateDebugLocation,
     prelude::LLVMBool,
     target::LLVMIntPtrTypeInContext,
     LLVMContext, LLVMType, LLVMValue,
 };
 
 use crate::{
+    debug_info::{DILocation, DIScope},
     target::TargetData,
     type_::{FnType, IntType, PtrType, StructType},
     util,
-    value::{StructValue, Value},
-    Builder, Module, Type,
+    value::{ArrayValue, StructValue, Value},
+    BasicBlock, Builder, Module, Type,
 };
 
 /// An LLVM Context
@@ -47,6 +53,64 @@ impl Context {
 
     pub fn create_builder<'ctx>(&'ctx self) -> Builder<'ctx> {
         unsafe { Builder::from_raw(LLVMCreateBuilderInContext(self.ptr)) }
+    }
+
+    pub fn insert_basic_block_after<'ctx>(
+        &'ctx self,
+        bb: BasicBlock<'ctx>,
+        name: &CStr,
+    ) -> BasicBlock<'ctx> {
+        unsafe {
+            let new_bb = LLVMInsertBasicBlockInContext(self.ptr, bb.raw(), name.as_ptr());
+            LLVMMoveBasicBlockAfter(new_bb, bb.raw());
+
+            BasicBlock::from_raw(new_bb)
+        }
+    }
+
+    /// Creates a new DebugLocation that describes a source location.
+    ///
+    /// Note: If the item to which this location is attached cannot be
+    /// attributed to a source line, pass 0 for the line and column.
+    ///
+    /// * `Line` - The line in the source file.
+    /// * `Column` - The column in the source file.
+    /// * `Scope` - The scope in which the location resides.
+    /// * `InlinedAt` - The scope where this location was inlined, if at all. (optional).
+    pub fn debug_location<'ctx>(
+        &'ctx self,
+        line: u32,
+        column: u32,
+        scope: DIScope<'ctx>,
+        inlined_at: Option<DILocation<'ctx>>,
+    ) -> DILocation<'ctx> {
+        unsafe {
+            DILocation::from_raw(LLVMDIBuilderCreateDebugLocation(
+                self.ptr,
+                line,
+                column,
+                scope.raw(),
+                inlined_at.map_or(ptr::null_mut(), |l| l.raw()),
+            ))
+        }
+    }
+
+    pub fn const_string<'ctx>(
+        &'ctx self,
+        string: &(impl ?Sized + AsRef<[u8]>),
+        null_terminate: bool,
+    ) -> ArrayValue<'ctx> {
+        let string = string.as_ref();
+        let string_ptr = string.as_ptr().cast::<c_char>();
+
+        unsafe {
+            ArrayValue::from_raw(LLVMConstStringInContext(
+                self.ptr,
+                string_ptr,
+                string.len() as u32,
+                (!null_terminate) as LLVMBool,
+            ))
+        }
     }
 
     pub fn struct_type<'ctx>(

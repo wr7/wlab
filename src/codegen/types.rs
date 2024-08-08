@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use inkwell::{builder::Builder, debug_info::DIType, types::BasicTypeEnum, values::BasicValueEnum};
+use wllvm::{builder::IntPredicate, debug_info::DIType, value::ValueEnum, Builder};
 use wutil::Span;
 
 use crate::{
@@ -20,7 +20,7 @@ pub enum Type {
 
 #[derive(Clone)]
 pub struct TypedValue<'ctx> {
-    pub val: BasicValueEnum<'ctx>,
+    pub val: wllvm::Value<'ctx>,
     pub type_: Type,
 }
 
@@ -48,7 +48,7 @@ impl Type {
         })
     }
 
-    pub fn get_llvm_type<'ctx>(&self, context: &CodegenContext<'ctx>) -> BasicTypeEnum<'ctx> {
+    pub fn get_llvm_type<'ctx>(&self, context: &CodegenContext<'ctx>) -> wllvm::Type<'ctx> {
         match self {
             Type::i32 => context.core_types.i32.into(),
             Type::str => context.core_types.str.into(),
@@ -86,19 +86,19 @@ impl<'ctx> TypedValue<'ctx> {
                     ));
                 }
 
-                let (BasicValueEnum::IntValue(lhs), BasicValueEnum::IntValue(rhs)) =
-                    (self.val, rhs.val)
+                let Some((ValueEnum::IntValue(lhs), ValueEnum::IntValue(rhs))) =
+                    self.val.downcast().zip(rhs.val.downcast())
                 else {
                     unreachable!();
                 };
 
                 let val = match opcode {
-                    OpCode::Or => builder.build_or(lhs, rhs, ""),
-                    OpCode::And => builder.build_and(lhs, rhs, ""),
-                    OpCode::NotEqual => builder.build_xor(lhs, rhs, ""),
+                    OpCode::Or => builder.build_or(lhs, rhs, c""),
+                    OpCode::And => builder.build_and(lhs, rhs, c""),
+                    OpCode::NotEqual => builder.build_xor(lhs, rhs, c""),
                     OpCode::Equal => {
-                        let xor = builder.build_xor(lhs, rhs, "").unwrap();
-                        builder.build_not(xor, "")
+                        let xor = builder.build_xor(lhs, rhs, c"");
+                        builder.build_not(xor, c"")
                     }
                     _ => {
                         return Err(codegen::error::undefined_operator(
@@ -111,7 +111,7 @@ impl<'ctx> TypedValue<'ctx> {
 
                 Ok(Self {
                     type_: Type::bool,
-                    val: val.unwrap().into(),
+                    val: val.into(),
                 })
             }
         }
@@ -132,7 +132,8 @@ impl<'ctx> TypedValue<'ctx> {
             ));
         }
 
-        let (BasicValueEnum::IntValue(lhs), BasicValueEnum::IntValue(rhs)) = (self.val, rhs.val)
+        let Some((ValueEnum::IntValue(lhs), ValueEnum::IntValue(rhs))) =
+            self.val.downcast().zip(rhs.val.downcast())
         else {
             unreachable!();
         };
@@ -142,43 +143,43 @@ impl<'ctx> TypedValue<'ctx> {
 
         match opcode {
             OpCode::Plus => {
-                val = builder.build_int_add(lhs, rhs, "");
+                val = builder.build_add(lhs, rhs, c"");
                 type_ = Type::i32;
             }
             OpCode::Minus => {
-                val = builder.build_int_sub(lhs, rhs, "");
+                val = builder.build_sub(lhs, rhs, c"");
                 type_ = Type::i32;
             }
             OpCode::Asterisk => {
-                val = builder.build_int_mul(lhs, rhs, "");
+                val = builder.build_mul(lhs, rhs, c"");
                 type_ = Type::i32;
             }
             OpCode::Slash => {
-                val = builder.build_int_signed_div(lhs, rhs, "");
+                val = builder.build_sdiv(lhs, rhs, c"");
                 type_ = Type::i32;
             }
             OpCode::Equal => {
-                val = builder.build_int_compare(inkwell::IntPredicate::EQ, lhs, rhs, "");
+                val = builder.build_icmp(IntPredicate::EQ, lhs, rhs, c"");
                 type_ = Type::bool;
             }
             OpCode::NotEqual => {
-                val = builder.build_int_compare(inkwell::IntPredicate::NE, lhs, rhs, "");
+                val = builder.build_icmp(IntPredicate::NE, lhs, rhs, c"");
                 type_ = Type::bool;
             }
             OpCode::Greater => {
-                val = builder.build_int_compare(inkwell::IntPredicate::SGT, lhs, rhs, "");
+                val = builder.build_icmp(IntPredicate::SGT, lhs, rhs, c"");
                 type_ = Type::bool;
             }
             OpCode::Less => {
-                val = builder.build_int_compare(inkwell::IntPredicate::SLT, lhs, rhs, "");
+                val = builder.build_icmp(IntPredicate::SLT, lhs, rhs, c"");
                 type_ = Type::bool;
             }
             OpCode::GreaterEqual => {
-                val = builder.build_int_compare(inkwell::IntPredicate::SGE, lhs, rhs, "");
+                val = builder.build_icmp(IntPredicate::SGE, lhs, rhs, c"");
                 type_ = Type::bool;
             }
             OpCode::LessEqual => {
-                val = builder.build_int_compare(inkwell::IntPredicate::SLE, lhs, rhs, "");
+                val = builder.build_icmp(IntPredicate::SLE, lhs, rhs, c"");
                 type_ = Type::bool;
             }
             OpCode::And | OpCode::Or => {
@@ -192,7 +193,7 @@ impl<'ctx> TypedValue<'ctx> {
 
         Ok(Self {
             type_,
-            val: val.unwrap().into(),
+            val: val.into(),
         })
     }
 }

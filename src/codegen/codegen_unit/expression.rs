@@ -10,11 +10,7 @@ use crate::{
     util,
 };
 
-use inkwell::{
-    types::StringRadix,
-    values::{BasicMetadataValueEnum, BasicValueEnum},
-};
-
+use wllvm::value::{Linkage, ValueEnum};
 use wutil::Span;
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
@@ -25,24 +21,23 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         let (line_no, col_no) = util::line_and_col(self.source, expression.1.start);
 
-        let dbg_location = self.debug_context.builder.create_debug_location(
-            self.c.context,
+        let dbg_location = self.c.context.debug_location(
             line_no as u32,
             col_no as u32,
             self.debug_context.scope,
             None,
         );
 
-        self.builder.set_current_debug_location(dbg_location);
+        self.builder.set_debug_location(dbg_location);
 
         match *expression {
             Expression::Identifier(ident) => match *ident {
                 "true" => Ok(TypedValue {
-                    val: self.c.core_types.bool.const_int(1, false).into(),
+                    val: self.c.core_types.bool.const_(1, false).into(),
                     type_: Type::bool,
                 }),
                 "false" => Ok(TypedValue {
-                    val: self.c.core_types.bool.const_int(0, false).into(),
+                    val: self.c.core_types.bool.const_(0, false).into(),
                     type_: Type::bool,
                 }),
                 _ => scope
@@ -90,7 +85,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             ));
         }
 
-        let BasicValueEnum::IntValue(condition) = condition.val else {
+        let Some(ValueEnum::IntValue(condition)) = condition.val.downcast() else {
             unreachable!()
         };
 
@@ -98,21 +93,19 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             unreachable!()
         };
 
-        let if_bb = self.c.context.insert_basic_block_after(base_bb, "");
-        let continuing_bb = self.c.context.insert_basic_block_after(if_bb, "");
+        let if_bb = self.c.context.insert_basic_block_after(base_bb, c"");
+        let continuing_bb = self.c.context.insert_basic_block_after(if_bb, c"");
 
         self.position_at_end(if_bb);
 
         let mut if_scope = Scope::new(scope);
         let if_retval = self.generate_codeblock(*block, &mut if_scope)?;
 
-        self.builder
-            .build_unconditional_branch(continuing_bb)
-            .unwrap();
+        self.builder.build_br(continuing_bb);
 
         let else_bb;
         let else_retval: Option<TypedValue<'ctx>> = if let Some(else_block) = else_block {
-            let else_bb_ = self.c.context.insert_basic_block_after(if_bb, "");
+            let else_bb_ = self.c.context.insert_basic_block_after(if_bb, c"");
             else_bb = Some(else_bb_);
 
             self.position_at_end(else_bb_);
@@ -120,9 +113,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
             let else_retval = self.generate_codeblock(else_block, &mut else_scope)?;
 
-            self.builder
-                .build_unconditional_branch(continuing_bb)
-                .unwrap();
+            self.builder.build_br(continuing_bb);
 
             Some(else_retval)
         } else {
@@ -132,8 +123,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         self.position_at_end(base_bb);
         self.builder
-            .build_conditional_branch(condition, if_bb, else_bb.unwrap_or(continuing_bb))
-            .unwrap();
+            .build_cond_br(condition, if_bb, else_bb.unwrap_or(continuing_bb));
 
         self.position_at_end(continuing_bb);
 
@@ -145,24 +135,21 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 ));
             }
 
-            let phi = self
-                .builder
-                .build_phi(if_retval.val.get_type(), "")
-                .unwrap();
+            let phi = self.builder.build_phi(if_retval.val.type_(), c"");
 
-            phi.add_incoming(&[
-                (&if_retval.val, if_bb),
-                (&else_retval.val, else_bb.unwrap()),
-            ]);
+            phi.add_incoming(
+                &[if_retval.val, else_retval.val],
+                &[if_bb, else_bb.unwrap()],
+            );
 
             TypedValue {
                 type_: if_retval.type_,
-                val: phi.as_basic_value(),
+                val: *phi,
             }
         } else {
             TypedValue {
                 type_: Type::unit,
-                val: self.c.core_types.unit.const_zero().into(),
+                val: *self.c.core_types.unit.const_null(),
             }
         };
 
@@ -177,29 +164,22 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
     }
 
     fn generate_string_literal(&self, lit: &str) -> TypedValue<'ctx> {
-        let string = self.c.context.const_string(lit.as_bytes(), false);
+        let string = self.c.context.const_string(lit, false);
 
         let string_global = self.module.add_global(
-            self.c.context.i8_type().array_type(lit.len() as u32),
-            None,
-            "",
+            *self.c.context.int_type(8).array_type(lit.len() as u64),
+            c"",
         );
 
-        string_global.set_initializer(&string);
+        string_global.set_initializer(Some(*string));
         string_global.set_constant(true);
-        string_global.set_linkage(inkwell::module::Linkage::Private);
+        string_global.set_linkage(Linkage::Private);
 
-        let string_ptr = string_global.as_pointer_value();
-
-        let str_len = self.c.core_types.isize.const_int(lit.len() as u64, false);
+        let string_ptr = string_global.as_ptr();
+        let str_len = self.c.core_types.isize.const_(lit.len() as u64, false);
 
         TypedValue {
-            val: self
-                .c
-                .core_types
-                .str
-                .const_named_struct(&[string_ptr.into(), str_len.into()])
-                .into(),
+            val: *self.c.core_types.str.const_(&[*string_ptr, *str_len]),
             type_: Type::str,
         }
     }
@@ -210,13 +190,12 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         span: Span,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
         Ok(TypedValue {
-            val: self
+            val: *self
                 .c
                 .context
-                .i32_type()
-                .const_int_from_string(lit, StringRadix::Decimal)
-                .ok_or(codegen::error::invalid_number(S(lit, span)))?
-                .into(),
+                .int_type(32)
+                .const_from_string(lit, 10)
+                .ok_or(codegen::error::invalid_number(S(lit, span)))?,
             type_: Type::i32,
         })
     }
@@ -260,11 +239,10 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         // Add a declaration to this module if it doesn't already exist //
         let mod_function = self.module.get_function(fn_name).unwrap_or_else(|| {
-            self.module.add_function(
-                fn_name,
-                function.function.get_type(),
-                Some(inkwell::module::Linkage::External),
-            )
+            let func = self.module.add_function(c"", function.function.type_());
+            func.set_name(fn_name);
+            func.set_linkage(Linkage::External);
+            func
         });
 
         let signature = &function.signature;
@@ -277,13 +255,12 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             ));
         }
 
-        let mut metadata_arguments: Vec<BasicMetadataValueEnum> =
-            Vec::with_capacity(arguments.len());
+        let mut metadata_arguments: Vec<wllvm::Value> = Vec::with_capacity(arguments.len());
 
         for (i, arg) in arguments.iter().enumerate() {
             let arg = self.generate_expression(arg.as_sref(), scope)?;
 
-            metadata_arguments.push(arg.val.into());
+            metadata_arguments.push(arg.val);
 
             let expected_type = &signature.params[i];
             if expected_type != &arg.type_ {
@@ -297,11 +274,10 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         let ret_val = self
             .builder
-            .build_direct_call(mod_function, &metadata_arguments, "")
-            .unwrap();
+            .build_fn_call(mod_function, &metadata_arguments, c"");
 
         Ok(TypedValue {
-            val: ret_val.try_as_basic_value().left().unwrap(),
+            val: ret_val,
             type_: function.signature.return_type,
         })
     }

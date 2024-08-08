@@ -1,9 +1,10 @@
-use inkwell::{
+use wllvm::{
     debug_info::{
-        AsDIScope, DIBasicType, DICompileUnit, DIFlagsConstants, DIScope, DIType, DebugInfoBuilder,
+        DIBasicType, DIBuilder, DICompileUnit, DIFlags, DIScope, DIType, SourceLanguage,
+        TypeEncoding,
     },
-    module::Module as LlvmModule,
-    OptimizationLevel,
+    target::OptLevel,
+    Module as LlvmModule,
 };
 
 use crate::codegen::{types::Type, CodegenContext};
@@ -16,7 +17,7 @@ struct DebugPrimitives<'ctx> {
 }
 
 pub struct DebugContext<'ctx> {
-    pub builder: DebugInfoBuilder<'ctx>,
+    pub builder: DIBuilder<'ctx>,
     pub cu: DICompileUnit<'ctx>,
     pub scope: DIScope<'ctx>,
     primitives: DebugPrimitives<'ctx>,
@@ -31,63 +32,53 @@ impl<'ctx> DebugContext<'ctx> {
         let (directory, file_name) = file_path.rsplit_once('/').unwrap_or((".", file_path));
         let directory = directory.trim_end_matches('/');
 
-        let (builder, cu) = module.create_debug_info_builder(
-            true,
-            inkwell::debug_info::DWARFSourceLanguage::C,
-            file_name,
-            directory,
-            "wlab",
-            c.params.opt_level != OptimizationLevel::None,
-            "",
-            0,
-            "",
-            inkwell::debug_info::DWARFEmissionKind::Full,
-            0,
-            false,
-            false,
-            "",
-            "",
-        );
+        let builder = DIBuilder::new(module);
+        let file = builder.file(file_name, directory);
+
+        let cu = builder
+            .build_compile_unit(
+                file,
+                SourceLanguage::C,
+                "wlab",
+                c.params.opt_level != OptLevel::None,
+                "", // TODO: add flags
+                0,
+            )
+            .debug_info_for_profiling(false)
+            .build();
 
         let primitives = DebugPrimitives::new(c, &builder);
 
         Self {
             builder,
             cu,
-            scope: cu.as_debug_info_scope(),
+            scope: *cu,
             primitives,
         }
     }
 
     pub fn get_type(&self, type_: &Type) -> DIType<'ctx> {
         match type_ {
-            Type::i32 => self.primitives.i32.as_type(),
-            Type::str => self.primitives.str.as_type(),
-            Type::unit => self.primitives.unit.as_type(),
-            Type::bool => self.primitives.bool.as_type(),
+            Type::i32 => *self.primitives.i32,
+            Type::str => *self.primitives.str,
+            Type::unit => *self.primitives.unit,
+            Type::bool => *self.primitives.bool,
         }
     }
 }
 
 impl<'ctx> DebugPrimitives<'ctx> {
-    fn new(cc: &CodegenContext<'ctx>, builder: &DebugInfoBuilder<'ctx>) -> Self {
-        let i32 = builder
-            .create_basic_type("i32", 32, 0, DIFlagsConstants::PRIVATE)
-            .unwrap();
-        let str = builder
-            .create_basic_type(
-                "str",
-                (2 * cc.target.get_target_data().get_pointer_byte_size(None) * 8) as u64,
-                0,
-                DIFlagsConstants::PRIVATE,
-            )
-            .unwrap();
-        let unit = builder
-            .create_basic_type("unit", 0, 0, DIFlagsConstants::PRIVATE)
-            .unwrap();
-        let bool = builder
-            .create_basic_type("bool", 1, 0, DIFlagsConstants::PRIVATE)
-            .unwrap();
+    fn new(cc: &CodegenContext<'ctx>, builder: &DIBuilder<'ctx>) -> Self {
+        let i32 = builder.basic_type("i32", 32, Some(TypeEncoding::signed), DIFlags::Private);
+
+        let str = builder.basic_type(
+            "str",
+            u64::from(2 * cc.target_data.ptr_size() * 8),
+            None,
+            DIFlags::Private,
+        );
+        let unit = builder.basic_type("unit", 0, None, DIFlags::Private);
+        let bool = builder.basic_type("bool", 1, Some(TypeEncoding::boolean), DIFlags::Private);
 
         Self {
             i32,

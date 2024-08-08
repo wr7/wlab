@@ -6,7 +6,7 @@ pub use args_macro::Parameters;
 mod args_macro {
     use std::borrow::Cow;
 
-    use inkwell::OptimizationLevel;
+    use wllvm::target::OptLevel;
 
     argwerk::define! {
         /// wlab compiler
@@ -14,7 +14,7 @@ mod args_macro {
         pub struct Parameters {
             pub input_files: Vec<String>,
             pub out_dir: Cow<'static, str> = Cow::Borrowed("./"),
-            pub opt_level: OptimizationLevel,
+            pub opt_level: OptLevel,
             pub lex_files: bool = false,
             pub generate_ast: bool = false,
             pub generate_ir: bool = false,
@@ -34,22 +34,22 @@ mod args_macro {
 
         /// Disables all compiler optimization
         ["-O0"] => {
-            opt_level = OptimizationLevel::None;
+            opt_level = OptLevel::None;
         }
 
         /// Sets optimization level to 1.
         ["-O1"] => {
-            opt_level = OptimizationLevel::Less;
+            opt_level = OptLevel::Less;
         }
 
         /// Sets optimization level to 2 (default).
         ["-O2"] => {
-            opt_level = OptimizationLevel::Default;
+            opt_level = OptLevel::Default;
         }
 
         /// Sets optimization level to 3 (maximum).
         ["-O3"] => {
-            opt_level = OptimizationLevel::Aggressive;
+            opt_level = OptLevel::Aggressive;
         }
 
         /// Generates a `.lex` file for each input.

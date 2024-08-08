@@ -1,10 +1,9 @@
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, ffi::CString, path::Path};
 
-use inkwell::{
-    context::Context,
-    module::{Linkage, Module as LlvmModule},
-    targets::{Target, TargetMachine},
-    types::{BasicMetadataTypeEnum, BasicType as _},
+use wllvm::{
+    target::{self, Target, TargetData, TargetMachine},
+    value::Linkage,
+    Context, Module as LlvmModule,
 };
 
 use crate::{
@@ -28,6 +27,7 @@ pub struct Crate<'ctx> {
 
 pub struct CodegenContext<'ctx> {
     pub(super) target: TargetMachine,
+    pub(super) target_data: TargetData,
     pub(super) context: &'ctx Context,
     pub(super) core_types: CoreTypes<'ctx>,
     pub(super) name_store: NameStore<'ctx>,
@@ -36,24 +36,30 @@ pub struct CodegenContext<'ctx> {
 
 impl<'ctx> CodegenContext<'ctx> {
     pub fn new(context: &'ctx Context, params: &'ctx cmdline::Parameters) -> Self {
-        Target::initialize_native(&Default::default()).unwrap();
-        let target = Target::get_first().unwrap();
-        let target = target
-            .create_target_machine(
-                &TargetMachine::get_default_triple(),
-                TargetMachine::get_host_cpu_name().to_str().unwrap(),
-                TargetMachine::get_host_cpu_features().to_str().unwrap(),
-                params.opt_level,
-                inkwell::targets::RelocMode::Default,
-                inkwell::targets::CodeModel::Default,
-            )
-            .unwrap();
+        if !Target::initialize_native(true, true, true) {
+            panic!("native target not supported") // todo_panic
+        }
 
-        let core_types = CoreTypes::new(context, &target);
+        let target_triple = target::host_target_triple();
+
+        let target = Target::from_triple(&target_triple).unwrap();
+        let target = target.create_target_machine(
+            &target_triple,
+            &target::host_cpu(),
+            &target::host_cpu_features(),
+            params.opt_level,
+            Default::default(),
+            Default::default(),
+        );
+
+        let target_data = target.create_target_data();
+
+        let core_types = CoreTypes::new(context, &target_data);
         let name_store = NameStore::new();
 
         Self {
             target,
+            target_data,
             context,
             core_types,
             name_store,
@@ -76,7 +82,9 @@ impl<'ctx> CodegenContext<'ctx> {
             return Err(codegen::error::missing_crate_name());
         };
 
-        let module = self.context.create_module(crate_name);
+        let module = self
+            .context
+            .create_module(&CString::new(crate_name).unwrap());
 
         for function in &ast.functions {
             let params: Result<Vec<(&str, Type)>, _> = function
@@ -86,9 +94,9 @@ impl<'ctx> CodegenContext<'ctx> {
                 .collect();
             let params = params?;
 
-            let llvm_param_types: Vec<BasicMetadataTypeEnum<'ctx>> = params
+            let llvm_param_types: Vec<wllvm::Type<'ctx>> = params
                 .iter()
-                .map(|(_, type_)| type_.get_llvm_type(self).into())
+                .map(|(_, type_)| type_.get_llvm_type(self))
                 .collect();
 
             let return_type = function.return_type.map_or(Ok(Type::unit), Type::new)?;
@@ -114,12 +122,17 @@ impl<'ctx> CodegenContext<'ctx> {
             };
 
             let ll_function = module.add_function(
-                &fn_name,
-                return_type
-                    .get_llvm_type(self)
-                    .fn_type(&llvm_param_types, false),
-                private.then_some(Linkage::Internal),
+                c"",
+                self.context
+                    .fn_type(return_type.get_llvm_type(self), &llvm_param_types, false),
             );
+
+            ll_function.set_name(&*fn_name);
+            ll_function.set_linkage(if private {
+                Linkage::Internal
+            } else {
+                Linkage::External
+            });
 
             if !self.name_store.add_function(
                 &[crate_name, function.name],
@@ -164,32 +177,36 @@ impl<'ctx> CodegenContext<'ctx> {
         generator.debug_context.builder.finalize();
 
         if params.generate_ir {
-            let llvm_ir = generator.module.to_string();
-            std::fs::write(format!("{}/{crate_name}.ll", &*params.out_dir), llvm_ir).unwrap();
+            let llvm_ir = generator.module.print_to_string();
+            std::fs::write(
+                format!("{}/{crate_name}.ll", &*params.out_dir),
+                llvm_ir.as_bytes(),
+            )
+            .unwrap();
         }
 
         if params.generate_asm {
-            generator
-                .c
-                .target
-                .write_to_file(
-                    generator.module,
-                    inkwell::targets::FileType::Assembly,
-                    Path::new(&format!("{}/{crate_name}.asm", &*params.out_dir)),
-                )
+            let asm = generator
+                .module
+                .compile_to_buffer(&generator.c.target, true)
                 .unwrap();
+            std::fs::write(
+                Path::new(&format!("{}/{crate_name}.asm", &*params.out_dir)),
+                &asm,
+            )
+            .unwrap();
         }
 
         if params.generate_object {
-            generator
-                .c
-                .target
-                .write_to_file(
-                    generator.module,
-                    inkwell::targets::FileType::Object,
-                    Path::new(&format!("{}/{crate_name}.o", &*params.out_dir)),
-                )
+            let object = generator
+                .module
+                .compile_to_buffer(&generator.c.target, false)
                 .unwrap();
+            std::fs::write(
+                Path::new(&format!("{}/{crate_name}.o", &*params.out_dir)),
+                &object,
+            )
+            .unwrap();
         }
 
         Ok(())

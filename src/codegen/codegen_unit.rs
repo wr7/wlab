@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use inkwell::{basic_block::BasicBlock, builder::Builder, module::Module as LlvmModule};
+use wllvm::{BasicBlock, Builder, Module as LlvmModule};
 
 use crate::{
     codegen::{codegen_context::CodegenContext, codegen_unit::debug::DebugContext, scope::Scope},

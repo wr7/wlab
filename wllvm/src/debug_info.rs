@@ -3,8 +3,8 @@ use std::{ffi::c_char, marker::PhantomData};
 use llvm_sys::{
     debuginfo::{
         LLVMCreateDIBuilder, LLVMDIBuilderCreateBasicType, LLVMDIBuilderCreateFile,
-        LLVMDIBuilderCreateFunction, LLVMDIBuilderCreateSubroutineType, LLVMDIBuilderFinalize,
-        LLVMDisposeDIBuilder,
+        LLVMDIBuilderCreateFunction, LLVMDIBuilderCreateLexicalBlock,
+        LLVMDIBuilderCreateSubroutineType, LLVMDIBuilderFinalize, LLVMDisposeDIBuilder,
     },
     prelude::LLVMBool,
     LLVMOpaqueDIBuilder, LLVMOpaqueMetadata,
@@ -77,6 +77,24 @@ impl<'ctx> DIBuilder<'ctx> {
                 scope_line_no,
                 flags.into(),
                 is_optimized as LLVMBool,
+            ))
+        }
+    }
+
+    pub fn lexical_block(
+        &self,
+        scope: DIScope<'ctx>,
+        file: DIFile<'ctx>,
+        line: u32,
+        column: u32,
+    ) -> DILexicalBlock<'ctx> {
+        unsafe {
+            DILexicalBlock::from_raw(LLVMDIBuilderCreateLexicalBlock(
+                self.ptr,
+                scope.raw(),
+                file.raw(),
+                line,
+                column,
             ))
         }
     }
@@ -174,7 +192,7 @@ impl<'ctx> DIBuilder<'ctx> {
         &self,
         basename: &(impl ?Sized + AsRef<[u8]>),
         directory: &(impl ?Sized + AsRef<[u8]>),
-    ) -> DIFile {
+    ) -> DIFile<'ctx> {
         let basename = basename.as_ref();
         let directory = directory.as_ref();
 
