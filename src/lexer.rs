@@ -1,11 +1,11 @@
 use crate::{
-    diagnostic as d,
-    error_handling::{Diagnostic, Hint, Spanned, WLangError},
+    error_handling::{Diagnostic, Spanned},
     T,
 };
 
 use wutil::prelude::*;
 
+mod error;
 mod token;
 
 pub use token::Token;
@@ -24,37 +24,6 @@ pub struct Lexer<'a> {
     chars: std::str::CharIndices<'a>,
 }
 
-#[derive(Debug)]
-pub enum LexerError {
-    InvalidToken(Span),
-    UnclosedString(Span),
-    UnclosedComment(Span),
-    InvalidEscape(Span),
-}
-
-impl WLangError for LexerError {
-    fn get_diagnostic(&self, code: &str) -> Diagnostic {
-        match self {
-            LexerError::InvalidToken(span) => d! {
-                format!("invalid token `{}`", &code[*span]),
-                [Hint::new_error("", *span)],
-            },
-            LexerError::UnclosedString(span) => d! {
-                "unclosed string",
-                [Hint::new_error("string starts here", *span)],
-            },
-            LexerError::UnclosedComment(span) => d! {
-                "unclosed comment",
-                [Hint::new_error("comment starts here", *span)],
-            },
-            LexerError::InvalidEscape(span) => d! {
-                format!("invalid escape sequence \"\\{}\"", &code[*span]),
-                [Hint::new_error("", *span)],
-            },
-        }
-    }
-}
-
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         return Self {
@@ -65,7 +34,7 @@ impl<'a> Lexer<'a> {
 }
 
 impl<'a> Iterator for Lexer<'a> {
-    type Item = Result<Spanned<Token<'a>>, LexerError>;
+    type Item = Result<Spanned<Token<'a>>, Diagnostic>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -102,7 +71,7 @@ impl<'a> Iterator for Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    fn try_lex_comment(&mut self) -> Result<bool, LexerError> {
+    fn try_lex_comment(&mut self) -> Result<bool, Diagnostic> {
         let Some(next_char) = self.chars.clone().next() else {
             return Ok(false);
         };
@@ -131,7 +100,7 @@ impl<'a> Lexer<'a> {
                 }
 
                 if !closed {
-                    return Err(LexerError::UnclosedComment(
+                    return Err(error::unclosed_comment(
                         Span::at(next_char.0 - 1).with_len(2),
                     ));
                 }
@@ -161,13 +130,13 @@ impl<'a> Lexer<'a> {
         (ident_start..ident_end).into()
     }
 
-    fn lex_string(&mut self, string_start: usize) -> Result<Spanned<Token<'a>>, LexerError> {
+    fn lex_string(&mut self, string_start: usize) -> Result<Spanned<Token<'a>>, Diagnostic> {
         let mut string = String::new();
         let string_end;
 
         loop {
             let Some((byte_index, char)) = self.chars.next() else {
-                return Err(LexerError::UnclosedString(Span::at(string_start)));
+                return Err(error::unclosed_string(Span::at(string_start)));
             };
 
             match char {
@@ -186,9 +155,9 @@ impl<'a> Lexer<'a> {
                         '\\' => '\\',
                         '"' => '"',
                         _ => {
-                            return Err(LexerError::InvalidEscape(
-                                Span::at(byte_index).with_len(char.len_utf8()),
-                            ))
+                            let span = self.input.char_span(byte_index).unwrap();
+
+                            return Err(error::invalid_escape(Spanned(&self.input[span], span)));
                         }
                     };
 
@@ -208,7 +177,7 @@ impl<'a> Lexer<'a> {
         &mut self,
         byte_index: usize,
         char: char,
-    ) -> Result<Spanned<Token<'a>>, LexerError> {
+    ) -> Result<Spanned<Token<'a>>, Diagnostic> {
         if let Some(symbol) = self.lex_two_character_symbol(byte_index, char) {
             return Ok(symbol);
         }
@@ -235,9 +204,8 @@ impl<'a> Lexer<'a> {
                 '=' => T!("="),
                 '#' => T!("#"),
                 _ => {
-                    return Err(LexerError::InvalidToken(
-                        self.input.char_span(byte_index).unwrap(),
-                    ));
+                    let span = self.input.char_span(byte_index).unwrap();
+                    return Err(error::invalid_token(Spanned(&self.input[span], span)));
                 }
             },
             Span::at(byte_index).with_len(1),

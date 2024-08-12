@@ -88,9 +88,13 @@ mod tests {
 
     #[test]
     fn non_bracketed_test() {
-        let tokens: Vec<Spanned<Token>> = Lexer::new("9 + ( {10 - 5}; - 2 ) = 21")
+        let src = "9 + ( {10 - 5}; - 2 ) = 21";
+
+        let tokens = Lexer::new(src)
             .collect::<Result<Vec<Spanned<Token>>, _>>()
-            .unwrap();
+            .unwrap_or_else(|err| {
+                panic!("{}", err.render(src));
+            });
 
         let mut iter = NonBracketedIter::new(&tokens);
         assert_eq!(&**iter.next().unwrap(), &T!("9"));

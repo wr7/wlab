@@ -15,8 +15,8 @@
 use std::{io::Write as _, process};
 
 use codegen::CodegenContext;
-use error_handling::WLangError;
-use lexer::{Lexer, LexerError};
+use error_handling::{Diagnostic, WLangError};
+use lexer::Lexer;
 use util::MemoryStore;
 
 use crate::{error_handling::Spanned, lexer::Token};
@@ -84,7 +84,7 @@ fn main() {
             .strip_suffix(".wlang")
             .unwrap_or(file_base_name);
 
-        let tokens: Result<Vec<Spanned<Token<'_>>>, LexerError> = Lexer::new(source).collect();
+        let tokens: Result<Vec<Spanned<Token<'_>>>, Diagnostic> = Lexer::new(source).collect();
 
         let tokens = tokens.unwrap_or_else(|err| {
             eprintln!("\n{}", err.render(source));
