@@ -89,14 +89,14 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             unreachable!()
         };
 
-        let Some(base_bb) = self.current_block.get() else {
+        let Some(base_bb) = self.builder.current_block() else {
             unreachable!()
         };
 
         let if_bb = self.c.context.insert_basic_block_after(base_bb, c"");
         let continuing_bb = self.c.context.insert_basic_block_after(if_bb, c"");
 
-        self.position_at_end(if_bb);
+        self.builder.position_at_end(if_bb);
 
         let mut if_scope = Scope::new(scope);
         let if_retval = self.generate_codeblock(*block, &mut if_scope)?;
@@ -108,7 +108,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             let else_bb_ = self.c.context.insert_basic_block_after(if_bb, c"");
             else_bb = Some(else_bb_);
 
-            self.position_at_end(else_bb_);
+            self.builder.position_at_end(else_bb_);
             let mut else_scope = Scope::new(scope);
 
             let else_retval = self.generate_codeblock(else_block, &mut else_scope)?;
@@ -121,11 +121,11 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             None
         };
 
-        self.position_at_end(base_bb);
+        self.builder.position_at_end(base_bb);
         self.builder
             .build_cond_br(condition, if_bb, else_bb.unwrap_or(continuing_bb));
 
-        self.position_at_end(continuing_bb);
+        self.builder.position_at_end(continuing_bb);
 
         let retval = if let Some(else_retval) = else_retval {
             if else_retval.type_ != if_retval.type_ {

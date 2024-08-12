@@ -109,7 +109,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         }
 
         let main_block = ll_function.add_basic_block(c"");
-        self.position_at_end(main_block);
+        self.builder.position_at_end(main_block);
 
         let mut fn_scope = Scope::new(scope).with_params(&params, ll_function);
 
@@ -163,7 +163,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .transpose()?
             .unwrap_or_else(|| TypedValue {
                 type_: Type::unit,
-                val: self.c.core_types.unit.const_null().into(),
+                val: *self.c.core_types.unit.const_(&[]),
             });
 
         Ok(return_value)

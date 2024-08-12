@@ -1,6 +1,4 @@
-use std::cell::Cell;
-
-use wllvm::{BasicBlock, Builder, Module as LlvmModule};
+use wllvm::{Builder, Module as LlvmModule};
 
 use crate::{
     codegen::{codegen_context::CodegenContext, codegen_unit::debug::DebugContext, scope::Scope},
@@ -19,7 +17,6 @@ pub struct CodegenUnit<'m, 'ctx> {
     pub(super) module: &'m LlvmModule<'ctx>,
     pub(super) debug_context: DebugContext<'ctx>,
     pub(super) builder: Builder<'ctx>,
-    pub(super) current_block: Cell<Option<BasicBlock<'ctx>>>,
     pub(super) crate_name: &'m str,
     pub(super) source: &'m str,
 }
@@ -41,7 +38,6 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
             module,
             debug_context,
             builder: context.create_builder(),
-            current_block: None.into(),
             crate_name,
             source,
         }
@@ -64,10 +60,5 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
             Statement::Function(_) => todo!(),
         }
         Ok(())
-    }
-
-    pub(super) fn position_at_end(&self, basic_block: BasicBlock<'ctx>) {
-        self.builder.position_at_end(basic_block);
-        self.current_block.replace(Some(basic_block));
     }
 }
