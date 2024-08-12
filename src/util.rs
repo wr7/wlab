@@ -1,28 +1,12 @@
-#![allow(dead_code)]
-
 use std::{borrow::Borrow, cell::UnsafeCell, collections::HashMap, hash::Hash, mem, ops::Range};
 
 mod intersperse;
 pub use intersperse::Intersperse;
 
-pub trait StrExt {
-    /// Gets the index of a substring in a string
-    fn substr_range(&self, item: &str) -> Option<Range<usize>>;
-}
-
 pub trait SliceExt {
     type Item;
     fn subslice_range(&self, item: &[Self::Item]) -> Option<Range<usize>>;
     fn elem_offset(&self, item: &Self::Item) -> Option<usize>;
-    fn range_of<'a, I>(&'a self, iter: I) -> Option<Range<usize>>
-    where
-        I: Iterator<Item = &'a Self::Item>;
-}
-
-impl StrExt for str {
-    fn substr_range(&self, substr: &str) -> Option<Range<usize>> {
-        self.as_bytes().subslice_range(substr.as_bytes())
-    }
 }
 
 impl<T> SliceExt for [T] {
@@ -71,20 +55,6 @@ impl<T> SliceExt for [T] {
         } else {
             None
         }
-    }
-
-    fn range_of<'a, I>(&self, mut iter: I) -> Option<Range<usize>>
-    where
-        I: Iterator<Item = &'a T>,
-        T: 'a,
-    {
-        let first_elem = iter.next()?;
-        let last_elem = iter.last().unwrap_or(first_elem);
-
-        let start = self.elem_offset(first_elem)?;
-        let end = self.elem_offset(last_elem)? + 1;
-
-        Some(start..end)
     }
 }
 
