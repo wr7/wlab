@@ -1,18 +1,18 @@
 //! Contains rules for the parser. Note: inputs are assumed to not have mismatched/unclosed brackets (these checks should be done in advance).
 
 use crate::{
-    error_handling::{self, Spanned as S},
+    error_handling::{self, Diagnostic, Spanned as S},
     lexer::Token,
     parser::{
         ast::{Expression, Literal, OpCode, Statement},
         util::NonBracketedIter,
-        ParseError, TokenStream,
+        TokenStream,
     },
     util::SliceExt,
     T,
 };
 
-type PResult<T> = Result<T, ParseError>;
+type PResult<T> = Result<T, Diagnostic>;
 
 mod attributes;
 mod bracket_expr;
@@ -24,6 +24,8 @@ mod types;
 pub use attributes::try_parse_outer_attributes_from_front;
 pub use bracket_expr::parse_statement_list;
 use wutil::Span;
+
+use super::error;
 
 fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression<'src>>> {
     if tokens.is_empty() {
@@ -69,7 +71,7 @@ fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression
         }
     }
 
-    Err(ParseError::InvalidExpression(
+    Err(error::invalid_expression(
         error_handling::span_of(tokens).unwrap(),
     ))
 }
@@ -147,7 +149,7 @@ fn try_parse_assign<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Statemen
     };
 
     let Some(val) = try_parse_expr(tokens)? else {
-        return Err(ParseError::ExpectedExpression(equal_span.span_after()));
+        return Err(error::expected_expression(equal_span.span_after()));
     };
 
     let span = error_handling::span_of(tokens).unwrap();
@@ -164,14 +166,11 @@ fn try_parse_let<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Statement<'
     };
 
     let Some((S(T!("="), equal_span), tokens)) = tokens.split_first() else {
-        return Err(ParseError::ExpectedToken(
-            name_span.span_after(),
-            &[T!("=")],
-        ));
+        return Err(error::expected_token(name_span.span_after(), &[T!("=")]));
     };
 
     let Some(val) = try_parse_expr(tokens)? else {
-        return Err(ParseError::ExpectedExpression(equal_span.span_after()));
+        return Err(error::expected_expression(equal_span.span_after()));
     };
 
     let span = error_handling::span_of(tokens).unwrap();
@@ -190,11 +189,11 @@ fn try_parse_binary_operator<'src>(
         for (op_tok, opcode) in opcodes {
             if &**tok == op_tok {
                 let x = try_parse_expr(&tokens[..i])?.ok_or_else(|| {
-                    ParseError::ExpectedExpression(Span::at(tokens[i].1.start.saturating_sub(1)))
+                    error::expected_expression(Span::at(tokens[i].1.start.saturating_sub(1)))
                 })?;
 
                 let y = try_parse_expr(&tokens[i + 1..])?
-                    .ok_or_else(|| ParseError::ExpectedExpression(tokens[i].1.span_after()))?;
+                    .ok_or_else(|| error::expected_expression(tokens[i].1.span_after()))?;
 
                 let x_span = error_handling::span_of(&tokens[..i]).unwrap();
                 let y_span = error_handling::span_of(&tokens[i + 1..]).unwrap();

@@ -3,6 +3,7 @@ use crate::{
     lexer::Token,
     parser::{
         ast::Attribute,
+        error,
         macros::match_tokens,
         rules::PResult,
         util::{NonBracketedIter, TokenSplit},
@@ -69,9 +70,9 @@ fn parse_attribute<'src>(tokens: &TokenStream<'src>) -> Option<PResult<S<Attribu
                 Attribute::DeclareCrate(crate_name)
             }
             _ => {
-                return Some(Err(crate::parser::ParseError::InvalidAttribute(
-                    error_handling::span_of(tokens)?,
-                )))
+                return Some(Err(error::invalid_attribute(error_handling::span_of(
+                    tokens,
+                )?)))
             }
         },
         error_handling::span_of(tokens)?,

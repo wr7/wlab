@@ -8,19 +8,6 @@ use wutil::Span;
 
 use crate::util;
 
-pub trait WLangError: Sized {
-    fn get_diagnostic(&self, code: &str) -> Diagnostic;
-    fn render(&self, code: &str) -> String {
-        self.get_diagnostic(code).render(code)
-    }
-}
-
-impl WLangError for Diagnostic {
-    fn get_diagnostic(&self, _: &str) -> Diagnostic {
-        self.clone()
-    }
-}
-
 /// Includes information about where something appears in a source file
 #[derive(Debug, Clone, Copy)]
 pub struct Spanned<T>(pub T, pub Span);

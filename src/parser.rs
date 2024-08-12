@@ -1,4 +1,7 @@
-use crate::{error_handling::Spanned as S, lexer::Token};
+use crate::{
+    error_handling::{Diagnostic, Spanned as S},
+    lexer::Token,
+};
 
 pub mod ast;
 
@@ -7,11 +10,9 @@ mod macros;
 mod rules;
 mod util;
 
-pub use error::ParseError;
-
 pub type TokenStream<'src> = [S<Token<'src>>];
 
-pub fn parse_module<'src>(mut tokens: &TokenStream<'src>) -> Result<ast::Module<'src>, ParseError> {
+pub fn parse_module<'src>(mut tokens: &TokenStream<'src>) -> Result<ast::Module<'src>, Diagnostic> {
     error::check_brackets(tokens)?;
 
     let attributes;
@@ -28,7 +29,7 @@ pub fn parse_module<'src>(mut tokens: &TokenStream<'src>) -> Result<ast::Module<
         .map(|S(statement, span)| {
             ast::Function::try_from(statement)
                 .map(|s| S(s, span))
-                .map_err(|()| ParseError::ExpectedFunction(span))
+                .map_err(|()| error::expected_function(span))
         })
         .collect();
 

@@ -3,14 +3,17 @@ use crate::{
     lexer::Token,
     parser::{
         ast::{Expression, Function, Statement, Visibility},
+        error,
         macros::match_tokens,
         rules::{
             attributes::try_parse_attributes_from_front,
-            bracket_expr::try_parse_code_block_from_front, path, try_parse_expr,
-            types::try_parse_type_from_front, PResult,
+            bracket_expr::try_parse_code_block_from_front,
+            path, try_parse_expr,
+            types::{self, try_parse_type_from_front},
+            PResult,
         },
         util::TokenSplit,
-        ParseError, TokenStream,
+        TokenStream,
     },
     T,
 };
@@ -31,19 +34,19 @@ pub fn try_parse_function_from_front<'a, 'src>(
                 bracketed(BracketType::Parenthesis: {
                     do_(|toks| parse_fn_params(toks)?)
                 }) else {
-                    return Err(ParseError::ExpectedToken(name_tok.1.span_after(), &[T!("(")]))
+                    return Err(error::expected_token(name_tok.1.span_after(), &[T!("(")]))
                 } @ (left_paren, params, right_paren);
             };
 
             all(
                 token("->") @ arrow;
-                expect_(do_(|toks| try_parse_type_from_front(toks)?)) else {
-                    return Err(ParseError::ExpectedType(arrow.1.span_after()))
+                expect_(do_(|toks| try_parse_type_from_front(toks))) else {
+                    return Err(error::expected_type(arrow.1.span_after()))
                 };
             ) @ ret_type;
 
             required(do_(|toks| try_parse_code_block_from_front(toks)?)) else {
-                return Err(ParseError::ExpectedBody(ret_type.map_or(right_paren.1, |(_, ret_ty)| ret_ty.1).span_after()));
+                return Err(error::expected_body(ret_type.map_or(right_paren.1, |(_, ret_ty)| ret_ty.1).span_after()));
             } @ (body, remaining);
         } => {
             let visibility = if visibility.is_some() {
@@ -97,7 +100,7 @@ fn parse_expression_list<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<S<Expr
                 break;
             };
 
-            return Err(ParseError::ExpectedExpression(separator.1.span_at()));
+            return Err(error::expected_expression(separator.1.span_at()));
         };
 
         let span = error_handling::span_of(expr_toks).unwrap();
@@ -118,7 +121,7 @@ fn parse_fn_params<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<(&'src str, 
                 break; // Ignore trailing comma
             };
 
-            return Err(ParseError::ExpectedParameter(separator.1.span_at()));
+            return Err(error::expected_parameter(separator.1.span_at()));
         };
 
         params.push(param);
@@ -129,25 +132,39 @@ fn parse_fn_params<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<(&'src str, 
 
 /// Parses a function parameter (eg `foo: u32`)
 fn parse_fn_param<'src>(tokens: &TokenStream<'src>) -> PResult<Option<(&'src str, S<&'src str>)>> {
-    let Some((S(Token::Identifier(name), name_span), tokens)) = tokens.split_first() else {
-        let Some(tok) = tokens.first() else {
-            return Ok(None);
-        };
+    match_tokens! {
+        tokens: {
+            required {
+                ident() else {
+                    let Some(tok) = tokens.first() else {
+                        return Ok(None);
+                    };
 
-        return Err(ParseError::ExpectedParamName(tok.1));
-    };
+                    return Err(error::expected_param_name(tok.1));
+                } @ (name, name_tok);
 
-    let Some((S(T!(":"), colon_span), tokens)) = tokens.split_first() else {
-        let span = tokens.first().map_or(name_span.span_after(), |t| t.1);
+                token(":") else {
+                    return Err(error::expected_token(name_tok.1.span_after(), &[T!(":")]));
+                } @ colon;
 
-        return Err(ParseError::ExpectedToken(span, &[T!(":")]));
-    };
+                either(
+                    do_(|tokens| {
+                        types::try_parse_type_from_front(tokens)
+                    });
+                    do_(|tokens| {
+                        let span = tokens.first().map_or(colon.1.span_after(), |t| t.1);
 
-    let Some(type_) = super::types::try_parse_type(tokens)? else {
-        let span = tokens.first().map_or(colon_span.span_after(), |t| t.1);
+                        return Err(error::expected_type(span));
+                    });
+                ) @ type_;
+            };
 
-        return Err(ParseError::ExpectedType(span));
-    };
+        } => |tokens| {
+            if let Some(tok) = tokens.first() {
+                return Err(error::expected_token(tok.1, &[T!(","), T!(")")]))
+            }
 
-    Ok(Some((name, type_)))
+            Ok(Some((name, type_)))
+        }
+    }
 }

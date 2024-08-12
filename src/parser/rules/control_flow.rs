@@ -2,9 +2,10 @@ use crate::{
     error_handling::{self, Spanned as S},
     parser::{
         ast::{CodeBlock, Expression, Statement},
+        error,
         rules::{bracket_expr::try_parse_code_block_from_front, try_parse_expr, PResult},
         util::NonBracketedIter,
-        ParseError, TokenStream,
+        TokenStream,
     },
     util::SliceExt,
     T,
@@ -18,7 +19,7 @@ pub fn try_parse_if_expression<'src>(
     };
 
     if let Some(trailing_tokens_span) = error_handling::span_of(trailing_tokens) {
-        return Err(ParseError::UnexpectedTokens(trailing_tokens_span));
+        return Err(error::unexpected_tokens(trailing_tokens_span));
     }
 
     Ok(Some(expr))
@@ -34,13 +35,13 @@ pub fn try_parse_if_from_front<'a, 'src>(
     };
 
     let Some(left_bracket) = nb_iter.find(|t| ***t == T!("{")) else {
-        return Err(ParseError::MissingBlock(*if_span));
+        return Err(error::missing_block(*if_span));
     };
 
     let left_idx = tokens.elem_offset(left_bracket).unwrap();
 
     let Some(condition) = try_parse_expr(&tokens[1..left_idx])? else {
-        return Err(ParseError::ExpectedExpression(if_span.span_after()));
+        return Err(error::expected_expression(if_span.span_after()));
     };
     let condition_span = error_handling::span_of(&tokens[1..left_idx]).unwrap();
 
@@ -90,7 +91,7 @@ pub fn try_parse_if_from_front<'a, 'src>(
     let Some((else_block, remaining_tokens)) =
         try_parse_code_block_from_front(&remaining_tokens[1..])?
     else {
-        return Err(ParseError::ExpectedBody(else_block_span));
+        return Err(error::expected_body(else_block_span));
     };
 
     Ok(Some((

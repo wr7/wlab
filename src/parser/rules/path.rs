@@ -3,7 +3,7 @@ use wutil::Span;
 use crate::{
     error_handling::{self, Spanned as S},
     lexer::Token,
-    parser::{ast::Path, rules::PResult, ParseError, TokenStream},
+    parser::{ast::Path, error, rules::PResult, TokenStream},
     util::SliceExt,
     T,
 };
@@ -22,7 +22,7 @@ pub fn try_parse_path_from_front<'src>(
                 return Ok(None);
             };
 
-            return Err(ParseError::ExpectedIdentifier(last_known_span.span_after()));
+            return Err(error::expected_identifier(last_known_span.span_after()));
         };
 
         path.push(S(*name, *tok_span));

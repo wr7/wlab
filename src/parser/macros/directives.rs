@@ -238,42 +238,46 @@ macro_rules! all  {
 pub(in crate::parser) use all;
 
 /// either(+directives)
-/// Matches the first directive out of a list
-#[allow(unused_macros)]
+/// Matches the first non-None directive out of a list
 macro_rules! either {
     {
             $tokens:ident
         (
             $first_directive_name:ident $first_params:tt
-            $(else $first_else:block)?;
+            $(else $first_else:block)?
 
             $(
-                $directive_name:ident $params:tt
+                ; $directive_name:ident $params:tt
                 $(else $inner_else:block)?
-            );* $(;)?
+            )* $(;)?
         )
         $(else $else:block)?
     } => {{
+        let _tmp_val2;
+
+        #[allow(unreachable_code)]
         if let Some(_tmp_val) =
             $crate::parser::macros::directives::$first_directive_name!{
                 $tokens $first_params
                 $(else $first_else)?
             }
          {
-            Some(_tmp_val)
+            _tmp_val2 = Some(_tmp_val);
         }
 
         $(
              else if let Some(_tmp_val) = $crate::parser::macros::directives::$directive_name! {
                 $tokens $params
                 $(else $inner_else)?
-            } {
-                Some(_tmp_val)
+            }  {
+                _tmp_val2 = Some(_tmp_val);
             }
         )*
         else {
-            $crate::parser::macros::generate_else! {$($else)?}
+            _tmp_val2 = $crate::parser::macros::generate_else! {$($else)?};
         }
+
+        _tmp_val2
     }};
 }
 
