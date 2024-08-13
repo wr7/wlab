@@ -189,14 +189,28 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         lit: &str,
         span: Span,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
+        let idx = lit.find(|c: char| !c.is_ascii_digit()).unwrap_or(lit.len());
+        let suffix = &lit[idx..];
+
+        let type_ = if suffix.is_empty() {
+            Type::i(32)
+        } else {
+            Type::i(
+                suffix
+                    .strip_prefix("i")
+                    .and_then(|s| s.parse::<u32>().ok())
+                    .ok_or_else(|| codegen::error::invalid_number(S(lit, span)))?,
+            )
+        };
+
         Ok(TypedValue {
             val: *self
                 .c
                 .context
                 .int_type(32)
-                .const_from_string(lit, 10)
-                .ok_or(codegen::error::invalid_number(S(lit, span)))?,
-            type_: Type::i32,
+                .const_from_string(&lit[..idx], 10)
+                .ok_or_else(|| codegen::error::invalid_number(S(lit, span)))?,
+            type_,
         })
     }
 

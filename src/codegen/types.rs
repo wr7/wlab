@@ -1,4 +1,7 @@
-use std::fmt::Display;
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Display},
+};
 
 use wllvm::{builder::IntPredicate, debug_info::DIType, value::ValueEnum, Builder};
 use wutil::Span;
@@ -12,7 +15,7 @@ use crate::{
 #[derive(PartialEq, Eq, Clone, Debug)]
 #[allow(non_camel_case_types)]
 pub enum Type {
-    i32,
+    i(u32),
     str,
     unit,
     bool,
@@ -26,31 +29,36 @@ pub struct TypedValue<'ctx> {
 
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let str = match self {
-            Type::i32 => "i32",
-            Type::str => "str",
-            Type::unit => "()",
-            Type::bool => "bool",
+        let str: Cow<'static, str> = match self {
+            Type::i(n) => format!("i{n}").into(),
+            Type::str => "str".into(),
+            Type::unit => "()".into(),
+            Type::bool => "bool".into(),
         };
 
-        write!(f, "{str}")
+        f.write_str(&str)
     }
 }
 
 impl Type {
     pub fn new(type_: S<&str>) -> Result<Self, Diagnostic> {
         Ok(match *type_ {
-            "i32" => Self::i32,
             "str" => Self::str,
             "()" => Self::unit,
             "bool" => Self::bool,
-            _ => return Err(codegen::error::undefined_type(type_)),
+            _ => {
+                if let Some(num) = type_.strip_prefix("i").and_then(|n| n.parse::<u32>().ok()) {
+                    Self::i(num)
+                } else {
+                    return Err(codegen::error::undefined_type(type_));
+                }
+            }
         })
     }
 
     pub fn get_llvm_type<'ctx>(&self, context: &CodegenContext<'ctx>) -> wllvm::Type<'ctx> {
-        match self {
-            Type::i32 => context.core_types.i32.into(),
+        match *self {
+            Type::i(n) => context.context.int_type(n).into(),
             Type::str => context.core_types.str.into(),
             Type::unit => context.core_types.unit.into(),
             Type::bool => context.core_types.bool.into(),
@@ -71,7 +79,7 @@ impl<'ctx> TypedValue<'ctx> {
         rhs: &S<Self>,
     ) -> Result<Self, Diagnostic> {
         match self.type_ {
-            Type::i32 => self.generate_operation_i32(builder, lhs_span, opcode, rhs),
+            Type::i(n) => self.generate_operation_int(n, builder, lhs_span, opcode, rhs),
             Type::unit | Type::str => Err(codegen::error::undefined_operator(
                 opcode,
                 lhs_span,
@@ -117,17 +125,18 @@ impl<'ctx> TypedValue<'ctx> {
         }
     }
 
-    fn generate_operation_i32(
+    fn generate_operation_int(
         &self,
+        bits: u32,
         builder: &Builder<'ctx>,
         lhs_span: Span,
         opcode: OpCode,
         rhs: &S<TypedValue<'ctx>>,
     ) -> Result<TypedValue<'ctx>, Diagnostic> {
-        if rhs.type_ != Type::i32 {
+        if rhs.type_ != Type::i(bits) {
             return Err(codegen::error::unexpected_type(
                 rhs.1,
-                &Type::i32,
+                &Type::i(bits),
                 &rhs.type_,
             ));
         }
@@ -144,19 +153,19 @@ impl<'ctx> TypedValue<'ctx> {
         match opcode {
             OpCode::Plus => {
                 val = builder.build_add(lhs, rhs, c"");
-                type_ = Type::i32;
+                type_ = Type::i(bits);
             }
             OpCode::Minus => {
                 val = builder.build_sub(lhs, rhs, c"");
-                type_ = Type::i32;
+                type_ = Type::i(bits);
             }
             OpCode::Asterisk => {
                 val = builder.build_mul(lhs, rhs, c"");
-                type_ = Type::i32;
+                type_ = Type::i(bits);
             }
             OpCode::Slash => {
                 val = builder.build_sdiv(lhs, rhs, c"");
-                type_ = Type::i32;
+                type_ = Type::i(bits);
             }
             OpCode::Equal => {
                 val = builder.build_icmp(IntPredicate::EQ, lhs, rhs, c"");

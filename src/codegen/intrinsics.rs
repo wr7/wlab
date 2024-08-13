@@ -47,7 +47,7 @@ fn add_write(
     function_info: &FunctionInfo,
     params: &[(&str, Type)],
 ) -> Result<(), Diagnostic> {
-    if !matches!(params, [(_, Type::i32), (_, Type::str)]) {
+    if !matches!(params, [(_, Type::i(32)), (_, Type::str)]) {
         return Err(codegen::error::invalid_intrinsic_params(
             params_span,
             "(i32, str)",
@@ -135,7 +135,7 @@ fn add_exit(
     function_info: &FunctionInfo,
     params: &[(&str, Type)],
 ) -> Result<(), Diagnostic> {
-    if !matches!(params, [(_, Type::i32)]) {
+    if !matches!(params, [(_, Type::i(32))]) {
         return Err(codegen::error::invalid_intrinsic_params(
             params_span,
             "(i32)",

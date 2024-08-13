@@ -1,3 +1,5 @@
+use std::cell::Cell;
+
 use wllvm::{
     debug_info::{
         DIBasicType, DIBuilder, DICompileUnit, DIFlags, DIScope, DIType, SourceLanguage,
@@ -10,10 +12,10 @@ use wllvm::{
 use crate::codegen::{types::Type, CodegenContext};
 
 struct DebugPrimitives<'ctx> {
-    pub i32: DIBasicType<'ctx>,
     pub str: DIBasicType<'ctx>,
     pub unit: DIBasicType<'ctx>,
     pub bool: DIBasicType<'ctx>,
+    int_types: Cell<Vec<(u32, DIBasicType<'ctx>)>>,
 }
 
 pub struct DebugContext<'ctx> {
@@ -58,19 +60,41 @@ impl<'ctx> DebugContext<'ctx> {
     }
 
     pub fn get_type(&self, type_: &Type) -> DIType<'ctx> {
-        match type_ {
-            Type::i32 => *self.primitives.i32,
+        match *type_ {
+            Type::i(n) => *self.int(n),
             Type::str => *self.primitives.str,
             Type::unit => *self.primitives.unit,
             Type::bool => *self.primitives.bool,
         }
     }
+
+    fn int(&self, size: u32) -> DIBasicType<'ctx> {
+        let mut int_types = self.primitives.int_types.take();
+
+        let ret_val = match int_types.binary_search_by_key(&size, |(k, _)| *k) {
+            Ok(idx) => int_types[idx].1,
+            Err(idx) => {
+                let type_ = self.builder.basic_type(
+                    &format!("i{size}"),
+                    size.into(),
+                    Some(TypeEncoding::signed),
+                    DIFlags::Private,
+                );
+
+                int_types.insert(idx, (size, type_));
+
+                type_
+            }
+        };
+
+        self.primitives.int_types.set(int_types);
+
+        ret_val
+    }
 }
 
 impl<'ctx> DebugPrimitives<'ctx> {
     fn new(cc: &CodegenContext<'ctx>, builder: &DIBuilder<'ctx>) -> Self {
-        let i32 = builder.basic_type("i32", 32, Some(TypeEncoding::signed), DIFlags::Private);
-
         let str = builder.basic_type(
             "str",
             u64::from(2 * cc.target_data.ptr_size() * 8),
@@ -81,10 +105,10 @@ impl<'ctx> DebugPrimitives<'ctx> {
         let bool = builder.basic_type("bool", 1, Some(TypeEncoding::boolean), DIFlags::Private);
 
         Self {
-            i32,
             str,
             unit,
             bool,
+            int_types: Vec::new().into(),
         }
     }
 }
