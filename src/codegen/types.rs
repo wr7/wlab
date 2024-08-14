@@ -12,6 +12,8 @@ use crate::{
     parser::ast::OpCode,
 };
 
+use super::namestore::FieldInfo;
+
 #[derive(PartialEq, Eq, Clone, Debug)]
 #[allow(non_camel_case_types)]
 pub enum Type {
@@ -19,6 +21,7 @@ pub enum Type {
     str,
     unit,
     bool,
+    Struct { path: String },
 }
 
 #[derive(Clone)]
@@ -29,11 +32,12 @@ pub struct TypedValue<'ctx> {
 
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let str: Cow<'static, str> = match self {
+        let str: Cow<'_, str> = match self {
             Type::i(n) => format!("i{n}").into(),
             Type::str => "str".into(),
             Type::unit => "()".into(),
             Type::bool => "bool".into(),
+            Type::Struct { path } => Cow::Borrowed(path),
         };
 
         f.write_str(&str)
@@ -62,11 +66,26 @@ impl Type {
             Type::str => context.core_types.str.into(),
             Type::unit => context.core_types.unit.into(),
             Type::bool => context.core_types.bool.into(),
+            Type::Struct { ref path } => {
+                let struct_info = context
+                    .name_store
+                    .get_item_from_string(path)
+                    .as_struct()
+                    .unwrap();
+
+                let fields = struct_info
+                    .fields
+                    .iter()
+                    .map(|FieldInfo { ty, .. }| ty.get_llvm_type(context))
+                    .collect::<Vec<_>>();
+
+                *context.context.struct_type(&fields, struct_info.packed)
+            }
         }
     }
 
     pub fn get_dwarf_type<'ctx>(&self, cu: &CodegenUnit<'_, 'ctx>) -> DIType<'ctx> {
-        cu.debug_context.get_type(self)
+        cu.debug_context.get_type(self, cu)
     }
 }
 
@@ -80,11 +99,9 @@ impl<'ctx> TypedValue<'ctx> {
     ) -> Result<Self, Diagnostic> {
         match self.type_ {
             Type::i(n) => self.generate_operation_int(n, builder, lhs_span, opcode, rhs),
-            Type::unit | Type::str => Err(codegen::error::undefined_operator(
-                opcode,
-                lhs_span,
-                &self.type_,
-            )),
+            Type::unit | Type::str | Type::Struct { .. } => Err(
+                codegen::error::undefined_operator(opcode, lhs_span, &self.type_),
+            ),
             Type::bool => {
                 if rhs.type_ != Type::bool {
                     return Err(codegen::error::unexpected_type(

@@ -23,6 +23,19 @@ pub struct FunctionInfo<'ctx> {
     pub name: String,
 }
 
+pub struct FieldInfo {
+    pub name: String,
+    pub ty: Type,
+    pub line_no: u32,
+}
+
+pub struct StructInfo {
+    pub fields: Vec<FieldInfo>,
+    pub packed: bool,
+    pub line_no: u32,
+    pub file_no: usize,
+}
+
 pub struct NameStore<'ctx> {
     store: HashMap<String, NameStoreEntry<'ctx>>,
 }
@@ -30,12 +43,21 @@ pub struct NameStore<'ctx> {
 pub enum NameStoreEntry<'ctx> {
     Module(NameStore<'ctx>),
     Function(FunctionInfo<'ctx>),
+    Struct(StructInfo),
 }
 
 impl<'ctx> NameStoreEntry<'ctx> {
     pub fn as_function(&self) -> Option<&FunctionInfo<'ctx>> {
         if let NameStoreEntry::Function(func) = self {
             Some(func)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_struct(&self) -> Option<&StructInfo> {
+        if let NameStoreEntry::Struct(struct_) = self {
+            Some(struct_)
         } else {
             None
         }
@@ -53,6 +75,22 @@ impl<'ctx> NameStore<'ctx> {
     where
         S: Borrow<str>,
     {
+        self.add_item(key, NameStoreEntry::Function(func))
+    }
+
+    /// Returns false if the struct already exists
+    pub fn add_struct<S>(&mut self, key: &[S], struct_: StructInfo) -> bool
+    where
+        S: Borrow<str>,
+    {
+        self.add_item(key, NameStoreEntry::Struct(struct_))
+    }
+
+    /// Returns false if the item already exists
+    pub fn add_item<S>(&mut self, key: &[S], item: NameStoreEntry<'ctx>) -> bool
+    where
+        S: Borrow<str>,
+    {
         let Some((funcname, parents)) = key.split_last() else {
             unreachable!()
         };
@@ -66,7 +104,7 @@ impl<'ctx> NameStore<'ctx> {
 
             match parent.get_or_insert_with_mut(p, || NameStoreEntry::Module(NameStore::new())) {
                 NameStoreEntry::Module(store) => parent = &mut store.store,
-                NameStoreEntry::Function(_) => unreachable!(),
+                _ => unreachable!(),
             }
         }
 
@@ -74,7 +112,7 @@ impl<'ctx> NameStore<'ctx> {
             return false;
         }
 
-        parent.insert(funcname.to_owned(), NameStoreEntry::Function(func));
+        parent.insert(funcname.to_owned(), item);
         true
     }
 
@@ -82,11 +120,11 @@ impl<'ctx> NameStore<'ctx> {
     where
         S: Borrow<str>,
     {
-        let Some((funcname, parents)) = key.split_last() else {
+        let Some((item_name, parents)) = key.split_last() else {
             unreachable!()
         };
 
-        let funcname: Spanned<&str> = Spanned(funcname.0.borrow(), funcname.1);
+        let item_name: Spanned<&str> = Spanned(item_name.0.borrow(), item_name.1);
 
         let mut parent = &self.store;
         let mut parent_name = None;
@@ -103,11 +141,26 @@ impl<'ctx> NameStore<'ctx> {
             parent_name = Some(*pmod);
         }
 
-        let Some(item) = parent.get(*funcname) else {
-            return Err(codegen::error::no_item(parent_name, funcname));
+        let Some(item) = parent.get(*item_name) else {
+            return Err(codegen::error::no_item(parent_name, item_name));
         };
 
         Ok(item)
+    }
+
+    pub fn get_item_from_string(&self, key: &str) -> &NameStoreEntry<'ctx> {
+        let (parents, funcname) = key.rsplit_once("::").unwrap_or((&key[0..0], key));
+
+        let mut parent = &self.store;
+
+        for pmod in parents.split("::") {
+            match parent.get(pmod) {
+                Some(NameStoreEntry::Module(store)) => parent = &store.store,
+                _ => unreachable!(),
+            }
+        }
+
+        &parent[funcname]
     }
 
     pub fn get_item_in_crate(

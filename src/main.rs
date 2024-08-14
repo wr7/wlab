@@ -35,6 +35,7 @@ mod parser;
 
 /* TODO list
  *  - Allow functions inside of code blocks
+ *  - Properly handle recursively-defined types
  *  - Debug info
  *      - Create DILexicalScope for all code blocks (not just functions)
  *      - Add debug info for variables
@@ -117,10 +118,12 @@ fn main() {
             continue;
         }
 
-        let crate_ = codegen_context.create_crate(&ast).unwrap_or_else(|err| {
-            eprintln!("\n{}", err.render(source));
-            process::exit(1);
-        });
+        let crate_ = codegen_context
+            .create_crate(&ast, file_name.clone())
+            .unwrap_or_else(|err| {
+                eprintln!("\n{}", err.render(source));
+                process::exit(1);
+            });
 
         crates.push((source, ast, crate_));
     }
@@ -129,9 +132,9 @@ fn main() {
         return;
     }
 
-    for (i, (source, ast, crate_)) in crates.iter().enumerate() {
+    for (source, ast, crate_) in crates.iter() {
         codegen_context
-            .generate_crate(crate_, ast, &params, &params.input_files[i], source)
+            .generate_crate(crate_, ast, &params, source)
             .unwrap_or_else(|err| {
                 eprintln!("\n{}", err.render(source));
                 process::exit(1);

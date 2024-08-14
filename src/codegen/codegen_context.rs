@@ -23,6 +23,7 @@ use crate::{
 pub struct Crate<'ctx> {
     pub llvm_module: LlvmModule<'ctx>,
     pub crate_name: String,
+    pub file_no: usize,
 }
 
 pub struct CodegenContext<'ctx> {
@@ -31,6 +32,7 @@ pub struct CodegenContext<'ctx> {
     pub(super) context: &'ctx Context,
     pub(super) core_types: CoreTypes<'ctx>,
     pub(super) name_store: NameStore<'ctx>,
+    pub(super) files: Vec<String>,
     pub(super) params: &'ctx cmdline::Parameters,
 }
 
@@ -56,6 +58,7 @@ impl<'ctx> CodegenContext<'ctx> {
 
         let core_types = CoreTypes::new(context, &target_data);
         let name_store = NameStore::new();
+        let files = Vec::new();
 
         Self {
             target,
@@ -63,13 +66,21 @@ impl<'ctx> CodegenContext<'ctx> {
             context,
             core_types,
             name_store,
+            files,
             params,
         }
     }
 }
 
 impl<'ctx> CodegenContext<'ctx> {
-    pub fn create_crate(&mut self, ast: &ast::Module) -> Result<Crate<'ctx>, Diagnostic> {
+    pub fn create_crate(
+        &mut self,
+        ast: &ast::Module,
+        file_name: String,
+    ) -> Result<Crate<'ctx>, Diagnostic> {
+        self.files.push(file_name);
+        let file_no = self.files.len() - 1;
+
         let mut crate_name = None;
         for attr in &ast.attributes {
             match **attr {
@@ -153,6 +164,7 @@ impl<'ctx> CodegenContext<'ctx> {
         Ok(Crate {
             llvm_module: module,
             crate_name: crate_name.into(),
+            file_no,
         })
     }
 
@@ -162,12 +174,11 @@ impl<'ctx> CodegenContext<'ctx> {
         crate_: &Crate<'ctx>,
         ast: &ast::Module,
         params: &cmdline::Parameters,
-        file_path: &str,
         source: &str,
     ) -> Result<(), Diagnostic> {
         let crate_name = &crate_.crate_name;
 
-        let mut generator = CodegenUnit::new(self, crate_, file_path, source);
+        let mut generator = CodegenUnit::new(self, crate_, crate_.file_no, source);
         let mut scope = Scope::new_global();
 
         for function in &ast.functions {

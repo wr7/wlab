@@ -1,9 +1,10 @@
-use std::{ffi::c_char, marker::PhantomData};
+use std::{ffi::c_char, marker::PhantomData, ptr};
 
 use llvm_sys::{
     debuginfo::{
         LLVMCreateDIBuilder, LLVMDIBuilderCreateBasicType, LLVMDIBuilderCreateFile,
         LLVMDIBuilderCreateFunction, LLVMDIBuilderCreateLexicalBlock,
+        LLVMDIBuilderCreateMemberType, LLVMDIBuilderCreateStructType,
         LLVMDIBuilderCreateSubroutineType, LLVMDIBuilderFinalize, LLVMDisposeDIBuilder,
     },
     prelude::LLVMBool,
@@ -147,6 +148,88 @@ impl<'ctx> DIBuilder<'ctx> {
                 size_bits,
                 encoding.map_or(0, |e| e as u32),
                 flags.into(),
+            ))
+        }
+    }
+
+    pub fn struct_type(
+        &self,
+        scope: DIScope<'ctx>,
+        name: &(impl ?Sized + AsRef<[u8]>),
+        file: DIFile<'ctx>,
+        line_no: u32,
+        size_bits: u64,
+        align_bits: u32,
+        flags: DIFlags,
+        derived_from: Option<DIType<'ctx>>,
+        elements: &[DIDerivedType<'ctx>],
+        runtime_lang: Option<u32>,
+        vtable_holder: Option<DIType<'ctx>>,
+        unique_identifier: &(impl ?Sized + AsRef<[u8]>),
+    ) -> DICompositeType<'ctx> {
+        let name = name.as_ref();
+        let unique_identifier = unique_identifier.as_ref();
+        let name_ptr = name.as_ptr().cast::<c_char>();
+        let unique_identifier_ptr = unique_identifier.as_ptr().cast::<c_char>();
+        let elements_ptr = elements
+            .as_ptr()
+            .cast::<*mut LLVMOpaqueMetadata>()
+            .cast_mut();
+
+        let runtime_lang = runtime_lang.unwrap_or(0);
+        let derived_from = derived_from.map_or(ptr::null_mut(), |t| t.raw());
+        let vtable_holder = vtable_holder.map_or(ptr::null_mut(), |t| t.raw());
+
+        unsafe {
+            DICompositeType::from_raw(LLVMDIBuilderCreateStructType(
+                self.ptr,
+                scope.raw(),
+                name_ptr,
+                name.len(),
+                file.raw(),
+                line_no,
+                size_bits,
+                align_bits,
+                flags.into(),
+                derived_from,
+                elements_ptr,
+                elements.len() as u32,
+                runtime_lang,
+                vtable_holder,
+                unique_identifier_ptr,
+                unique_identifier.len(),
+            ))
+        }
+    }
+
+    pub fn member_type(
+        &self,
+        scope: DIScope<'ctx>,
+        name: &(impl ?Sized + AsRef<[u8]>),
+        file: DIFile<'ctx>,
+        line_no: u32,
+        size_bits: u64,
+        align_bits: u32,
+        offset_bits: u64,
+        flags: DIFlags,
+        ty: DIType<'ctx>,
+    ) -> DIDerivedType<'ctx> {
+        let name = name.as_ref();
+        let name_ptr = name.as_ptr().cast::<c_char>();
+
+        unsafe {
+            DIDerivedType::from_raw(LLVMDIBuilderCreateMemberType(
+                self.ptr,
+                scope.raw(),
+                name_ptr,
+                name.len(),
+                file.raw(),
+                line_no,
+                size_bits,
+                align_bits,
+                offset_bits,
+                flags.into(),
+                ty.raw(),
             ))
         }
     }

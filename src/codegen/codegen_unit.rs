@@ -25,13 +25,13 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     pub fn new(
         c: &'m mut CodegenContext<'ctx>,
         crate_: &'m Crate<'ctx>,
-        file_path: &str,
+        file_no: usize,
         source: &'m str,
     ) -> Self {
         let context = c.context;
         let module = &crate_.llvm_module;
         let crate_name = &crate_.crate_name;
-        let debug_context = DebugContext::new(c, module, file_path);
+        let debug_context = DebugContext::new(c, module, file_no);
 
         Self {
             c,

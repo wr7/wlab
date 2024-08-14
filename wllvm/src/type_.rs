@@ -13,12 +13,16 @@ use llvm_sys::{
         LLVMGetTypeKind, LLVMIsFunctionVarArg, LLVMPrintTypeToString,
     },
     prelude::LLVMBool,
+    target::{
+        LLVMABIAlignmentOfType, LLVMOffsetOfElement, LLVMSizeOfTypeInBits, LLVMStoreSizeOfType,
+    },
     LLVMType, LLVMValue,
 };
 
 use crate::{
+    target::TargetData,
     util::LLVMString,
-    value::{ArrayValue, FnValue, IntValue, PtrValue, StructValue, Value},
+    value::{ArrayValue, IntValue, PtrValue, StructValue, Value},
 };
 
 pub use llvm_sys::{LLVMInlineAsmDialect, LLVMTypeKind};
@@ -58,6 +62,19 @@ impl<'ctx> Type<'ctx> {
         }
     }
 
+    pub fn size_bits(&self, td: &TargetData) -> u64 {
+        unsafe { LLVMSizeOfTypeInBits(td.raw(), self.ptr) }
+    }
+
+    pub fn size_bytes(&self, td: &TargetData) -> u64 {
+        unsafe { LLVMStoreSizeOfType(td.raw(), self.ptr) }
+    }
+
+    /// Gets the alignment of a type in bytes
+    pub fn alignment(&self, td: &TargetData) -> u32 {
+        unsafe { LLVMABIAlignmentOfType(td.raw(), self.ptr) }
+    }
+
     pub fn raw(&self) -> *mut LLVMType {
         self.ptr
     }
@@ -88,29 +105,21 @@ impl Debug for Type<'_> {
     }
 }
 
-specialized_type! {
+specialized_types! {
     /// An LLVM integer type reference
-    pub struct IntType: IntValue
-}
+    pub struct IntType: IntValue @ LLVMIntegerTypeKind;
 
-specialized_type! {
     /// An LLVM integer type reference
-    pub struct PtrType: PtrValue
-}
+    pub struct PtrType: PtrValue @ LLVMPointerTypeKind;
 
-specialized_type! {
     /// An LLVM function type reference
-    pub struct FnType: FnValue
-}
+    pub struct FnType @ LLVMFunctionTypeKind;
 
-specialized_type! {
     /// An LLVM struct type reference
-    pub struct StructType: StructValue
-}
+    pub struct StructType: StructValue @ LLVMStructTypeKind;
 
-specialized_type! {
     /// An LLVM struct type reference
-    pub struct ArrayType: ArrayValue
+    pub struct ArrayType: ArrayValue @ LLVMArrayTypeKind;
 }
 
 impl<'ctx> IntType<'ctx> {
@@ -227,58 +236,104 @@ impl<'ctx> StructType<'ctx> {
             ))
         }
     }
+
+    pub fn offset_of(&self, td: &TargetData, elem: u32) -> u64 {
+        unsafe { LLVMOffsetOfElement(td.raw(), self.ptr, elem) }
+    }
 }
 
-macro_rules! specialized_type {
+macro_rules! specialized_types {
     {
-        $(#[doc = $doc:literal])*
-        pub struct $name:ident $(: $value:ident)?
+        $(
+            $(#[doc = $doc:literal])*
+            pub struct $name:ident $(: $value:ident)? $(@ $kind:ident)?
+        );+
+        $(;)?
     } => {
-        $(#[doc = $doc])*
-        #[repr(transparent)]
-        #[derive(Clone, Copy)]
-        pub struct $name<'ctx> {
-            type_: Type<'ctx>,
-        }
+        $(
+            $(#[doc = $doc])*
+            #[repr(transparent)]
+            #[derive(Clone, Copy)]
+            pub struct $name<'ctx> {
+                type_: Type<'ctx>,
+            }
 
-        impl<'ctx> $name<'ctx> {
-            pub unsafe fn from_raw(raw: *mut LLVMType) -> Self {
-                Self {type_: Type::from_raw(raw)}
+            impl<'ctx> $name<'ctx> {
+                pub unsafe fn from_raw(raw: *mut LLVMType) -> Self {
+                    Self {type_: Type::from_raw(raw)}
+                }
+
+                $(
+                    pub fn const_null(&self) -> $value<'ctx> {
+                        unsafe { $value::from_raw(LLVMConstNull(self.ptr)) }
+                    }
+                )?
+            }
+
+            impl<'ctx> Deref for $name<'ctx> {
+                type Target = Type<'ctx>;
+
+                fn deref(&self) -> &Self::Target {
+                    &self.type_
+                }
+            }
+
+            impl<'ctx> AsRef<Type<'ctx>> for $name<'ctx> {
+                fn as_ref(&self) -> &Type<'ctx> {
+                    &**self
+                }
+            }
+
+            impl<'ctx> From<$name<'ctx>> for Type<'ctx> {
+                fn from(value: $name<'ctx>) -> Self {
+                    value.type_
+                }
+            }
+
+            impl<'ctx> Debug for $name<'ctx> {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    Debug::fmt(&**self, f)
+                }
             }
 
             $(
-                pub fn const_null(&self) -> $value<'ctx> {
-                    unsafe { $value::from_raw(LLVMConstNull(self.ptr)) }
+                impl<'ctx> TryFrom<Type<'ctx>> for $name<'ctx> {
+                    type Error = ();
+                    fn try_from(val: Type<'ctx>) -> Result<$name<'ctx>, ()> {
+                        #[allow(unused_doc_comments)]
+                        #[doc = stringify!($kind)]
+                        {} // just to match $kind
+
+                        let Some(TypeEnum::$name(val)) = val.downcast() else {
+                            return Err(())
+                        };
+
+                        Ok(val)
+                    }
                 }
             )?
+        )+
+
+        pub enum TypeEnum<'ctx> {
+            $(
+                $(
+                    #[doc = stringify!(Corresponds to LLVMTypeKind::$kind)]
+                    $name($name<'ctx>),
+                )?
+            )+
         }
 
-        impl<'ctx> Deref for $name<'ctx> {
-            type Target = Type<'ctx>;
-
-            fn deref(&self) -> &Self::Target {
-                &self.type_
-            }
-        }
-
-        impl<'ctx> AsRef<Type<'ctx>> for $name<'ctx> {
-            fn as_ref(&self) -> &Type<'ctx> {
-                &**self
-            }
-        }
-
-        impl<'ctx> From<$name<'ctx>> for Type<'ctx> {
-            fn from(value: $name<'ctx>) -> Self {
-                value.type_
-            }
-        }
-
-        impl<'ctx> Debug for $name<'ctx> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                Debug::fmt(&**self, f)
+        impl<'ctx> Type<'ctx> {
+            pub fn downcast(&self) -> Option<TypeEnum<'ctx>> {
+                match self.kind() {
+                    $($(
+                        LLVMTypeKind::$kind => Some(TypeEnum::$name(unsafe {$name::from_raw(self.ptr)})),
+                    )?)+
+                    _ => None,
+                }
             }
         }
     };
 }
 
-pub(self) use specialized_type;
+pub(self) use specialized_types;

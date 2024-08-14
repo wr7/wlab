@@ -2,20 +2,26 @@ use std::cell::Cell;
 
 use wllvm::{
     debug_info::{
-        DIBasicType, DIBuilder, DICompileUnit, DIFlags, DIScope, DIType, SourceLanguage,
+        DIBasicType, DIBuilder, DICompileUnit, DIFile, DIFlags, DIScope, DIType, SourceLanguage,
         TypeEncoding,
     },
     target::OptLevel,
+    type_::StructType,
     Module as LlvmModule,
 };
 
-use crate::codegen::{types::Type, CodegenContext};
+use crate::{
+    codegen::{namestore::FieldInfo, types::Type, CodegenContext},
+    util::BinarySearchMap,
+};
+
+use super::CodegenUnit;
 
 struct DebugPrimitives<'ctx> {
     pub str: DIBasicType<'ctx>,
     pub unit: DIBasicType<'ctx>,
     pub bool: DIBasicType<'ctx>,
-    int_types: Cell<Vec<(u32, DIBasicType<'ctx>)>>,
+    int_types: Cell<BinarySearchMap<u32, DIBasicType<'ctx>>>,
 }
 
 pub struct DebugContext<'ctx> {
@@ -23,14 +29,13 @@ pub struct DebugContext<'ctx> {
     pub cu: DICompileUnit<'ctx>,
     pub scope: DIScope<'ctx>,
     primitives: DebugPrimitives<'ctx>,
+    structs: Cell<BinarySearchMap<String, DIType<'ctx>>>,
+    files: Cell<BinarySearchMap<usize, DIFile<'ctx>>>,
 }
 
 impl<'ctx> DebugContext<'ctx> {
-    pub(super) fn new(
-        c: &CodegenContext<'ctx>,
-        module: &LlvmModule<'ctx>,
-        file_path: &str,
-    ) -> Self {
+    pub(super) fn new(c: &CodegenContext<'ctx>, module: &LlvmModule<'ctx>, file_no: usize) -> Self {
+        let file_path = &c.files[file_no];
         let (directory, file_name) = file_path.rsplit_once('/').unwrap_or((".", file_path));
         let directory = directory.trim_end_matches('/');
 
@@ -51,41 +56,123 @@ impl<'ctx> DebugContext<'ctx> {
 
         let primitives = DebugPrimitives::new(c, &builder);
 
+        let mut files = BinarySearchMap::new();
+        files.insert_at(0, file_no, file);
+
         Self {
             builder,
             cu,
             scope: *cu,
             primitives,
+            structs: Default::default(),
+            files: Cell::new(files),
         }
     }
 
-    pub fn get_type(&self, type_: &Type) -> DIType<'ctx> {
+    pub fn get_file(&self, cc: &CodegenContext<'ctx>, file_no: usize) -> DIFile<'ctx> {
+        let mut files = self.files.take();
+
+        let file = *files.get_or_insert_with(&file_no, || {
+            let file_path = &cc.files[file_no];
+            let (directory, file_name) = file_path.rsplit_once('/').unwrap_or((".", file_path));
+            let directory = directory.trim_end_matches('/');
+
+            self.builder.file(&file_name, &directory)
+        });
+
+        self.files.set(files);
+        file
+    }
+
+    pub fn get_type(&self, type_: &Type, cu: &CodegenUnit<'_, 'ctx>) -> DIType<'ctx> {
         match *type_ {
             Type::i(n) => *self.int(n),
             Type::str => *self.primitives.str,
             Type::unit => *self.primitives.unit,
             Type::bool => *self.primitives.bool,
+            Type::Struct { ref path } => {
+                let structs = self.structs.take();
+
+                if let Some(ty) = structs.get(path).copied() {
+                    self.structs.set(structs);
+
+                    return ty;
+                }
+                self.structs.set(structs);
+
+                let struct_info =
+                    cu.c.name_store
+                        .get_item_from_string(path)
+                        .as_struct()
+                        .unwrap();
+
+                let file = self.get_file(&cu.c, struct_info.file_no);
+                let Ok(llvm_ty) = StructType::try_from(type_.get_llvm_type(&cu.c)) else {
+                    unreachable!()
+                };
+
+                let mut member_types = Vec::new();
+
+                for (i, FieldInfo { name, ty, line_no }) in struct_info.fields.iter().enumerate() {
+                    let llvm_field_ty = ty.get_llvm_type(&cu.c);
+                    let size = llvm_field_ty.size_bits(&cu.c.target_data);
+                    let align = llvm_field_ty.alignment(&cu.c.target_data);
+
+                    let dbg_field_ty = ty.get_dwarf_type(cu);
+
+                    member_types.push(self.builder.member_type(
+                        *self.cu,
+                        name,
+                        file,
+                        *line_no,
+                        size,
+                        align * 8,
+                        llvm_ty.offset_of(&cu.c.target_data, i as u32),
+                        DIFlags::Zero,
+                        dbg_field_ty,
+                    ));
+                }
+
+                let size_bits = llvm_ty.size_bits(&cu.c.target_data);
+                let align_bits = llvm_ty.alignment(&cu.c.target_data) * 8;
+
+                let struct_type = self.builder.struct_type(
+                    *self.cu,
+                    path,
+                    file,
+                    struct_info.line_no,
+                    size_bits,
+                    align_bits,
+                    DIFlags::Private,
+                    None,
+                    &member_types,
+                    None,
+                    None,
+                    "",
+                );
+
+                let mut structs = self.structs.take();
+
+                structs.insert(path.clone(), *struct_type).unwrap();
+
+                self.structs.set(structs);
+
+                *struct_type
+            }
         }
     }
 
     fn int(&self, size: u32) -> DIBasicType<'ctx> {
         let mut int_types = self.primitives.int_types.take();
 
-        let ret_val = match int_types.binary_search_by_key(&size, |(k, _)| *k) {
-            Ok(idx) => int_types[idx].1,
-            Err(idx) => {
-                let type_ = self.builder.basic_type(
-                    &format!("i{size}"),
-                    size.into(),
-                    Some(TypeEncoding::signed),
-                    DIFlags::Private,
-                );
-
-                int_types.insert(idx, (size, type_));
-
-                type_
-            }
-        };
+        let ret_val = *int_types.get_or_insert_with(&size, || {
+            self.builder.basic_type(
+                &format!("i{size}"),
+                size.into(),
+                Some(TypeEncoding::signed),
+                DIFlags::Private,
+            )
+        });
 
         self.primitives.int_types.set(int_types);
 
@@ -108,7 +195,7 @@ impl<'ctx> DebugPrimitives<'ctx> {
             str,
             unit,
             bool,
-            int_types: Vec::new().into(),
+            int_types: BinarySearchMap::new().into(),
         }
     }
 }

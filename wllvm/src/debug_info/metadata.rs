@@ -86,6 +86,11 @@ metadata_types! {
         kind: LLVMDICompositeTypeMetadataKind
         supertype: DIType
         flags: [is_scope];
+
+    pub struct DIDerivedType
+        kind: LLVMDIDerivedTypeMetadataKind
+        supertype: DIType
+        flags: [is_scope];
 }
 
 impl<'ctx> DIScope<'ctx> {
