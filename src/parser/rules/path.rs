@@ -4,7 +4,7 @@ use crate::{
     error_handling::{self, Spanned as S},
     lexer::Token,
     parser::{ast::Path, error, rules::PResult, TokenStream},
-    util::SliceExt,
+    util::{MaybeVec, SliceExt},
     T,
 };
 
@@ -12,7 +12,7 @@ pub fn try_parse_path_from_front<'src>(
     tokens: &mut &TokenStream<'src>,
 ) -> PResult<Option<S<Path<'src>>>> {
     let mut tok_iter = tokens.iter();
-    let mut path = Vec::new();
+    let mut path = MaybeVec::new();
 
     let mut last_known_span: Option<Span> = None;
 

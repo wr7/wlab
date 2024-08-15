@@ -34,8 +34,14 @@ mod cmdline;
 mod parser;
 
 /* TODO list
- *  - Allow functions inside of code blocks
- *  - Properly handle recursively-defined types
+ *  - Allow functions and structs inside of code blocks
+ *  - Structs
+ *       - Add visibility
+ *       - Fix structs with out-of-order struct fields (depgraph)
+ *       - Do not allow duplicate member names
+ *       - Properly handle recursively-defined types
+ *  - Give parser access to source code to further reduce allocations
+ *  - Use more efficient representation of ast::Path
  *  - Debug info
  *      - Create DILexicalScope for all code blocks (not just functions)
  *      - Add debug info for variables
@@ -119,7 +125,7 @@ fn main() {
         }
 
         let crate_ = codegen_context
-            .create_crate(&ast, file_name.clone())
+            .create_crate(&ast, source, file_name.clone())
             .unwrap_or_else(|err| {
                 eprintln!("\n{}", err.render(source));
                 process::exit(1);
@@ -130,6 +136,15 @@ fn main() {
 
     if !do_codegen_phase {
         return;
+    }
+
+    for (source, ast, crate_) in crates.iter() {
+        codegen_context
+            .add_functions(ast, crate_)
+            .unwrap_or_else(|err| {
+                eprintln!("\n{}", err.render(source));
+                process::exit(1);
+            });
     }
 
     for (source, ast, crate_) in crates.iter() {

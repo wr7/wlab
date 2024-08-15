@@ -32,7 +32,7 @@ macro_rules! token {
         ($($tok:tt)?)
         $(else $else:block)?
     } => {
-        if let [token $(@ S(T!($tok), _))?, _tmp_remaining @ ..] = $tokens {
+        if let [token $(@ $crate::error_handling::Spanned($crate::T!($tok), _))?, _tmp_remaining @ ..] = $tokens {
             #[allow(unused_assignments)]
             { $tokens = _tmp_remaining; }
             Some(token)
@@ -52,7 +52,7 @@ macro_rules! ident {
         ()
         $(else $else:block)?
     } => {{
-        if let Some((_tmp_tok @ S(Token::Identifier(_tmp_ident), _), _tmp_remaining)) = $tokens.split_first() {
+        if let Some((_tmp_tok @ $crate::error_handling::Spanned($crate::lexer::Token::Identifier(_tmp_ident), _), _tmp_remaining)) = $tokens.split_first() {
             #[allow(unused_assignments)]
             { $tokens = _tmp_remaining; }
             Some((*_tmp_ident, _tmp_tok))
@@ -80,8 +80,8 @@ macro_rules! bracketed {
     } => {{
         let mut nb_iter = $crate::parser::util::NonBracketedIter::new($tokens);
 
-        if let Some(_tmp_opening @ S(Token::OpenBracket($crate::lexer::BracketType::$type), _)) = nb_iter.next() {
-            let Some(_tmp_closing @ S(Token::CloseBracket($crate::lexer::BracketType::$type), _)) = nb_iter.next() else {
+        if let Some(_tmp_opening @ $crate::error_handling::Spanned($crate::lexer::Token::OpenBracket($crate::lexer::BracketType::$type), _)) = nb_iter.next() {
+            let Some(_tmp_closing @ $crate::error_handling::Spanned($crate::lexer::Token::CloseBracket($crate::lexer::BracketType::$type), _)) = nb_iter.next() else {
                 unreachable!()
             };
             let closing_idx = $crate::util::SliceExt::elem_offset($tokens, _tmp_closing).unwrap();

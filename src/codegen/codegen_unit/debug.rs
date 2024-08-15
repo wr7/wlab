@@ -127,7 +127,7 @@ impl<'ctx> DebugContext<'ctx> {
                         *line_no,
                         size,
                         align * 8,
-                        llvm_ty.offset_of(&cu.c.target_data, i as u32),
+                        llvm_ty.offset_of(&cu.c.target_data, i as u32) * 8,
                         DIFlags::Zero,
                         dbg_field_ty,
                     ));

@@ -2,7 +2,7 @@ use crate::{
     codegen::types::Type,
     diagnostic as d,
     error_handling::{self, Diagnostic, Hint, Spanned as S},
-    parser::ast::{Attribute, CodeBlock, Function, OpCode, Path},
+    parser::ast::{Attribute, CodeBlock, OpCode, Path},
     util,
 };
 
@@ -96,6 +96,15 @@ pub fn non_function_attribute(attr: &S<Attribute>) -> Diagnostic {
     }
 }
 
+pub fn non_struct_attribute(attr: &S<Attribute>) -> Diagnostic {
+    d! {
+        "Invalid struct attribute",
+        [
+            Hint::new_error("", attr.1),
+        ]
+    }
+}
+
 pub fn non_module_attribute(attr: &S<Attribute>) -> Diagnostic {
     d! {
         "Invalid module attribute",
@@ -160,17 +169,26 @@ pub fn not_function(name: S<&str>) -> Diagnostic {
     }
 }
 
+pub fn not_type(name: S<&str>) -> Diagnostic {
+    d! {
+        format!("`{}` is not a type", *name),
+        [
+            Hint::new_error("", name.1)
+        ]
+    }
+}
+
 pub fn not_function_path(path: &S<Path>) -> Diagnostic {
     let name: String = util::Intersperse::new(path.iter().map(|n| **n), "::").collect();
 
     not_function(S(&name, path.1))
 }
 
-pub fn function_already_defined(function: &S<Function>) -> Diagnostic {
+pub fn item_already_defined(item: S<&str>) -> Diagnostic {
     d! {
-        format!("a function named {} already exists", function.name),
+        format!("an item named {} already exists", *item),
         [
-            Hint::new_error("", function.1)
+            Hint::new_error("", item.1)
         ]
     }
 }

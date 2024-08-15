@@ -7,9 +7,9 @@ use wllvm::{builder::IntPredicate, debug_info::DIType, value::ValueEnum, Builder
 use wutil::Span;
 
 use crate::{
-    codegen::{self, codegen_unit::CodegenUnit, CodegenContext},
+    codegen::{self, codegen_unit::CodegenUnit, error, CodegenContext},
     error_handling::{Diagnostic, Spanned as S},
-    parser::ast::OpCode,
+    parser::ast::{self, OpCode},
 };
 
 use super::namestore::FieldInfo;
@@ -45,17 +45,35 @@ impl Display for Type {
 }
 
 impl Type {
-    pub fn new(type_: S<&str>) -> Result<Self, Diagnostic> {
-        Ok(match *type_ {
-            "str" => Self::str,
-            "()" => Self::unit,
-            "bool" => Self::bool,
-            _ => {
+    pub fn new(cc: &CodegenContext, type_: &S<ast::Path>) -> Result<Self, Diagnostic> {
+        Ok(match &***type_ {
+            [S("str", _)] => Self::str,
+            [S("()", _)] => Self::unit,
+            [S("bool", _)] => Self::bool,
+            [type_] => {
                 if let Some(num) = type_.strip_prefix("i").and_then(|n| n.parse::<u32>().ok()) {
                     Self::i(num)
                 } else {
-                    return Err(codegen::error::undefined_type(type_));
+                    return Err(codegen::error::undefined_type(*type_));
                 }
+            }
+            _ => {
+                let mut path = String::new();
+
+                for (i, &segment) in (&***type_).iter().enumerate() {
+                    if i != 0 {
+                        path.push_str("::");
+                    }
+
+                    path.push_str(*segment);
+                }
+
+                cc.name_store
+                    .get_item(&**type_)?
+                    .as_struct()
+                    .ok_or_else(|| error::not_type(S(&path, type_.1)))?;
+
+                Self::Struct { path }
             }
         })
     }

@@ -2,14 +2,15 @@ use std::fmt::Display;
 
 use wutil::Span;
 
-use crate::error_handling::Spanned as S;
+use crate::{error_handling::Spanned as S, util::MaybeVec};
 
-pub type Path<'a> = Vec<S<&'a str>>;
+pub type Path<'a> = MaybeVec<S<&'a str>>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Module<'src> {
     pub attributes: Vec<S<Attribute<'src>>>,
     pub functions: Vec<S<Function<'src>>>,
+    pub structs: Vec<S<Struct<'src>>>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -17,6 +18,7 @@ pub enum Attribute<'src> {
     DeclareCrate(&'src str),
     Intrinsic(&'src str),
     NoMangle,
+    Packed,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -28,8 +30,8 @@ pub enum Visibility {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function<'src> {
     pub name: &'src str,
-    pub params: S<Vec<(&'src str, S<&'src str>)>>,
-    pub return_type: Option<S<&'src str>>,
+    pub params: S<Vec<(&'src str, S<Path<'src>>)>>,
+    pub return_type: Option<S<Path<'src>>>,
     pub attributes: Vec<S<Attribute<'src>>>,
     pub visibility: Visibility,
     pub body: S<CodeBlock<'src>>,
@@ -41,6 +43,20 @@ pub enum Statement<'src> {
     Let(&'src str, Box<S<Expression<'src>>>),
     Assign(&'src str, Box<S<Expression<'src>>>),
     Function(Function<'src>),
+    Struct(Struct<'src>),
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct StructField<'src> {
+    pub name: &'src str,
+    pub type_: S<Path<'src>>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Struct<'src> {
+    pub name: &'src str,
+    pub fields: Vec<S<StructField<'src>>>,
+    pub attributes: Vec<S<Attribute<'src>>>,
 }
 
 impl<'src> TryFrom<Statement<'src>> for Function<'src> {

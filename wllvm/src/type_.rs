@@ -237,6 +237,7 @@ impl<'ctx> StructType<'ctx> {
         }
     }
 
+    /// Gets the offset of an element in bytes
     pub fn offset_of(&self, td: &TargetData, elem: u32) -> u64 {
         unsafe { LLVMOffsetOfElement(td.raw(), self.ptr, elem) }
     }

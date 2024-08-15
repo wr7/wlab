@@ -123,7 +123,7 @@ fn add_write(
         c"",
     );
 
-    let zero = unit.c.core_types.unit.const_null();
+    let zero = unit.c.core_types.unit.const_(&[]);
     unit.builder.build_ret(*zero);
 
     Ok(())
@@ -184,7 +184,7 @@ fn add_exit(
         c"",
     );
 
-    let zero = unit.c.core_types.unit.const_null();
+    let zero = unit.c.core_types.unit.const_(&[]);
     unit.builder.build_ret(*zero);
 
     Ok(())

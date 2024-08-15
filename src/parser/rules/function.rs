@@ -1,8 +1,7 @@
 use crate::{
     error_handling::{self, span_of, Spanned as S},
-    lexer::Token,
     parser::{
-        ast::{Expression, Function, Statement, Visibility},
+        ast::{self, Expression, Function, Statement, Visibility},
         error,
         macros::match_tokens,
         rules::{
@@ -40,7 +39,7 @@ pub fn try_parse_function_from_front<'a, 'src>(
 
             all(
                 token("->") @ arrow;
-                expect_(do_(|toks| try_parse_type_from_front(toks))) else {
+                expect_(do_(|toks| try_parse_type_from_front(toks)?)) else {
                     return Err(error::expected_type(arrow.1.span_after()))
                 };
             ) @ ret_type;
@@ -112,7 +111,9 @@ fn parse_expression_list<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<S<Expr
 }
 
 /// Parses function parameters eg `foo: i32, bar: usize`.
-fn parse_fn_params<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<(&'src str, S<&'src str>)>> {
+fn parse_fn_params<'src>(
+    tokens: &TokenStream<'src>,
+) -> PResult<Vec<(&'src str, S<ast::Path<'src>>)>> {
     let mut params = Vec::new();
 
     for (param, separator) in TokenSplit::new(tokens, |t| t == &T!(",")) {
@@ -131,7 +132,9 @@ fn parse_fn_params<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<(&'src str, 
 }
 
 /// Parses a function parameter (eg `foo: u32`)
-fn parse_fn_param<'src>(tokens: &TokenStream<'src>) -> PResult<Option<(&'src str, S<&'src str>)>> {
+fn parse_fn_param<'src>(
+    tokens: &TokenStream<'src>,
+) -> PResult<Option<(&'src str, S<ast::Path<'src>>)>> {
     match_tokens! {
         tokens: {
             required {
@@ -149,7 +152,7 @@ fn parse_fn_param<'src>(tokens: &TokenStream<'src>) -> PResult<Option<(&'src str
 
                 either(
                     do_(|tokens| {
-                        types::try_parse_type_from_front(tokens)
+                        types::try_parse_type_from_front(tokens)?
                     });
                     do_(|tokens| {
                         let span = tokens.first().map_or(colon.1.span_after(), |t| t.1);

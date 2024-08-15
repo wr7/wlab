@@ -19,6 +19,7 @@ mod bracket_expr;
 mod control_flow;
 mod function;
 mod path;
+mod struct_;
 mod types;
 
 pub use attributes::try_parse_outer_attributes_from_front;
@@ -86,6 +87,7 @@ fn try_parse_statement_from_front<'a, 'src>(
 
     let rules = [
         |tokens| function::try_parse_function_from_front(tokens),
+        |tokens| struct_::try_parse_struct_from_front(tokens),
         |tokens| Ok(control_flow::try_parse_if_from_front(tokens)?.map(|(ex, r)| (ex.into(), r))),
         |tokens| {
             Ok(

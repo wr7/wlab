@@ -5,6 +5,15 @@
 |*     1234     *|
 \****************/
 
+struct foo {}
+
+#[packed]
+struct hello {
+    cool_text: str,
+    cooler_text: str,
+    foo: a::foo,
+};
+
 #[no_mangle]
 fn _start() {
     std::println("hello from wlang!");
@@ -14,4 +23,8 @@ fn _start() {
     }
 
     std::exit(0);
+}
+
+fn do_cool_thing(thing: a::hello) {
+    
 }

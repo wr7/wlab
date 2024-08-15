@@ -59,9 +59,9 @@ pub fn unmatched_bracket(tok: Spanned<&Token>) -> Diagnostic {
         [Hint::new_error("", tok.1)],
     }
 }
-pub fn expected_function(span: Span) -> Diagnostic {
+pub fn expected_function_or_struct(span: Span) -> Diagnostic {
     d! {
-        "Expected function definition",
+        "Expected function or struct definition",
         [Hint::new_error("", span)],
     }
 }
@@ -74,6 +74,12 @@ pub fn expected_parameter(span: Span) -> Diagnostic {
 pub fn expected_body(span: Span) -> Diagnostic {
     d! {
         "Expected function body",
+        [Hint::new_error("", span)],
+    }
+}
+pub fn expected_fields(span: Span) -> Diagnostic {
+    d! {
+        "Expected struct fields",
         [Hint::new_error("", span)],
     }
 }

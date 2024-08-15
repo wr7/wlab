@@ -149,7 +149,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         } else {
             TypedValue {
                 type_: Type::unit,
-                val: *self.c.core_types.unit.const_null(),
+                val: *self.c.core_types.unit.const_(&[]),
             }
         };
 

@@ -56,6 +56,7 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                 let val = self.generate_expression(val.as_sref(), scope)?;
                 scope.create_variable(varname, val);
             }
+            Statement::Struct(_) => todo!(),
             Statement::Assign(_, _) => todo!(),
             Statement::Function(_) => todo!(),
         }

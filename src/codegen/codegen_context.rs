@@ -16,9 +16,12 @@ use crate::{
         types::Type,
         CoreTypes,
     },
-    error_handling::Diagnostic,
+    error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Visibility},
+    util,
 };
+
+use super::namestore::{FieldInfo, StructInfo};
 
 pub struct Crate<'ctx> {
     pub llvm_module: LlvmModule<'ctx>,
@@ -76,6 +79,7 @@ impl<'ctx> CodegenContext<'ctx> {
     pub fn create_crate(
         &mut self,
         ast: &ast::Module,
+        source: &str,
         file_name: String,
     ) -> Result<Crate<'ctx>, Diagnostic> {
         self.files.push(file_name);
@@ -97,11 +101,66 @@ impl<'ctx> CodegenContext<'ctx> {
             .context
             .create_module(&CString::new(crate_name).unwrap());
 
+        for struct_ in &ast.structs {
+            let mut packed = false;
+
+            for attr in &struct_.attributes {
+                match &**attr {
+                    ast::Attribute::Packed => packed = true,
+                    _ => return Err(codegen::error::non_struct_attribute(attr)),
+                }
+            }
+
+            let line_no = util::line_and_col(source, struct_.1.start).0 as u32;
+
+            let mut fields = Vec::new();
+            for field in &struct_.fields {
+                let line_no = util::line_and_col(source, field.1.start).0 as u32;
+                let ty = Type::new(self, &field.type_)?;
+
+                fields.push(FieldInfo {
+                    name: field.name.to_owned(),
+                    ty,
+                    line_no,
+                })
+            }
+
+            if !self.name_store.add_struct(
+                &[crate_name, struct_.name],
+                StructInfo {
+                    fields,
+                    packed,
+                    line_no,
+                    file_no,
+                },
+            ) {
+                return Err(codegen::error::item_already_defined(S(
+                    struct_.name,
+                    struct_.1,
+                )));
+            }
+        }
+
+        Ok(Crate {
+            llvm_module: module,
+            crate_name: crate_name.into(),
+            file_no,
+        })
+    }
+
+    pub fn add_functions(
+        &mut self,
+        ast: &ast::Module,
+        crate_: &Crate<'ctx>,
+    ) -> Result<(), Diagnostic> {
+        let crate_name = &*crate_.crate_name;
+        let module = &crate_.llvm_module;
+
         for function in &ast.functions {
             let params: Result<Vec<(&str, Type)>, _> = function
                 .params
                 .iter()
-                .map(|(n, t)| Ok((*n, Type::new(*t)?)))
+                .map(|(n, t)| Ok((*n, Type::new(&self, t)?)))
                 .collect();
             let params = params?;
 
@@ -110,17 +169,18 @@ impl<'ctx> CodegenContext<'ctx> {
                 .map(|(_, type_)| type_.get_llvm_type(self))
                 .collect();
 
-            let return_type = function.return_type.map_or(Ok(Type::unit), Type::new)?;
+            let return_type = function
+                .return_type
+                .as_ref()
+                .map_or(Ok(Type::unit), |t| Type::new(&self, &t))?;
 
             let mut no_mangle = false;
 
             for attr in &function.attributes {
                 match **attr {
-                    ast::Attribute::DeclareCrate(_) => {
-                        return Err(codegen::error::non_function_attribute(attr))
-                    }
                     ast::Attribute::NoMangle => no_mangle = true,
                     ast::Attribute::Intrinsic(_) => {}
+                    _ => return Err(codegen::error::non_function_attribute(attr)),
                 }
             }
 
@@ -157,15 +217,14 @@ impl<'ctx> CodegenContext<'ctx> {
                     name: fn_name.into(),
                 },
             ) {
-                return Err(codegen::error::function_already_defined(function));
+                return Err(codegen::error::item_already_defined(S(
+                    function.name,
+                    function.1,
+                )));
             }
         }
 
-        Ok(Crate {
-            llvm_module: module,
-            crate_name: crate_name.into(),
-            file_no,
-        })
+        Ok(())
     }
 
     #[allow(clippy::match_wildcard_for_single_variants)]

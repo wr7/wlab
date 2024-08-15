@@ -63,6 +63,7 @@ fn parse_attribute<'src>(tokens: &TokenStream<'src>) -> Option<PResult<S<Attribu
     Some(Ok(S(
         match *tokens {
             [S(T!("no_mangle"), _)] => Attribute::NoMangle,
+            [S(T!("packed"), _)] => Attribute::Packed,
             [S(T!("intrinsic"), _), S(T!("("), _), S(Token::Identifier(intrinsic), _), S(T!(")"), _)] => {
                 Attribute::Intrinsic(intrinsic)
             }
