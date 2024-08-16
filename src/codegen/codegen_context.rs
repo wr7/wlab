@@ -114,7 +114,17 @@ impl<'ctx> CodegenContext<'ctx> {
             let line_no = util::line_and_col(source, struct_.1.start).0 as u32;
 
             let mut fields = Vec::new();
+            let mut field_names: Vec<S<&str>> = Vec::new();
+
             for field in &struct_.fields {
+                match field_names.binary_search_by(|f| f.cmp(field.name)) {
+                    Ok(idx) => {
+                        let field1 = field_names[idx];
+                        return Err(codegen::error::duplicate_field(field1, field.1));
+                    }
+                    Err(idx) => field_names.insert(idx, S(field.name, field.1)),
+                }
+
                 let line_no = util::line_and_col(source, field.1.start).0 as u32;
                 let ty = Type::new(self, &field.type_)?;
 

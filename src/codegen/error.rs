@@ -251,3 +251,13 @@ pub fn invalid_field(path: &str, field: S<&str>) -> Diagnostic {
         [ Hint::new_error("", field.1) ]
     }
 }
+
+pub fn duplicate_field(field1: S<&str>, field2: Span) -> Diagnostic {
+    d! {
+        format!("field `{}` is defined multiple times", field1.0),
+        [
+            Hint::new_info("first defined here", field1.1),
+            Hint::new_error("then defined here", field2),
+        ]
+    }
+}

@@ -95,6 +95,16 @@ impl Hint {
             pointer_char: '^',
         }
     }
+    pub fn new_info<M>(msg: M, span: Span) -> Self
+    where
+        M: Into<Cow<'static, str>>,
+    {
+        Self {
+            msg: msg.into(),
+            span: span.into(),
+            pointer_char: '-',
+        }
+    }
     fn render_snippet(&self, code: &str) -> String {
         let (line_st, col_st) = util::line_and_col(code, self.span.start);
         let (line_end, col_end) =
