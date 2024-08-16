@@ -25,7 +25,7 @@ use super::namestore::{FieldInfo, StructInfo};
 
 pub struct Crate<'ctx> {
     pub llvm_module: LlvmModule<'ctx>,
-    pub crate_name: String,
+    pub name: String,
     pub file_no: usize,
 }
 
@@ -122,7 +122,7 @@ impl<'ctx> CodegenContext<'ctx> {
                     name: field.name.to_owned(),
                     ty,
                     line_no,
-                })
+                });
             }
 
             if !self.name_store.add_struct(
@@ -143,7 +143,7 @@ impl<'ctx> CodegenContext<'ctx> {
 
         Ok(Crate {
             llvm_module: module,
-            crate_name: crate_name.into(),
+            name: crate_name.into(),
             file_no,
         })
     }
@@ -153,14 +153,14 @@ impl<'ctx> CodegenContext<'ctx> {
         ast: &ast::Module,
         crate_: &Crate<'ctx>,
     ) -> Result<(), Diagnostic> {
-        let crate_name = &*crate_.crate_name;
+        let crate_name = &*crate_.name;
         let module = &crate_.llvm_module;
 
         for function in &ast.functions {
             let params: Result<Vec<(&str, Type)>, _> = function
                 .params
                 .iter()
-                .map(|(n, t)| Ok((*n, Type::new(&self, t)?)))
+                .map(|(n, t)| Ok((*n, Type::new(self, t)?)))
                 .collect();
             let params = params?;
 
@@ -172,7 +172,7 @@ impl<'ctx> CodegenContext<'ctx> {
             let return_type = function
                 .return_type
                 .as_ref()
-                .map_or(Ok(Type::unit), |t| Type::new(&self, &t))?;
+                .map_or(Ok(Type::unit), |t| Type::new(self, t))?;
 
             let mut no_mangle = false;
 
@@ -235,7 +235,7 @@ impl<'ctx> CodegenContext<'ctx> {
         params: &cmdline::Parameters,
         source: &str,
     ) -> Result<(), Diagnostic> {
-        let crate_name = &crate_.crate_name;
+        let crate_name = &crate_.name;
 
         let mut generator = CodegenUnit::new(self, crate_, crate_.file_no, source);
         let mut scope = Scope::new_global();

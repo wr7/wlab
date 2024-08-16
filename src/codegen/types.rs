@@ -60,7 +60,7 @@ impl Type {
             _ => {
                 let mut path = String::new();
 
-                for (i, &segment) in (&***type_).iter().enumerate() {
+                for (i, &segment) in type_.iter().enumerate() {
                     if i != 0 {
                         path.push_str("::");
                     }
@@ -69,7 +69,7 @@ impl Type {
                 }
 
                 cc.name_store
-                    .get_item(&**type_)?
+                    .get_item(type_)?
                     .as_struct()
                     .ok_or_else(|| error::not_type(S(&path, type_.1)))?;
 

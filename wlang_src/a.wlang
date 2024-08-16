@@ -5,7 +5,9 @@
 |*     1234     *|
 \****************/
 
-struct foo {}
+struct foo {
+    bar: i32
+}
 
 #[packed]
 struct hello {
@@ -17,7 +19,6 @@ struct hello {
 #[no_mangle]
 fn _start() {
     std::println("hello from wlang!");
-
     if 9 + 10 != 21 { // single line comment
         std::println("9 + 10 isn't 21 \n\n :( ");
     }
@@ -25,6 +26,8 @@ fn _start() {
     std::exit(0);
 }
 
-fn do_cool_thing(thing: a::hello) {
-    
+fn do_cool_thing(thing: a::hello) -> i32 {
+    std::println(thing.cool_text);
+    std::println(thing.cooler_text);
+    thing.foo.bar
 }

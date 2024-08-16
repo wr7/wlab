@@ -1,10 +1,13 @@
 //! Contains rules for the parser. Note: inputs are assumed to not have mismatched/unclosed brackets (these checks should be done in advance).
 
+use wutil::Span;
+
 use crate::{
     error_handling::{self, Diagnostic, Spanned as S},
     lexer::Token,
     parser::{
         ast::{Expression, Literal, OpCode, Statement},
+        error,
         util::NonBracketedIter,
         TokenStream,
     },
@@ -24,9 +27,6 @@ mod types;
 
 pub use attributes::try_parse_outer_attributes_from_front;
 pub use bracket_expr::parse_statement_list;
-use wutil::Span;
-
-use super::error;
 
 fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression<'src>>> {
     if tokens.is_empty() {
@@ -64,6 +64,7 @@ fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression
                 &[(T!("*"), OpCode::Asterisk), (T!("/"), OpCode::Slash)],
             )
         },
+        |tokens| struct_::try_parse_field_access(tokens),
     ];
 
     for rule in rules {

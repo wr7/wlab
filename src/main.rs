@@ -35,6 +35,7 @@ mod parser;
 
 /* TODO list
  *  - Allow functions and structs inside of code blocks
+ *  - Make `generate_expression` take an immutable reference to scope
  *  - Structs
  *       - Add visibility
  *       - Fix structs with out-of-order struct fields (depgraph)
@@ -138,7 +139,7 @@ fn main() {
         return;
     }
 
-    for (source, ast, crate_) in crates.iter() {
+    for (source, ast, crate_) in &crates {
         codegen_context
             .add_functions(ast, crate_)
             .unwrap_or_else(|err| {
@@ -147,7 +148,7 @@ fn main() {
             });
     }
 
-    for (source, ast, crate_) in crates.iter() {
+    for (source, ast, crate_) in &crates {
         codegen_context
             .generate_crate(crate_, ast, &params, source)
             .unwrap_or_else(|err| {

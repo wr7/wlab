@@ -33,7 +33,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let params: Result<Vec<(&str, Type)>, _> = function
             .params
             .iter()
-            .map(|(n, t)| Ok((*n, Type::new(&self.c, t)?)))
+            .map(|(n, t)| Ok((*n, Type::new(self.c, t)?)))
             .collect();
         let params = params?;
 

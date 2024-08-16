@@ -10,7 +10,7 @@ use crate::{
     util,
 };
 
-use wllvm::value::{Linkage, ValueEnum};
+use wllvm::value::{Linkage, StructValue, ValueEnum};
 use wutil::Span;
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
@@ -64,6 +64,43 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 block,
                 else_block,
             } => self.generate_if(scope, condition, block.as_sref(), else_block),
+            Expression::FieldAccess(lhs, field) => {
+                let lhs_span = lhs.1;
+                let lhs = self.generate_expression(lhs.as_sref(), scope)?;
+
+                let Type::Struct { path } = lhs.type_ else {
+                    return Err(codegen::error::non_struct_element_access(
+                        lhs_span, &lhs.type_, field,
+                    ));
+                };
+
+                let struct_info = self
+                    .c
+                    .name_store
+                    .get_item_from_string(&path)
+                    .as_struct()
+                    .unwrap();
+
+                let idx = struct_info
+                    .fields
+                    .iter()
+                    .position(|fi| fi.name == **field)
+                    .ok_or_else(|| codegen::error::invalid_field(&path, *field))?;
+
+                let Ok(lhs) = StructValue::try_from(lhs.val) else {
+                    unreachable!()
+                };
+
+                let val = self
+                    .builder
+                    .build_extract_value(lhs, idx as u32, c"")
+                    .unwrap();
+
+                Ok(TypedValue {
+                    val,
+                    type_: struct_info.fields[idx].ty.clone(),
+                })
+            }
         }
     }
 

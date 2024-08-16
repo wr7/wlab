@@ -1,8 +1,9 @@
 use crate::{
     error_handling::{self, Spanned as S},
+    lexer::Token,
     parser::{
         self,
-        ast::{Statement, Struct, StructField},
+        ast::{Expression, Statement, Struct, StructField},
         macros::match_tokens,
         rules::{self, attributes, PResult},
         util::TokenSplit,
@@ -10,6 +11,26 @@ use crate::{
     },
     T,
 };
+
+pub fn try_parse_field_access<'src>(
+    tokens: &TokenStream<'src>,
+) -> PResult<Option<Expression<'src>>> {
+    let [tokens @ .., S(T!("."), dot_span), S(Token::Identifier(field_name), field_span)] = tokens
+    else {
+        return Ok(None);
+    };
+
+    let expr = S(
+        rules::try_parse_expr(tokens)?
+            .ok_or_else(|| parser::error::expected_expression(dot_span.span_at()))?,
+        error_handling::span_of(tokens).unwrap(),
+    );
+
+    Ok(Some(Expression::FieldAccess(
+        Box::new(expr),
+        S(field_name, *field_span),
+    )))
+}
 
 pub fn try_parse_struct_from_front<'a, 'src>(
     tokens: &'a TokenStream<'src>,

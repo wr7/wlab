@@ -83,6 +83,7 @@ pub enum Expression<'src> {
         block: S<CodeBlock<'src>>,
         else_block: Option<S<CodeBlock<'src>>>,
     },
+    FieldAccess(Box<S<Self>>, S<&'src str>),
 }
 
 impl<'src> From<Expression<'src>> for Statement<'src> {

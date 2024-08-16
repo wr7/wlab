@@ -30,7 +30,7 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     ) -> Self {
         let context = c.context;
         let module = &crate_.llvm_module;
-        let crate_name = &crate_.crate_name;
+        let crate_name = &crate_.name;
         let debug_context = DebugContext::new(c, module, file_no);
 
         Self {

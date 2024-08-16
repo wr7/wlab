@@ -33,7 +33,7 @@ impl<V> MaybeVec<V> {
         }
     }
 
-    /// Creates a MaybeVec with only a single element. This does not create an allocation
+    /// Creates a `MaybeVec` with only a single element. This does not create an allocation
     pub const fn of(val: V) -> Self {
         Self {
             inner: MaybeVecInner::Val(val),
@@ -45,13 +45,14 @@ impl<V> MaybeVec<V> {
         mem::swap(&mut inner, &mut self.inner);
 
         match inner {
-            MaybeVecInner::Vec(ref mut v) => match &**v {
-                [] => self.inner = MaybeVecInner::Val(val),
-                _ => {
+            MaybeVecInner::Vec(ref mut v) => {
+                if (**v).is_empty() {
+                    self.inner = MaybeVecInner::Val(val);
+                } else {
                     v.push(val);
-                    mem::swap(&mut self.inner, &mut inner)
+                    mem::swap(&mut self.inner, &mut inner);
                 }
-            },
+            }
             MaybeVecInner::Val(v) => {
                 self.inner = MaybeVecInner::Vec(vec![v, val]);
             }
@@ -62,7 +63,7 @@ impl<V> MaybeVec<V> {
 impl<V> AsRef<[V]> for MaybeVec<V> {
     fn as_ref(&self) -> &[V] {
         match &self.inner {
-            MaybeVecInner::Vec(v) => &v,
+            MaybeVecInner::Vec(v) => v,
             MaybeVecInner::Val(v) => core::slice::from_ref(v),
         }
     }
@@ -124,7 +125,7 @@ impl<K, V> BinarySearchMap<K, V> {
     }
 
     pub fn insert_at(&mut self, idx: usize, key: K, val: V) {
-        self.map.insert(idx, (key, val))
+        self.map.insert(idx, (key, val));
     }
 
     pub fn get_or_insert_with<'a, F, Q>(&'a mut self, key: &Q, func: F) -> &'a V
@@ -138,14 +139,14 @@ impl<K, V> BinarySearchMap<K, V> {
             Ok(i) => idx = i,
             Err(i) => {
                 idx = i;
-                self.map.insert(i, (key.to_owned(), (func)()))
+                self.map.insert(i, (key.to_owned(), (func)()));
             }
         }
 
         &self.map[idx].1
     }
 
-    pub fn index_of<'a, Q>(&'a self, key: &Q) -> Result<usize, usize>
+    pub fn index_of<Q>(&self, key: &Q) -> Result<usize, usize>
     where
         K: Borrow<Q>,
         Q: Ord + ?Sized,
@@ -153,12 +154,12 @@ impl<K, V> BinarySearchMap<K, V> {
         self.map.binary_search_by(|(k, _)| k.borrow().cmp(key))
     }
 
-    pub fn pair_at<'a>(&'a self, idx: usize) -> (&'a K, &'a V) {
+    pub fn pair_at(&self, idx: usize) -> (&K, &V) {
         let (k, v) = &self.map[idx];
         (k, v)
     }
 
-    pub fn val_at<'a>(&'a self, idx: usize) -> &'a V {
+    pub fn val_at(&self, idx: usize) -> &V {
         self.pair_at(idx).1
     }
 

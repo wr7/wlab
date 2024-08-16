@@ -237,3 +237,17 @@ pub fn private_function(crate_name: S<&str>, fn_name: S<&str>) -> Diagnostic {
         ]
     }
 }
+
+pub fn non_struct_element_access(span: Span, type_: &Type, field: &str) -> Diagnostic {
+    d! {
+        format!("cannot access field `{field}` of non-struct type `{type_}`"),
+        [ Hint::new_error(format!("expression is of type `{type_}`"), span) ]
+    }
+}
+
+pub fn invalid_field(path: &str, field: S<&str>) -> Diagnostic {
+    d! {
+        format!("cannot access field `{}` of struct `{path}`", *field),
+        [ Hint::new_error("", field.1) ]
+    }
+}

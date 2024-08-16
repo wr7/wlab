@@ -97,7 +97,8 @@ impl Hint {
     }
     fn render_snippet(&self, code: &str) -> String {
         let (line_st, col_st) = util::line_and_col(code, self.span.start);
-        let (line_end, col_end) = util::line_and_col(code, self.span.end.saturating_sub(1));
+        let (line_end, col_end) =
+            util::line_and_col(code, self.span.end.saturating_sub(1).max(self.span.start));
 
         let mut ret_val = String::new();
 
