@@ -30,7 +30,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         let ll_function = function_info.function;
 
-        let params: Result<Vec<(&str, Type)>, _> = function
+        let params: Result<Vec<(S<&str>, Type)>, _> = function
             .params
             .iter()
             .map(|(n, t)| Ok((*n, Type::new(self.c, t)?)))

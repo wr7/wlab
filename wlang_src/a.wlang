@@ -23,6 +23,12 @@ fn _start() {
         std::println("9 + 10 isn't 21 \n\n :( ");
     }
 
+    let mut message_to_print = "This is message 1!";
+    std::println(message_to_print);
+
+    message_to_print = "This is message 2!";
+    std::println(message_to_print);
+
     std::exit(0);
 }
 

@@ -78,7 +78,7 @@ impl Type {
         })
     }
 
-    pub fn get_llvm_type<'ctx>(&self, context: &CodegenContext<'ctx>) -> wllvm::Type<'ctx> {
+    pub fn llvm_type<'ctx>(&self, context: &CodegenContext<'ctx>) -> wllvm::Type<'ctx> {
         match *self {
             Type::i(n) => context.context.int_type(n).into(),
             Type::str => context.core_types.str.into(),
@@ -94,7 +94,7 @@ impl Type {
                 let fields = struct_info
                     .fields
                     .iter()
-                    .map(|FieldInfo { ty, .. }| ty.get_llvm_type(context))
+                    .map(|FieldInfo { ty, .. }| ty.llvm_type(context))
                     .collect::<Vec<_>>();
 
                 *context.context.struct_type(&fields, struct_info.packed)

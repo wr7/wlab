@@ -28,6 +28,8 @@ mod types;
 pub use attributes::try_parse_outer_attributes_from_front;
 pub use bracket_expr::parse_statement_list;
 
+use super::macros::match_tokens;
+
 fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression<'src>>> {
     if tokens.is_empty() {
         return Ok(None);
@@ -145,7 +147,7 @@ fn try_parse_literal<'src>(tokens: &TokenStream<'src>) -> Option<Expression<'src
 
 /// A variable assignment. Eg `foo = bar * (fizz + buzz)`
 fn try_parse_assign<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Statement<'src>>> {
-    let Some(([S(Token::Identifier(var_name), _), S(T!("="), equal_span)], tokens)) =
+    let Some(([S(Token::Identifier(var_name), name_span), S(T!("="), equal_span)], tokens)) =
         tokens.split_first_chunk::<2>()
     else {
         return Ok(None);
@@ -157,28 +159,42 @@ fn try_parse_assign<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Statemen
 
     let span = error_handling::span_of(tokens).unwrap();
 
-    Ok(Some(Statement::Assign(var_name, Box::new(S(val, span)))))
+    Ok(Some(Statement::Assign(
+        S(var_name, *name_span),
+        Box::new(S(val, span)),
+    )))
 }
 
 /// A variable initialization. Eg `let foo = bar * (fizz + buzz)`
 fn try_parse_let<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Statement<'src>>> {
-    let Some(([S(T!("let"), _), S(Token::Identifier(var_name), name_span)], tokens)) =
-        tokens.split_first_chunk::<2>()
-    else {
-        return Ok(None);
-    };
+    match_tokens! {
+        tokens: {
+            required(token("let"));
 
-    let Some((S(T!("="), equal_span), tokens)) = tokens.split_first() else {
-        return Err(error::expected_token(name_span.span_after(), &[T!("=")]));
-    };
+            token("mut") @ mut_tok;
 
-    let Some(val) = try_parse_expr(tokens)? else {
-        return Err(error::expected_expression(equal_span.span_after()));
-    };
+            required {
+                ident() @ (name, S(_, name_span));
 
-    let span = error_handling::span_of(tokens).unwrap();
+                token("=") else {
+                    return Err(error::expected_token(name_span.span_after(), &[T!("=")]));
+                } @ (&S(_, equal_span));
+            };
 
-    return Ok(Some(Statement::Let(var_name, Box::new(S(val, span)))));
+            required(do_(|tokens| {
+                try_parse_expr(tokens)?.zip(error_handling::span_of(tokens))
+            })) else {
+                return Err(error::expected_expression(equal_span.span_after()));
+            } @ (val, val_span);
+        } => {
+
+            Ok(Some(Statement::Let {
+                name: S(name, *name_span),
+                value: Box::new(S(val, val_span)),
+                mutable: mut_tok.is_some(),
+            }))
+        }
+    }
 }
 
 /// A binary expression. Eg `a + b`

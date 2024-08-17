@@ -167,7 +167,7 @@ impl<'ctx> CodegenContext<'ctx> {
         let module = &crate_.llvm_module;
 
         for function in &ast.functions {
-            let params: Result<Vec<(&str, Type)>, _> = function
+            let params: Result<Vec<(S<&str>, Type)>, _> = function
                 .params
                 .iter()
                 .map(|(n, t)| Ok((*n, Type::new(self, t)?)))
@@ -176,7 +176,7 @@ impl<'ctx> CodegenContext<'ctx> {
 
             let llvm_param_types: Vec<wllvm::Type<'ctx>> = params
                 .iter()
-                .map(|(_, type_)| type_.get_llvm_type(self))
+                .map(|(_, type_)| type_.llvm_type(self))
                 .collect();
 
             let return_type = function
@@ -205,7 +205,7 @@ impl<'ctx> CodegenContext<'ctx> {
             let ll_function = module.add_function(
                 c"",
                 self.context
-                    .fn_type(return_type.get_llvm_type(self), &llvm_param_types, false),
+                    .fn_type(return_type.llvm_type(self), &llvm_param_types, false),
             );
 
             ll_function.set_name(&*fn_name);

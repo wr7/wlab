@@ -107,14 +107,14 @@ impl<'ctx> DebugContext<'ctx> {
                         .unwrap();
 
                 let file = self.get_file(cu.c, struct_info.file_no);
-                let Ok(llvm_ty) = StructType::try_from(type_.get_llvm_type(cu.c)) else {
+                let Ok(llvm_ty) = StructType::try_from(type_.llvm_type(cu.c)) else {
                     unreachable!()
                 };
 
                 let mut member_types = Vec::new();
 
                 for (i, FieldInfo { name, ty, line_no }) in struct_info.fields.iter().enumerate() {
-                    let llvm_field_ty = ty.get_llvm_type(cu.c);
+                    let llvm_field_ty = ty.llvm_type(cu.c);
                     let size = llvm_field_ty.size_bits(&cu.c.target_data);
                     let align = llvm_field_ty.alignment(&cu.c.target_data);
 

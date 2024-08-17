@@ -16,7 +16,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         &self,
         function: &S<ast::Function>,
         function_info: &FunctionInfo,
-        params: &[(&str, Type)],
+        params: &[(S<&str>, Type)],
         intrinsic: S<&str>,
     ) -> Result<(), Diagnostic> {
         let (line_no, col_no) = util::line_and_col(self.source, function.body.1.start);
@@ -45,7 +45,7 @@ fn add_write(
     params_span: Span,
     unit: &CodegenUnit<'_, '_>,
     function_info: &FunctionInfo,
-    params: &[(&str, Type)],
+    params: &[(S<&str>, Type)],
 ) -> Result<(), Diagnostic> {
     if !matches!(params, [(_, Type::i(32)), (_, Type::str)]) {
         return Err(codegen::error::invalid_intrinsic_params(
@@ -133,7 +133,7 @@ fn add_exit(
     params_span: Span,
     unit: &CodegenUnit<'_, '_>,
     function_info: &FunctionInfo,
-    params: &[(&str, Type)],
+    params: &[(S<&str>, Type)],
 ) -> Result<(), Diagnostic> {
     if !matches!(params, [(_, Type::i(32))]) {
         return Err(codegen::error::invalid_intrinsic_params(

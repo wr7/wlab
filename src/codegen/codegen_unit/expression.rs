@@ -10,7 +10,7 @@ use crate::{
     util,
 };
 
-use wllvm::value::{Linkage, StructValue, ValueEnum};
+use wllvm::value::{Linkage, PtrValue, StructValue, ValueEnum};
 use wutil::Span;
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
@@ -40,10 +40,29 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                     val: self.c.core_types.bool.const_(0, false).into(),
                     type_: Type::bool,
                 }),
-                _ => scope
-                    .get_variable(ident)
-                    .cloned()
-                    .ok_or(codegen::error::undefined_variable(S(ident, expression.1))),
+                _ => {
+                    let Some(var) = scope.get_variable(ident) else {
+                        return Err(codegen::error::undefined_variable(S(ident, expression.1)));
+                    };
+
+                    Ok(if var.mutable {
+                        // mutable variables are indirectly stored as pointers
+                        let Ok(ptr) = PtrValue::try_from(var.value.val) else {
+                            unreachable!()
+                        };
+
+                        TypedValue {
+                            val: self.builder.build_load(
+                                var.value.type_.llvm_type(self.c),
+                                ptr,
+                                c"",
+                            ),
+                            type_: var.value.type_.clone(),
+                        }
+                    } else {
+                        var.value.clone()
+                    })
+                }
             },
             Expression::Literal(lit) => self.generate_literal(S(lit, expression.1)),
             Expression::BinaryOperator(a_expr, operator, b_expr) => {

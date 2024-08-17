@@ -113,7 +113,7 @@ fn parse_expression_list<'src>(tokens: &TokenStream<'src>) -> PResult<Vec<S<Expr
 /// Parses function parameters eg `foo: i32, bar: usize`.
 fn parse_fn_params<'src>(
     tokens: &TokenStream<'src>,
-) -> PResult<Vec<(&'src str, S<ast::Path<'src>>)>> {
+) -> PResult<Vec<(S<&'src str>, S<ast::Path<'src>>)>> {
     let mut params = Vec::new();
 
     for (param, separator) in TokenSplit::new(tokens, |t| t == &T!(",")) {
@@ -134,7 +134,7 @@ fn parse_fn_params<'src>(
 /// Parses a function parameter (eg `foo: u32`)
 fn parse_fn_param<'src>(
     tokens: &TokenStream<'src>,
-) -> PResult<Option<(&'src str, S<ast::Path<'src>>)>> {
+) -> PResult<Option<(S<&'src str>, S<ast::Path<'src>>)>> {
     match_tokens! {
         tokens: {
             required {
@@ -167,7 +167,7 @@ fn parse_fn_param<'src>(
                 return Err(error::expected_token(tok.1, &[T!(","), T!(")")]))
             }
 
-            Ok(Some((name, type_)))
+            Ok(Some((S(name, name_tok.1), type_)))
         }
     }
 }

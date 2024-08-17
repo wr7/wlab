@@ -1,13 +1,16 @@
-use std::{ffi::CStr, marker::PhantomData};
+use std::{
+    ffi::{c_char, CStr},
+    marker::PhantomData,
+};
 
 use llvm_sys::{
     core::{
-        LLVMBuildAdd, LLVMBuildAnd, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr,
-        LLVMBuildExtractValue, LLVMBuildICmp, LLVMBuildMul, LLVMBuildNot, LLVMBuildOr,
-        LLVMBuildPhi, LLVMBuildRet, LLVMBuildSDiv, LLVMBuildSub, LLVMBuildUDiv,
-        LLVMBuildUnreachable, LLVMBuildXor, LLVMBuildZExt, LLVMCountStructElementTypes,
-        LLVMDisposeBuilder, LLVMGetInsertBlock, LLVMPositionBuilderAtEnd,
-        LLVMSetCurrentDebugLocation2,
+        LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr,
+        LLVMBuildExtractValue, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNot,
+        LLVMBuildOr, LLVMBuildPhi, LLVMBuildRet, LLVMBuildSDiv, LLVMBuildStore, LLVMBuildSub,
+        LLVMBuildUDiv, LLVMBuildUnreachable, LLVMBuildXor, LLVMBuildZExt,
+        LLVMCountStructElementTypes, LLVMDisposeBuilder, LLVMGetInsertBlock,
+        LLVMPositionBuilderAtEnd, LLVMSetCurrentDebugLocation2,
     },
     LLVMBuilder, LLVMValue,
 };
@@ -94,6 +97,20 @@ impl<'ctx> Builder<'ctx> {
 
     pub fn build_br(&self, block: BasicBlock<'ctx>) {
         unsafe { LLVMBuildBr(self.ptr, block.raw()) };
+    }
+
+    pub fn build_store(&self, val: Value<'ctx>, ptr: PtrValue<'ctx>) {
+        unsafe { LLVMBuildStore(self.ptr, val.raw(), ptr.raw()) };
+    }
+
+    pub fn build_load(&self, type_: Type<'ctx>, ptr: PtrValue<'ctx>, name: &CStr) -> Value<'ctx> {
+        let name_ptr = name.as_ptr().cast::<c_char>();
+        unsafe { Value::from_raw(LLVMBuildLoad2(self.ptr, type_.raw(), ptr.raw(), name_ptr)) }
+    }
+
+    pub fn build_alloca(&self, type_: Type<'ctx>, name: &CStr) -> PtrValue<'ctx> {
+        let name_ptr = name.as_ptr().cast::<c_char>();
+        unsafe { PtrValue::from_raw(LLVMBuildAlloca(self.ptr, type_.raw(), name_ptr)) }
     }
 
     pub fn build_icmp(

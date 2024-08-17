@@ -14,6 +14,15 @@ pub fn undefined_variable(name: S<&str>) -> Diagnostic {
         [Hint::new_error("", name.1)],
     }
 }
+pub fn mutate_immutable_variable(def_name: S<&str>, mutate_span: Span) -> Diagnostic {
+    d! {
+        format!("Cannot mutate immutable variable `{}`", &*def_name),
+        [
+            Hint::new_info("Variable declared here; try replacing `let` with `let mut`", def_name.1),
+            Hint::new_error("Variable mutated here", mutate_span),
+        ],
+    }
+}
 pub fn undefined_function(name: S<&str>) -> Diagnostic {
     d! {
         format!("Undefined function `{}`", &*name),

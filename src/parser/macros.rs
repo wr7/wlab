@@ -11,7 +11,7 @@ macro_rules! match_tokens {
             );*
             $(;)?
         } => $(|$($remaining_toks:ident)?|)? $body:block
-    } => {{
+    } => { #[allow(unused_parens)] {
         let mut _remaining: &$crate::parser::TokenStream = $tokens_name;
 
         $(

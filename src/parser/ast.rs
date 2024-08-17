@@ -30,7 +30,7 @@ pub enum Visibility {
 #[derive(Debug, PartialEq, Eq)]
 pub struct Function<'src> {
     pub name: &'src str,
-    pub params: S<Vec<(&'src str, S<Path<'src>>)>>,
+    pub params: S<Vec<(S<&'src str>, S<Path<'src>>)>>,
     pub return_type: Option<S<Path<'src>>>,
     pub attributes: Vec<S<Attribute<'src>>>,
     pub visibility: Visibility,
@@ -40,8 +40,12 @@ pub struct Function<'src> {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Statement<'src> {
     Expression(Expression<'src>),
-    Let(&'src str, Box<S<Expression<'src>>>),
-    Assign(&'src str, Box<S<Expression<'src>>>),
+    Let {
+        name: S<&'src str>,
+        value: Box<S<Expression<'src>>>,
+        mutable: bool,
+    },
+    Assign(S<&'src str>, Box<S<Expression<'src>>>),
     Function(Function<'src>),
     Struct(Struct<'src>),
 }
