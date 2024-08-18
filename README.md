@@ -1,16 +1,18 @@
+
 WLAB (WLAng Bootstrap) is an LLVM-based compiler written from scratch.
 
 Current features of WLang include:
 - [Helpful error messages](#error-messages)
 - Name Mangling
 - Visibility
-- Function attributes
+- Function and struct attributes
 - Multi-file support
 - If statements
 - Type inference
+- Structs
 
 Simple example project:
-```
+```rust
 #![declare_crate(hello_world)]
 
 #[no_mangle]
@@ -19,12 +21,14 @@ fn _start() {
 
     let twenty_one = 21;
 
+    // Parenthesis are not needed for if statements
     if 9 + 10 == twenty_one - 2 {
         std::println("This will be printed");
     } else {
         std::println("This will not be printed");
     }
 
+    // If statements can act like the C ternary operator
     let text = if true {"this will also be printed"} else {"this wont"};
 
     std::println(text);
@@ -34,58 +38,46 @@ fn _start() {
 ```
 
 ### Error messages
-Some sample errors:
+Example error messages:
 
 src:
-```
+```rust
 #![declare_crate(test_error)]
 
 #[no_mangle]
 fn _start() {
-
-    std::exit(0);
+    /****************\
+    |*              *|
+    |*              *|
+    |*  This long   *|
+    |*   comment    *|
+    |*   will be    *|
+    |* omitted from *|
+    |*  the error   *|
+    |*    message   *|
+    |*              *|
+    |*              *|
+    \****************/
 )
 ```
 
 error:
-```
- Error while parsing code: mismatched brackets
-------------------------------------------------
-2 |
-3 | #[no_mangle]
-4 | fn _start() {
-  |             ^
-  | opening bracket here
- ...
-5 |
-6 |     std::exit(0);
-7 | )
-  | ^
-  | closing bracket here
-```
-##
-src:
-```
-#![declare_crate(test_error)]
 
-fn add_ten(num: i32) -> i32 {
-    num + 10
-}
+![Screenshot from 2024-08-17 20-21-42](https://github.com/user-attachments/assets/e1ef3444-da6e-469c-8164-cdec40fe36c7)
+
+src:
+```rust
+#![declare_crate(a)]
 
 #[no_mangle]
 fn _start() {
-    let cool_number = add_ten("nine");
+    let var = 5; // by default all variables are immutable
 
-    std::exit(0);
+    var = 10;
 }
+
 ```
 error:
-```
- Unexpected type: expected `i32`; got `str`
----------------------------------------------
-7 | #[no_mangle]
-8 | fn _start() {
-9 |     let cool_number = add_ten("nine");
-  |                               ^^^^^^
-  | value here of type `str`
-```
+
+![Screenshot from 2024-08-17 20-24-14](https://github.com/user-attachments/assets/0a3bc7c5-7f02-4775-ab58-c935ff27ecb6)
+
