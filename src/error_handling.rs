@@ -1,6 +1,7 @@
 use core::str;
 use std::borrow::{Borrow, BorrowMut};
 use std::fmt::Debug;
+use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::{borrow::Cow, ops::Range};
 
@@ -41,6 +42,8 @@ pub struct Hint {
     msg: Cow<'static, str>,
     span: Range<usize>,
     pointer_char: char,
+    /// The ANSII escape sequence to use
+    escape: &'static str,
 }
 
 #[derive(Clone)]
@@ -66,6 +69,16 @@ impl Diagnostic {
         }
 
         renderer.finish()
+    }
+
+    pub fn prepend(&mut self, prefix: &str) {
+        let mut msg = "".into();
+        mem::swap(&mut msg, &mut self.msg);
+
+        let mut msg = msg.into_owned();
+        msg.insert_str(0, prefix);
+
+        self.msg = msg.into();
     }
 }
 
@@ -93,33 +106,42 @@ struct DiagnosticRenderer<'a> {
 
 impl<'a> DiagnosticRenderer<'a> {
     pub fn new(code: &'a str, hints: &[Hint], diagnostic_msg: &str) -> Self {
-        let mut output = "\n ".to_owned();
+        fn get_padding(code: &str, hints: &[Hint]) -> u32 {
+            let mut max_byte_index = None;
+            let mut min_byte_index = None;
 
-        output += diagnostic_msg;
-        output.push('\n');
+            for hint in hints {
+                max_byte_index = Some(max_byte_index.unwrap_or(hint.span.end).max(hint.span.end));
+                min_byte_index = Some(min_byte_index.unwrap_or(hint.span.end).min(hint.span.end));
+            }
 
-        for _ in 0..output.len() {
-            output.push('-');
-        }
-
-        output.push('\n');
-
-        let mut max_byte_index = None;
-        let mut min_byte_index = None;
-
-        for hint in hints {
-            max_byte_index = Some(max_byte_index.unwrap_or(hint.span.end).max(hint.span.end));
-            min_byte_index = Some(min_byte_index.unwrap_or(hint.span.end).min(hint.span.end));
-        }
-
-        let padding =
-            if let Some((max_byte_index, min_byte_index)) = max_byte_index.zip(min_byte_index) {
+            1 + if let Some((max_byte_index, min_byte_index)) = max_byte_index.zip(min_byte_index) {
                 let (line_end, _) =
                     util::line_and_col(code, max_byte_index.saturating_sub(1).max(min_byte_index));
                 line_end.ilog10()
             } else {
                 0
-            };
+            }
+        }
+
+        let padding = get_padding(code, hints);
+
+        let mut output = "\n\x1b[m ".to_owned();
+
+        output += diagnostic_msg;
+
+        output += "\n\n";
+
+        if let Some(hint) = hints.get(0) {
+            let (line_start, _) = util::line_and_col(code, hint.span.start);
+
+            if line_start > 3 {
+                for _ in 0..padding {
+                    output.push(' ');
+                }
+                output += " ...\n";
+            }
+        }
 
         Self {
             code,
@@ -176,12 +198,14 @@ impl<'a> DiagnosticRenderer<'a> {
             // Print line number, line, and gutter //
             let padding = self.padding - i.ilog10();
 
+            self.output += "\x1b[1m";
+
             for _ in 0..padding {
                 self.output += " ";
             }
 
             self.output += &i.to_string();
-            self.output += " | ";
+            self.output += " | \x1b[m";
             self.output += line;
             self.output += "\n";
 
@@ -195,7 +219,8 @@ impl<'a> DiagnosticRenderer<'a> {
                 self.output += " ";
             }
 
-            self.output += " | ";
+            self.output += "\x1b[1m | ";
+            self.output += hint.hint.escape;
 
             // Print pointer
 
@@ -218,7 +243,7 @@ impl<'a> DiagnosticRenderer<'a> {
                 self.output.push(hint.pointer_char);
             }
 
-            self.output += "\n";
+            self.output += "\x1b[m\n";
         }
 
         if !hint.msg.is_empty() {
@@ -226,11 +251,12 @@ impl<'a> DiagnosticRenderer<'a> {
             for _ in 0..=self.padding {
                 self.output += " ";
             }
-            self.output += " | ";
+            self.output += "\x1b[1m | ";
+            self.output += hint.hint.escape;
             self.output += &hint.msg;
         }
 
-        self.output.push('\n');
+        self.output.push_str("\x1b[m\n");
     }
 
     pub fn finish(mut self) -> String {
@@ -259,6 +285,7 @@ impl Hint {
             msg: msg.into(),
             span: span.into(),
             pointer_char: '^',
+            escape: "\x1b[31m", // Red
         }
     }
     pub fn new_info<M>(msg: M, span: Span) -> Self
@@ -269,6 +296,7 @@ impl Hint {
             msg: msg.into(),
             span: span.into(),
             pointer_char: '-',
+            escape: "\x1b[36m", // Cyan
         }
     }
 

@@ -79,7 +79,7 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                     .ok_or_else(|| error::undefined_variable(*var_name))?;
 
                 if !variable.mutable {
-                    return Err(error::mutate_immutable_variable(
+                    return Err(error::assign_immutable_variable(
                         S(**var_name, variable.name_span),
                         statement.1,
                     ));

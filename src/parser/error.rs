@@ -43,67 +43,67 @@ pub fn check_brackets<'a>(tokens: &'a [Spanned<Token<'a>>]) -> Result<(), Diagno
 
 pub fn invalid_expression(span: Span) -> Diagnostic {
     d! {
-        "Invalid expression",
+        "invalid expression",
         [Hint::new_error("", span)],
     }
 }
 pub fn invalid_attribute(span: Span) -> Diagnostic {
     d! {
-        "Invalid attribute",
+        "invalid attribute",
         [Hint::new_error("", span)],
     }
 }
 pub fn unmatched_bracket(tok: Spanned<&Token>) -> Diagnostic {
     d! {
-        format!("Unmatched bracket `{}`", tok.as_str()),
+        format!("unmatched bracket `{}`", tok.as_str()),
         [Hint::new_error("", tok.1)],
     }
 }
 pub fn expected_function_or_struct(span: Span) -> Diagnostic {
     d! {
-        "Expected function or struct definition",
+        "expected function or struct definition",
         [Hint::new_error("", span)],
     }
 }
 pub fn expected_parameter(span: Span) -> Diagnostic {
     d! {
-        "Expected function parameter",
+        "expected function parameter",
         [Hint::new_error("", span)],
     }
 }
 pub fn expected_body(span: Span) -> Diagnostic {
     d! {
-        "Expected function body",
+        "expected function body",
         [Hint::new_error("", span)],
     }
 }
 pub fn expected_fields(span: Span) -> Diagnostic {
     d! {
-        "Expected struct fields",
+        "expected struct fields",
         [Hint::new_error("", span)],
     }
 }
 pub fn expected_expression(span: Span) -> Diagnostic {
     d! {
-        "Expected expression",
+        "expected expression",
         [Hint::new_error("", span)],
     }
 }
 pub fn expected_param_name(span: Span) -> Diagnostic {
     d! {
-        "Expected function parameter name",
-        [Hint::new_error("expected name here", span)],
+        "expected function parameter name",
+        [Hint::new_error("Expected name here", span)],
     }
 }
 pub fn expected_type(span: Span) -> Diagnostic {
     d! {
-        "Expected type",
+        "expected type",
         [Hint::new_error("", span)],
     }
 }
 pub fn expected_identifier(span: Span) -> Diagnostic {
     d! {
-        "Expected identifier",
+        "expected identifier",
         [Hint::new_error("", span)],
     }
 }
@@ -127,26 +127,26 @@ pub fn expected_token(span: Span, tokens: &[Token]) -> Diagnostic {
 }
 pub fn mismatched_brackets(opening: Span, closing: Span) -> Diagnostic {
     d! {
-        "Mismatched brackets",
+        "mismatched brackets",
         [
-            Hint::new_error("opening bracket here", opening),
-            Hint::new_error("closing bracket here", closing),
+            Hint::new_error("Opening bracket here", opening),
+            Hint::new_error("Closing bracket here", closing),
         ],
     }
 }
 pub fn unexpected_tokens(span: Span) -> Diagnostic {
     d! {
-        "Unexpected tokens",
+        "unexpected tokens",
         [
-            Hint::new_error("tokens here", span)
+            Hint::new_error("Tokens here", span)
         ]
     }
 }
 pub fn missing_block(span: Span) -> Diagnostic {
     d! {
-        "Missing if statement block",
+        "missing if statement block",
         [
-            Hint::new_error("if statement here", span)
+            Hint::new_error("If statement here", span)
         ]
     }
 }

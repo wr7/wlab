@@ -14,11 +14,11 @@ pub fn undefined_variable(name: S<&str>) -> Diagnostic {
         [Hint::new_error("", name.1)],
     }
 }
-pub fn mutate_immutable_variable(def_name: S<&str>, mutate_span: Span) -> Diagnostic {
+pub fn assign_immutable_variable(def_name: S<&str>, mutate_span: Span) -> Diagnostic {
     d! {
-        format!("Cannot mutate immutable variable `{}`", &*def_name),
+        format!("Cannot assign immutable variable `{}`", &*def_name),
         [
-            Hint::new_info("Variable declared here; try replacing `let` with `let mut`", def_name.1),
+            Hint::new_info(format!("Variable declared here; try replacing `{0}` with `mut {0}`", *def_name), def_name.1),
             Hint::new_error("Variable mutated here", mutate_span),
         ],
     }
@@ -137,7 +137,7 @@ pub fn missing_crate_name() -> Diagnostic {
     d! {
         "No crate name declared",
         [
-            Hint::new_error("try #![declare_crate(crate_name)]", Span::at(0)),
+            Hint::new_error("Try #![declare_crate(crate_name)]", Span::at(0)),
         ]
     }
 }
@@ -146,7 +146,7 @@ pub fn not_module(lhs: S<&str>) -> Diagnostic {
     d! {
         format!("`::` syntax can only be used with types and modules; `{}` is not a module", *lhs),
         [
-            Hint::new_error("non-module item here", lhs.1)
+            Hint::new_error("Non-module item here", lhs.1)
         ]
     }
 }
@@ -154,14 +154,14 @@ pub fn not_module(lhs: S<&str>) -> Diagnostic {
 pub fn no_item(parent: Option<&str>, item: S<&str>) -> Diagnostic {
     if let Some(parent) = parent {
         d! {
-            format!("no item named `{}` in `{parent}`", *item),
+            format!("No item named `{}` in `{parent}`", *item),
             [
                 Hint::new_error("", item.1)
             ]
         }
     } else {
         d! {
-            format!("no crate/item named `{}`", *item),
+            format!("No crate/item named `{}`", *item),
             [
                 Hint::new_error("", item.1)
             ]
@@ -171,7 +171,7 @@ pub fn no_item(parent: Option<&str>, item: S<&str>) -> Diagnostic {
 
 pub fn not_function(name: S<&str>) -> Diagnostic {
     d! {
-        format!("cannot call non-function item `{}`", *name),
+        format!("Cannot call non-function item `{}`", *name),
         [
             Hint::new_error("", name.1)
         ]
@@ -195,7 +195,7 @@ pub fn not_function_path(path: &S<Path>) -> Diagnostic {
 
 pub fn item_already_defined(item: S<&str>) -> Diagnostic {
     d! {
-        format!("an item named {} already exists", *item),
+        format!("An item named {} already exists", *item),
         [
             Hint::new_error("", item.1)
         ]
@@ -204,7 +204,7 @@ pub fn item_already_defined(item: S<&str>) -> Diagnostic {
 
 pub fn non_empty_intrinsic(body: Span) -> Diagnostic {
     d! {
-        "intrinsic function body is not empty",
+        "Intrinsic function body is not empty",
         [
             Hint::new_error("this should be empty `{}`", body)
         ]
@@ -213,7 +213,7 @@ pub fn non_empty_intrinsic(body: Span) -> Diagnostic {
 
 pub fn invalid_intrinsic(intrinsic: S<&str>) -> Diagnostic {
     d! {
-        format!("invalid intrinsic `{}`", *intrinsic),
+        format!("Invalid intrinsic `{}`", *intrinsic),
         [
             Hint::new_error("", intrinsic.1)
         ]
@@ -222,7 +222,7 @@ pub fn invalid_intrinsic(intrinsic: S<&str>) -> Diagnostic {
 
 pub fn invalid_intrinsic_params(params_span: Span, expected_params: &str) -> Diagnostic {
     d! {
-        format!("invalid intrinsic parameters; Expected parameters `{}`", expected_params),
+        format!("Invalid intrinsic parameters; Expected parameters `{}`", expected_params),
         [
             Hint::new_error("", params_span)
         ]
@@ -231,7 +231,7 @@ pub fn invalid_intrinsic_params(params_span: Span, expected_params: &str) -> Dia
 
 pub fn invalid_intrinsic_ret_type(function_span: Span, expected_ret_type: &Type) -> Diagnostic {
     d! {
-        format!("invalid intrinsic return type; Expected type `{}`", expected_ret_type),
+        format!("Invalid intrinsic return type; Expected type `{}`", expected_ret_type),
         [
             Hint::new_error("", function_span)
         ]
@@ -240,7 +240,7 @@ pub fn invalid_intrinsic_ret_type(function_span: Span, expected_ret_type: &Type)
 
 pub fn private_function(crate_name: S<&str>, fn_name: S<&str>) -> Diagnostic {
     d! {
-        format!("cannot access private item `{}::{}`", *crate_name, *fn_name),
+        format!("Cannot access private item `{}::{}`", *crate_name, *fn_name),
         [
             Hint::new_error("", error_handling::span_of(&[crate_name, fn_name]).unwrap())
         ]
@@ -249,21 +249,21 @@ pub fn private_function(crate_name: S<&str>, fn_name: S<&str>) -> Diagnostic {
 
 pub fn non_struct_element_access(span: Span, type_: &Type, field: &str) -> Diagnostic {
     d! {
-        format!("cannot access field `{field}` of non-struct type `{type_}`"),
+        format!("Cannot access field `{field}` of non-struct type `{type_}`"),
         [ Hint::new_error(format!("expression is of type `{type_}`"), span) ]
     }
 }
 
 pub fn invalid_field(path: &str, field: S<&str>) -> Diagnostic {
     d! {
-        format!("cannot access field `{}` of struct `{path}`", *field),
+        format!("Cannot access field `{}` of struct `{path}`", *field),
         [ Hint::new_error("", field.1) ]
     }
 }
 
 pub fn duplicate_field(field1: S<&str>, field2: Span) -> Diagnostic {
     d! {
-        format!("field `{}` is defined multiple times", field1.0),
+        format!("Field `{}` is defined multiple times", field1.0),
         [
             Hint::new_info("first defined here", field1.1),
             Hint::new_error("then defined here", field2),

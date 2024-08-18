@@ -107,7 +107,9 @@ fn main() {
             continue;
         }
 
-        let ast = parser::parse_module(&tokens).unwrap_or_else(|err| {
+        let ast = parser::parse_module(&tokens).unwrap_or_else(|mut err| {
+            err.prepend("Failed to parse file: ");
+
             eprintln!("\n{}", err.render(source));
             process::exit(1);
         });
