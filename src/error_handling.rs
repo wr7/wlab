@@ -132,7 +132,7 @@ impl<'a> DiagnosticRenderer<'a> {
 
         output += "\n\n";
 
-        if let Some(hint) = hints.get(0) {
+        if let Some(hint) = hints.first() {
             let (line_start, _) = util::line_and_col(code, hint.span.start);
 
             if line_start > 3 {

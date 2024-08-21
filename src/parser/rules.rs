@@ -56,7 +56,6 @@ fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression
                 ],
             )
         },
-        |tokens| function::try_parse_function_call(tokens),
         |tokens| {
             try_parse_binary_operator(tokens, &[(T!("+"), OpCode::Plus), (T!("-"), OpCode::Minus)])
         },
@@ -67,6 +66,8 @@ fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression
             )
         },
         |tokens| struct_::try_parse_field_access(tokens),
+        |tokens| function::try_parse_function_call(tokens),
+        |tokens| struct_::try_parse_struct_initializer(tokens),
     ];
 
     for rule in rules {

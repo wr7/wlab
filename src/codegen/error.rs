@@ -254,9 +254,16 @@ pub fn non_struct_element_access(span: Span, type_: &Type, field: &str) -> Diagn
     }
 }
 
+pub fn non_struct_type_initializer(type_: S<&Type>) -> Diagnostic {
+    d! {
+        format!("Cannot create struct of type `{0}` because `{0}` is not a struct", *type_),
+        [ Hint::new_error("", type_.1) ]
+    }
+}
+
 pub fn invalid_field(path: &str, field: S<&str>) -> Diagnostic {
     d! {
-        format!("Cannot access field `{}` of struct `{path}`", *field),
+        format!("No field `{}` in struct `{path}`", *field),
         [ Hint::new_error("", field.1) ]
     }
 }
@@ -267,6 +274,15 @@ pub fn duplicate_field(field1: S<&str>, field2: Span) -> Diagnostic {
         [
             Hint::new_info("first defined here", field1.1),
             Hint::new_error("then defined here", field2),
+        ]
+    }
+}
+
+pub fn missing_field(field: &str, struct_name: S<&str>) -> Diagnostic {
+    d! {
+        format!("Missing field `{field}` in struct {}", *struct_name),
+        [
+            Hint::new_error("", struct_name.1),
         ]
     }
 }

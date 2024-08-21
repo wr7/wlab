@@ -4,7 +4,7 @@ use wutil::Span;
 
 use crate::{error_handling::Spanned as S, util::MaybeVec};
 
-pub type Path<'a> = MaybeVec<S<&'a str>>;
+pub type Path<'src> = MaybeVec<S<&'src str>>;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Module<'src> {
@@ -57,6 +57,12 @@ pub struct StructField<'src> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub struct StructInitializerField<'src> {
+    pub name: S<&'src str>,
+    pub val: S<Expression<'src>>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct Struct<'src> {
     pub name: &'src str,
     pub fields: Vec<S<StructField<'src>>>,
@@ -86,6 +92,10 @@ pub enum Expression<'src> {
         condition: Box<S<Self>>,
         block: S<CodeBlock<'src>>,
         else_block: Option<S<CodeBlock<'src>>>,
+    },
+    StructInitializer {
+        name: S<Path<'src>>,
+        fields: Vec<S<StructInitializerField<'src>>>,
     },
     FieldAccess(Box<S<Self>>, S<&'src str>),
 }

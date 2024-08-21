@@ -84,7 +84,11 @@ pub fn try_parse_function_call<'src>(
                     }
                 ) @ (_, params, _);
             };
-        } => {
+        } => |remaining| {
+            if let Some(span) = error_handling::span_of(remaining) {
+                return Err(error::unexpected_tokens(span));
+            }
+
             Ok(Some(Expression::FunctionCall(path, params)))
         }
     )
