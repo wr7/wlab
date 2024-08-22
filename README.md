@@ -15,23 +15,46 @@ Simple example project:
 ```rust
 #![declare_crate(hello_world)]
 
+struct Messages {
+    first: str,
+    second: str,
+    override: bool,
+};
+
+fn get_messages() -> Messages {
+    /*
+     * The last statement in a code block will be implicitly returned if it is 
+     * not terminated by a semicolon
+     */
+
+    Messages {
+        override: true,
+        first: "This will be printed first",
+        second: "This will be not printed",
+    }
+}
+
 #[no_mangle]
 fn _start() {
-    std::println("hello from wlang!");
+    // Variable types are automatically inferred //
+    let mut messages = get_messages();
 
-    let twenty_one = 21;
-
-    // Parenthesis are not needed for if statements
-    if 9 + 10 == twenty_one - 2 {
-        std::println("This will be printed");
-    } else {
-        std::println("This will not be printed");
+    // `if` statements do not require parenthesis //
+    if messages.override {
+        messages.second = "This will be printed second";
     }
 
-    // If statements can act like the C ternary operator
-    let text = if true {"this will also be printed"} else {"this wont"};
+    std::println(messages.first);
+    std::println(messages.second);
 
-    std::println(text);
+    // `if` can be used as an expression //
+    let third_message = if 2 + 2 == 4 {
+        "This will be printed third"
+    } else {
+        "This will not be printed"
+    };
+
+    std::println(third_message);
 
     std::exit(0);
 }
@@ -69,15 +92,19 @@ src:
 ```rust
 #![declare_crate(a)]
 
+struct Foo {
+    x: i32,
+    y: i32,
+};
+
 #[no_mangle]
 fn _start() {
-    let var = 5; // by default all variables are immutable
+    let foo = Foo { x: 6, y: 12 }; // by default all variables are immutable
 
-    var = 10;
+    foo.y = 10;
 }
-
 ```
 error:
 
-![Screenshot from 2024-08-17 20-24-14](https://github.com/user-attachments/assets/0a3bc7c5-7f02-4775-ab58-c935ff27ecb6)
+![Screenshot from 2024-08-22 14-58-16](https://github.com/user-attachments/assets/6b141d75-68c9-4274-937a-9864d397486f)
 
