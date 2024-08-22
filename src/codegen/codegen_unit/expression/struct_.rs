@@ -101,7 +101,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         name: &S<util::MaybeVec<S<&str>>>,
         fields: &Vec<S<ast::StructInitializerField>>,
     ) -> Result<RValue<'ctx>, Diagnostic> {
-        let type_ = Type::new(self.c, name)?;
+        let type_ = Type::new(self.c, self.crate_name, name)?;
 
         let Type::Struct { path } = &type_ else {
             return Err(codegen::error::non_struct_type_initializer(S(

@@ -29,7 +29,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let params: Result<Vec<(S<&str>, Type)>, _> = function
             .params
             .iter()
-            .map(|(n, t)| Ok((*n, Type::new(self.c, t)?)))
+            .map(|(n, t)| Ok((*n, Type::new(self.c, self.crate_name, t)?)))
             .collect();
         let params = params?;
 

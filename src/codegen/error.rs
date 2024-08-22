@@ -31,15 +31,9 @@ pub fn modify_rvalue(rvalue: Span) -> Diagnostic {
         ],
     }
 }
-pub fn undefined_function(name: S<&str>) -> Diagnostic {
+pub fn undefined_item(name: S<&str>) -> Diagnostic {
     d! {
-        format!("Undefined function `{}`", &*name),
-        [Hint::new_error("", name.1)],
-    }
-}
-pub fn undefined_type(name: S<&str>) -> Diagnostic {
-    d! {
-        format!("Undefined type `{}`", &*name),
+        format!("Undefined item `{}`", &*name),
         [Hint::new_error("", name.1)],
     }
 }

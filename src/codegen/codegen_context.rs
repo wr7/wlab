@@ -126,7 +126,7 @@ impl<'ctx> CodegenContext<'ctx> {
                 }
 
                 let line_no = util::line_and_col(source, field.1.start).0 as u32;
-                let ty = Type::new(self, &field.type_)?;
+                let ty = Type::new(self, crate_name, &field.type_)?;
 
                 fields.push(FieldInfo {
                     name: field.name.to_owned(),
@@ -170,7 +170,7 @@ impl<'ctx> CodegenContext<'ctx> {
             let params: Result<Vec<(S<&str>, Type)>, _> = function
                 .params
                 .iter()
-                .map(|(n, t)| Ok((*n, Type::new(self, t)?)))
+                .map(|(n, t)| Ok((*n, Type::new(self, &crate_.name, t)?)))
                 .collect();
             let params = params?;
 
@@ -182,7 +182,7 @@ impl<'ctx> CodegenContext<'ctx> {
             let return_type = function
                 .return_type
                 .as_ref()
-                .map_or(Ok(Type::unit), |t| Type::new(self, t))?;
+                .map_or(Ok(Type::unit), |t| Type::new(self, &crate_.name, t))?;
 
             let mut no_mangle = false;
 

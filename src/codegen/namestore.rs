@@ -175,6 +175,6 @@ impl<'ctx> NameStore<'ctx> {
         crate_
             .store
             .get(*item_name)
-            .ok_or_else(|| codegen::error::undefined_function(item_name))
+            .ok_or_else(|| codegen::error::undefined_item(item_name))
     }
 }

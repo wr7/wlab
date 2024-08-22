@@ -26,8 +26,8 @@ fn _start() {
     std::exit(0);
 }
 
-fn get_messages() -> a::TestStruct {
-    a::TestStruct {
+fn get_messages() -> TestStruct {
+    TestStruct {
         second: "This is the second message",
         first: "This is the first message",
     }

@@ -39,8 +39,6 @@ mod parser;
  *  - Structs
  *       - Add visibility
  *       - Fix structs with out-of-order struct fields (depgraph)
- *       - Do not require absolute path names (ie. in the crate `a`, `a::Foo`
- *           can be referred to as just `Foo`)
  *       - Properly handle recursively-defined types
  *  - Give parser access to source code to further reduce allocations
  *  - Use more efficient representation of ast::Path

@@ -6,7 +6,7 @@ use std::{
 use wllvm::debug_info::DIType;
 
 use crate::{
-    codegen::{self, codegen_unit::CodegenUnit, error, namestore::FieldInfo, CodegenContext},
+    codegen::{codegen_unit::CodegenUnit, error, namestore::FieldInfo, CodegenContext},
     error_handling::{Diagnostic, Spanned as S},
     parser::ast,
 };
@@ -36,7 +36,11 @@ impl Display for Type {
 }
 
 impl Type {
-    pub fn new(cc: &CodegenContext, type_: &S<ast::Path>) -> Result<Self, Diagnostic> {
+    pub fn new(
+        cc: &CodegenContext,
+        crate_name: &str,
+        type_: &S<ast::Path>,
+    ) -> Result<Self, Diagnostic> {
         Ok(match &***type_ {
             [S("str", _)] => Self::str,
             [S("()", _)] => Self::unit,
@@ -45,7 +49,14 @@ impl Type {
                 if let Some(num) = type_.strip_prefix("i").and_then(|n| n.parse::<u32>().ok()) {
                     Self::i(num)
                 } else {
-                    return Err(codegen::error::undefined_type(*type_));
+                    cc.name_store
+                        .get_item_in_crate(crate_name, *type_)?
+                        .as_struct()
+                        .ok_or_else(|| error::not_type(*type_))?;
+
+                    return Ok(Self::Struct {
+                        path: format!("{crate_name}::{}", **type_),
+                    });
                 }
             }
             _ => {
