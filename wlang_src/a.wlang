@@ -17,7 +17,8 @@ fn _start() {
         std::println("9 + 10 isn't 21 \n\n :( ");
     }
 
-    let messages = get_messages();
+    let mut messages = get_messages();
+    messages.second = "This message has been overidden";
 
     std::println(messages.first);
     std::println(messages.second);

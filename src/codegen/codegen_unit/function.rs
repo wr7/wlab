@@ -1,10 +1,6 @@
 use crate::{
     codegen::{
-        self,
-        namestore::NameStoreEntry,
-        scope::Scope,
-        types::{Type, TypedValue},
-        CodegenUnit,
+        self, namestore::NameStoreEntry, scope::Scope, types::Type, values::RValue, CodegenUnit,
     },
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Attribute, Visibility},
@@ -135,7 +131,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         &self,
         block: &ast::CodeBlock,
         scope: &mut Scope<'_, 'ctx>,
-    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+    ) -> Result<RValue<'ctx>, Diagnostic> {
         let mut statements: &[S<ast::Statement>] = &block.body;
         let implicit_return: Option<S<&ast::Expression>>;
 
@@ -158,10 +154,10 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             self.generate_statement(scope, statement.as_sref())?;
         }
 
-        let return_value: TypedValue = implicit_return
-            .map(|r| self.generate_expression(r, scope))
+        let return_value: RValue = implicit_return
+            .map(|r| self.generate_rvalue(r, scope))
             .transpose()?
-            .unwrap_or_else(|| TypedValue {
+            .unwrap_or_else(|| RValue {
                 type_: Type::unit,
                 val: *self.c.core_types.unit.const_(&[]),
             });

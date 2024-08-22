@@ -6,9 +6,9 @@ use std::{
 use llvm_sys::{
     core::{
         LLVMBuildAdd, LLVMBuildAlloca, LLVMBuildAnd, LLVMBuildBr, LLVMBuildCall2, LLVMBuildCondBr,
-        LLVMBuildExtractValue, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul, LLVMBuildNot,
-        LLVMBuildOr, LLVMBuildPhi, LLVMBuildRet, LLVMBuildSDiv, LLVMBuildStore, LLVMBuildSub,
-        LLVMBuildUDiv, LLVMBuildUnreachable, LLVMBuildXor, LLVMBuildZExt,
+        LLVMBuildExtractValue, LLVMBuildGEP2, LLVMBuildICmp, LLVMBuildLoad2, LLVMBuildMul,
+        LLVMBuildNot, LLVMBuildOr, LLVMBuildPhi, LLVMBuildRet, LLVMBuildSDiv, LLVMBuildStore,
+        LLVMBuildSub, LLVMBuildUDiv, LLVMBuildUnreachable, LLVMBuildXor, LLVMBuildZExt,
         LLVMCountStructElementTypes, LLVMDisposeBuilder, LLVMGetInsertBlock,
         LLVMPositionBuilderAtEnd, LLVMSetCurrentDebugLocation2,
     },
@@ -243,6 +243,27 @@ impl<'ctx> Builder<'ctx> {
                 name.as_ptr(),
             ))
         })
+    }
+
+    pub fn build_gep(
+        &self,
+        type_: Type<'ctx>,
+        ptr: PtrValue<'ctx>,
+        indices: &[IntValue<'ctx>],
+        name: &CStr,
+    ) -> PtrValue<'ctx> {
+        let indices_ptr = indices.as_ptr().cast::<*mut LLVMValue>().cast_mut();
+
+        unsafe {
+            PtrValue::from_raw(LLVMBuildGEP2(
+                self.ptr,
+                type_.raw(),
+                ptr.raw(),
+                indices_ptr,
+                indices.len() as u32,
+                name.as_ptr(),
+            ))
+        }
     }
 
     pub fn build_phi(&self, type_: Type<'ctx>, name: &CStr) -> PhiValue<'ctx> {

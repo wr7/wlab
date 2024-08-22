@@ -148,22 +148,28 @@ fn try_parse_literal<'src>(tokens: &TokenStream<'src>) -> Option<Expression<'src
 
 /// A variable assignment. Eg `foo = bar * (fizz + buzz)`
 fn try_parse_assign<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Statement<'src>>> {
-    let Some(([S(Token::Identifier(var_name), name_span), S(T!("="), equal_span)], tokens)) =
-        tokens.split_first_chunk::<2>()
+    if matches!(tokens.first(), Some(S(T!("let"), _))) {
+        return Ok(None);
+    }
+
+    let Some((equal_sign, equals_idx)) = NonBracketedIter::new(tokens)
+        .find(|t| ***t == T!("="))
+        .and_then(|t| Some(t).zip(tokens.elem_offset(t)))
     else {
         return Ok(None);
     };
 
-    let Some(val) = try_parse_expr(tokens)? else {
-        return Err(error::expected_expression(equal_span.span_after()));
-    };
+    let lhs_tokens = &tokens[..equals_idx];
+    let lhs = try_parse_expr(lhs_tokens)?
+        .ok_or_else(|| error::expected_expression(equal_sign.1.span_at()))?;
+    let lhs = S(lhs, error_handling::span_of(lhs_tokens).unwrap());
 
-    let span = error_handling::span_of(tokens).unwrap();
+    let rhs_tokens = &tokens[equals_idx + 1..];
+    let rhs = try_parse_expr(rhs_tokens)?
+        .ok_or_else(|| error::expected_expression(equal_sign.1.span_after()))?;
+    let rhs = S(rhs, error_handling::span_of(rhs_tokens).unwrap());
 
-    Ok(Some(Statement::Assign(
-        S(var_name, *name_span),
-        Box::new(S(val, span)),
-    )))
+    Ok(Some(Statement::Assign { lhs, rhs }))
 }
 
 /// A variable initialization. Eg `let foo = bar * (fizz + buzz)`

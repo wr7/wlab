@@ -45,7 +45,10 @@ pub enum Statement<'src> {
         value: Box<S<Expression<'src>>>,
         mutable: bool,
     },
-    Assign(S<&'src str>, Box<S<Expression<'src>>>),
+    Assign {
+        lhs: S<Expression<'src>>,
+        rhs: S<Expression<'src>>,
+    },
     Function(Function<'src>),
     Struct(Struct<'src>),
 }

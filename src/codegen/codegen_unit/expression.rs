@@ -2,25 +2,27 @@ use crate::{
     codegen::{
         self,
         codegen_unit::CodegenUnit,
+        error,
         scope::Scope,
-        types::{Type, TypedValue},
+        types::Type,
+        values::{GenericValue, MutValue, RValue},
     },
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Expression, Literal, Path, Visibility},
     util,
 };
 
-use wllvm::value::{Linkage, PtrValue, ValueEnum};
+use wllvm::value::{Linkage, ValueEnum};
 use wutil::Span;
 
 mod struct_;
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
-    pub fn generate_expression(
+    pub fn generate_rvalue(
         &self,
         expression: S<&ast::Expression>,
         scope: &mut Scope<'_, 'ctx>,
-    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+    ) -> Result<RValue<'ctx>, Diagnostic> {
         let (line_no, col_no) = util::line_and_col(self.source, expression.1.start);
 
         let dbg_location = self.c.context.debug_location(
@@ -34,11 +36,11 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         match *expression {
             Expression::Identifier(ident) => match *ident {
-                "true" => Ok(TypedValue {
+                "true" => Ok(RValue {
                     val: self.c.core_types.bool.const_(1, false).into(),
                     type_: Type::bool,
                 }),
-                "false" => Ok(TypedValue {
+                "false" => Ok(RValue {
                     val: self.c.core_types.bool.const_(0, false).into(),
                     type_: Type::bool,
                 }),
@@ -47,29 +49,13 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                         return Err(codegen::error::undefined_variable(S(ident, expression.1)));
                     };
 
-                    Ok(if var.mutable {
-                        // mutable variables are indirectly stored as pointers
-                        let Ok(ptr) = PtrValue::try_from(var.value.val) else {
-                            unreachable!()
-                        };
-
-                        TypedValue {
-                            val: self.builder.build_load(
-                                var.value.type_.llvm_type(self.c),
-                                ptr,
-                                c"",
-                            ),
-                            type_: var.value.type_.clone(),
-                        }
-                    } else {
-                        var.value.clone()
-                    })
+                    Ok(var.value.clone().into_rvalue(self))
                 }
             },
             Expression::Literal(lit) => self.generate_literal(S(lit, expression.1)),
             Expression::BinaryOperator(a_expr, operator, b_expr) => {
-                let a = self.generate_expression(a_expr.as_sref(), scope)?;
-                let b = self.generate_expression(b_expr.as_sref(), scope)?;
+                let a = self.generate_rvalue(a_expr.as_sref(), scope)?;
+                let b = self.generate_rvalue(b_expr.as_sref(), scope)?;
 
                 a.generate_operation(&self.builder, a_expr.1, *operator, &S(b, b_expr.1))
             }
@@ -92,15 +78,57 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         }
     }
 
+    pub fn generate_mutvalue(
+        &self,
+        expression: S<&ast::Expression>,
+        scope: &mut Scope<'_, 'ctx>,
+    ) -> Result<MutValue<'ctx>, Diagnostic> {
+        let (line_no, col_no) = util::line_and_col(self.source, expression.1.start);
+
+        let dbg_location = self.c.context.debug_location(
+            line_no as u32,
+            col_no as u32,
+            self.debug_context.scope,
+            None,
+        );
+
+        self.builder.set_debug_location(dbg_location);
+
+        match *expression {
+            Expression::Identifier(ident) => match *ident {
+                "true" | "false" => None,
+                _ => {
+                    let Some(var) = scope.get_variable(ident) else {
+                        return Err(codegen::error::undefined_variable(S(ident, expression.1)));
+                    };
+
+                    let GenericValue::MutValue(mval) = &var.value else {
+                        return Err(error::modified_immutable_variable(
+                            S(ident, var.name_span),
+                            expression.1,
+                        ));
+                    };
+
+                    Some(Ok(mval.clone()))
+                }
+            },
+            Expression::FieldAccess(lhs, field) => {
+                Some(self.generate_mutable_field_access(scope, lhs, field))
+            }
+            _ => None,
+        }
+        .ok_or_else(|| error::modify_rvalue(expression.1))?
+    }
+
     fn generate_if(
         &self,
         scope: &mut Scope<'_, 'ctx>,
         condition: &S<ast::Expression>,
         block: S<&ast::CodeBlock>,
         else_block: &Option<S<ast::CodeBlock>>,
-    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+    ) -> Result<RValue<'ctx>, Diagnostic> {
         let condition_span = condition.1;
-        let condition = self.generate_expression(condition.as_sref(), scope)?;
+        let condition = self.generate_rvalue(condition.as_sref(), scope)?;
 
         if condition.type_ != Type::bool {
             return Err(codegen::error::unexpected_type(
@@ -129,7 +157,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         self.builder.build_br(continuing_bb);
 
         let else_bb;
-        let else_retval: Option<TypedValue<'ctx>> = if let Some(else_block) = else_block {
+        let else_retval: Option<RValue<'ctx>> = if let Some(else_block) = else_block {
             let else_bb_ = self.c.context.insert_basic_block_after(if_bb, c"");
             else_bb = Some(else_bb_);
 
@@ -167,12 +195,12 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 &[if_bb, else_bb.unwrap()],
             );
 
-            TypedValue {
+            RValue {
                 type_: if_retval.type_,
                 val: *phi,
             }
         } else {
-            TypedValue {
+            RValue {
                 type_: Type::unit,
                 val: *self.c.core_types.unit.const_(&[]),
             }
@@ -181,14 +209,14 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         Ok(retval)
     }
 
-    fn generate_literal(&self, literal: S<&ast::Literal>) -> Result<TypedValue<'ctx>, Diagnostic> {
+    fn generate_literal(&self, literal: S<&ast::Literal>) -> Result<RValue<'ctx>, Diagnostic> {
         match *literal {
             Literal::Number(num) => self.generate_number_literal(num, literal.1),
             Literal::String(str) => Ok(self.generate_string_literal(str)),
         }
     }
 
-    fn generate_string_literal(&self, lit: &str) -> TypedValue<'ctx> {
+    fn generate_string_literal(&self, lit: &str) -> RValue<'ctx> {
         let string = self.c.context.const_string(lit, false);
 
         let string_global = self.module.add_global(
@@ -203,17 +231,13 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let string_ptr = string_global.as_ptr();
         let str_len = self.c.core_types.isize.const_(lit.len() as u64, false);
 
-        TypedValue {
+        RValue {
             val: *self.c.core_types.str.const_(&[*string_ptr, *str_len]),
             type_: Type::str,
         }
     }
 
-    fn generate_number_literal(
-        &self,
-        lit: &str,
-        span: Span,
-    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+    fn generate_number_literal(&self, lit: &str, span: Span) -> Result<RValue<'ctx>, Diagnostic> {
         let idx = lit.find(|c: char| !c.is_ascii_digit()).unwrap_or(lit.len());
         let suffix = &lit[idx..];
 
@@ -228,7 +252,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             )
         };
 
-        Ok(TypedValue {
+        Ok(RValue {
             val: *self
                 .c
                 .context
@@ -245,7 +269,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         scope: &mut Scope<'_, 'ctx>,
         fn_name: &S<Path>,
         arguments: &[S<ast::Expression>],
-    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+    ) -> Result<RValue<'ctx>, Diagnostic> {
         let function = if let [fn_name] = &***fn_name {
             self.c
                 .name_store
@@ -297,7 +321,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let mut metadata_arguments: Vec<wllvm::Value> = Vec::with_capacity(arguments.len());
 
         for (i, arg) in arguments.iter().enumerate() {
-            let arg = self.generate_expression(arg.as_sref(), scope)?;
+            let arg = self.generate_rvalue(arg.as_sref(), scope)?;
 
             metadata_arguments.push(arg.val);
 
@@ -315,7 +339,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .builder
             .build_fn_call(mod_function, &metadata_arguments, c"");
 
-        Ok(TypedValue {
+        Ok(RValue {
             val: ret_val,
             type_: function.signature.return_type,
         })

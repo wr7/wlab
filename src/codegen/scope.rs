@@ -4,15 +4,16 @@ use wllvm::value::FnValue;
 use wutil::Span;
 
 use crate::{
-    codegen::types::{Type, TypedValue},
+    codegen::{
+        types::Type,
+        values::{GenericValue, RValue},
+    },
     error_handling::Spanned as S,
 };
 
 pub struct ScopeVariable<'ctx> {
-    /// NOTE: if variable is mutable, `value.val` is actually a mutable pointer of `value.type_`
-    pub value: TypedValue<'ctx>,
+    pub value: GenericValue<'ctx>,
     pub name_span: Span,
-    pub mutable: bool,
 }
 
 pub struct Scope<'p, 'ctx> {
@@ -45,24 +46,22 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
 
             self.create_variable(
                 param.0,
-                TypedValue {
+                GenericValue::RValue(RValue {
                     val,
                     type_: param.1.clone(),
-                },
-                false,
+                }),
             );
         }
 
         self
     }
 
-    pub fn create_variable(&mut self, name: S<&str>, value: TypedValue<'ctx>, mutable: bool) {
+    pub fn create_variable(&mut self, name: S<&str>, value: GenericValue<'ctx>) {
         self.variables.insert(
             name.0.to_owned(),
             ScopeVariable {
                 value,
                 name_span: name.1,
-                mutable,
             },
         );
     }

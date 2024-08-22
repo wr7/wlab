@@ -14,12 +14,20 @@ pub fn undefined_variable(name: S<&str>) -> Diagnostic {
         [Hint::new_error("", name.1)],
     }
 }
-pub fn assign_immutable_variable(def_name: S<&str>, mutate_span: Span) -> Diagnostic {
+pub fn modified_immutable_variable(def_name: S<&str>, mutate_span: Span) -> Diagnostic {
     d! {
-        format!("Cannot assign immutable variable `{}`", &*def_name),
+        format!("Cannot modify immutable variable `{}`", &*def_name),
         [
             Hint::new_info(format!("Variable declared here; try replacing `{0}` with `mut {0}`", *def_name), def_name.1),
-            Hint::new_error("Variable mutated here", mutate_span),
+            Hint::new_error("Variable modified here", mutate_span),
+        ],
+    }
+}
+pub fn modify_rvalue(rvalue: Span) -> Diagnostic {
+    d! {
+        "Cannot modify rvalue; try storing it in a mutable variable first",
+        [
+            Hint::new_error("", rvalue),
         ],
     }
 }

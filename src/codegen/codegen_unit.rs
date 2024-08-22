@@ -1,14 +1,16 @@
-use wllvm::{value::PtrValue, Builder, Module as LlvmModule};
+use wllvm::{Builder, Module as LlvmModule};
 
 use crate::{
     codegen::{
-        codegen_context::CodegenContext, codegen_unit::debug::DebugContext, error, scope::Scope,
+        codegen_context::{CodegenContext, Crate},
+        codegen_unit::debug::DebugContext,
+        error,
+        scope::Scope,
+        values::{GenericValue, MutValue},
     },
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Statement},
 };
-
-use super::codegen_context::Crate;
 
 pub(super) mod debug;
 mod expression;
@@ -52,52 +54,43 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     ) -> Result<(), Diagnostic> {
         match *statement {
             Statement::Expression(expr) => {
-                self.generate_expression(S(expr, statement.1), scope)?;
+                self.generate_rvalue(S(expr, statement.1), scope)?;
             }
             Statement::Let {
                 name,
                 value,
                 mutable,
             } => {
-                let mut val = self.generate_expression(value.as_sref(), scope)?;
+                let val = self.generate_rvalue(value.as_sref(), scope)?;
 
-                if *mutable {
+                let val = if *mutable {
                     let ptr = self.builder.build_alloca(val.val.type_(), c"");
                     self.builder.build_store(val.val, ptr);
 
-                    val.val = *ptr;
-                }
-
-                scope.create_variable(*name, val, *mutable);
-            }
-            Statement::Struct(_) => todo!(),
-            Statement::Assign(var_name, val) => {
-                let val_span = val.1;
-                let val = self.generate_expression(val.as_sref(), scope)?;
-                let variable = scope
-                    .get_variable(**var_name)
-                    .ok_or_else(|| error::undefined_variable(*var_name))?;
-
-                if !variable.mutable {
-                    return Err(error::assign_immutable_variable(
-                        S(**var_name, variable.name_span),
-                        statement.1,
-                    ));
-                }
-
-                if variable.value.type_ != val.type_ {
-                    return Err(error::unexpected_type(
-                        val_span,
-                        &variable.value.type_,
-                        &val.type_,
-                    ));
-                }
-
-                let Ok(var_ptr) = PtrValue::try_from(variable.value.val) else {
-                    unreachable!()
+                    GenericValue::MutValue(MutValue {
+                        ptr,
+                        type_: val.type_,
+                    })
+                } else {
+                    GenericValue::RValue(val)
                 };
 
-                self.builder.build_store(val.val, var_ptr);
+                scope.create_variable(*name, val);
+            }
+            Statement::Struct(_) => todo!(),
+            Statement::Assign { lhs, rhs } => {
+                let lhs_val = self.generate_mutvalue(lhs.as_sref(), scope)?;
+                let rhs_val = self.generate_rvalue(rhs.as_sref(), scope)?;
+
+                if lhs_val.type_ != rhs_val.type_ {
+                    return Err(error::unexpected_type(
+                        rhs.1,
+                        &lhs_val.type_,
+                        &rhs_val.type_,
+                    ));
+                }
+
+                self.builder.build_store(rhs_val.val, lhs_val.ptr);
             }
             Statement::Function(_) => todo!(),
         }

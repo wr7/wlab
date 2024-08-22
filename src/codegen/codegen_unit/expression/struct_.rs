@@ -6,7 +6,8 @@ use crate::{
         codegen_unit::CodegenUnit,
         error,
         scope::Scope,
-        types::{Type, TypedValue},
+        types::Type,
+        values::{MutValue, RValue},
     },
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Expression},
@@ -19,9 +20,9 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         scope: &mut Scope<'_, 'ctx>,
         lhs: &S<Expression>,
         field: &S<&str>,
-    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+    ) -> Result<RValue<'ctx>, Diagnostic> {
         let lhs_span = lhs.1;
-        let lhs = self.generate_expression(lhs.as_sref(), scope)?;
+        let lhs = self.generate_rvalue(lhs.as_sref(), scope)?;
 
         let Type::Struct { path } = lhs.type_ else {
             return Err(codegen::error::non_struct_element_access(
@@ -51,8 +52,45 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .build_extract_value(lhs, idx as u32, c"")
             .unwrap();
 
-        Ok(TypedValue {
+        Ok(RValue {
             val,
+            type_: struct_info.fields[idx].ty.clone(),
+        })
+    }
+
+    pub fn generate_mutable_field_access(
+        &self,
+        scope: &mut Scope<'_, 'ctx>,
+        lhs: &S<Expression>,
+        field: &S<&str>,
+    ) -> Result<MutValue<'ctx>, Diagnostic> {
+        let lhs_span = lhs.1;
+        let lhs = self.generate_mutvalue(lhs.as_sref(), scope)?;
+        let Type::Struct { path } = &lhs.type_ else {
+            return Err(error::non_struct_element_access(
+                lhs_span, &lhs.type_, field,
+            ));
+        };
+        let struct_info = self
+            .c
+            .name_store
+            .get_item_from_string(path)
+            .as_struct()
+            .unwrap();
+        let idx = struct_info
+            .fields
+            .iter()
+            .position(|f| f.name == **field)
+            .ok_or_else(|| error::invalid_field(path, *field))?;
+        let isize = self.c.core_types.isize;
+        let field_ptr = self.builder.build_gep(
+            lhs.type_.llvm_type(self.c),
+            lhs.ptr,
+            &[isize.const_(0, false), isize.const_(idx as u64, false)],
+            c"",
+        );
+        Ok(MutValue {
+            ptr: field_ptr,
             type_: struct_info.fields[idx].ty.clone(),
         })
     }
@@ -62,7 +100,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         scope: &mut Scope<'_, 'ctx>,
         name: &S<util::MaybeVec<S<&str>>>,
         fields: &Vec<S<ast::StructInitializerField>>,
-    ) -> Result<TypedValue<'ctx>, Diagnostic> {
+    ) -> Result<RValue<'ctx>, Diagnostic> {
         let type_ = Type::new(self.c, name)?;
 
         let Type::Struct { path } = &type_ else {
@@ -78,7 +116,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .as_struct()
             .unwrap();
 
-        let mut assigned_fields = Vec::<S<(S<&str>, S<TypedValue<'ctx>>)>>::new();
+        let mut assigned_fields = Vec::<S<(S<&str>, S<RValue<'ctx>>)>>::new();
 
         for field in fields {
             let idx = match assigned_fields.binary_search_by(|S(f, _)| f.0.cmp(&field.name)) {
@@ -92,7 +130,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
             let mut scope = Scope::new(scope);
             let val = S(
-                self.generate_expression(field.val.as_sref(), &mut scope)?,
+                self.generate_rvalue(field.val.as_sref(), &mut scope)?,
                 field.val.1,
             );
 
@@ -126,6 +164,6 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         let val = *llvm_type.const_(&field_values);
 
-        Ok(TypedValue { val, type_ })
+        Ok(RValue { val, type_ })
     }
 }

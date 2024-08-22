@@ -14,6 +14,7 @@ mod intrinsics;
 mod namestore;
 mod scope;
 mod types;
+mod values;
 
 use codegen_unit::CodegenUnit;
 
