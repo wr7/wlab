@@ -10,8 +10,7 @@ struct TestStruct {
     second: str,
 };
 
-#[no_mangle]
-fn _start() {
+fn main() {
     std::println("hello from wlang!");
     if 9 + 10 != 21 { // single line comment
         std::println("9 + 10 isn't 21 \n\n :( ");
@@ -22,8 +21,6 @@ fn _start() {
 
     std::println(messages.first);
     std::println(messages.second);
-
-    std::exit(0);
 }
 
 fn get_messages() -> TestStruct {

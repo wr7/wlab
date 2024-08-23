@@ -34,6 +34,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .c
             .name_store
             .get_item_from_string(&path)
+            .unwrap()
             .as_struct()
             .unwrap();
 
@@ -75,6 +76,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .c
             .name_store
             .get_item_from_string(path)
+            .unwrap()
             .as_struct()
             .unwrap();
         let idx = struct_info
@@ -113,6 +115,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .c
             .name_store
             .get_item_from_string(path)
+            .unwrap()
             .as_struct()
             .unwrap();
 

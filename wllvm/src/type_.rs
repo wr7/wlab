@@ -115,6 +115,9 @@ specialized_types! {
     /// An LLVM function type reference
     pub struct FnType @ LLVMFunctionTypeKind;
 
+    /// An LLVM void type reference
+    pub struct VoidType @ LLVMVoidTypeKind;
+
     /// An LLVM struct type reference
     pub struct StructType: StructValue @ LLVMStructTypeKind;
 

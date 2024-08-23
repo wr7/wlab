@@ -15,9 +15,10 @@ use crate::{
 pub(super) mod debug;
 mod expression;
 mod function;
+mod main;
 
 pub struct CodegenUnit<'m, 'ctx> {
-    pub(super) c: &'m mut CodegenContext<'ctx>,
+    pub(super) c: &'m CodegenContext<'ctx>,
     pub(super) module: &'m LlvmModule<'ctx>,
     pub(super) debug_context: DebugContext<'ctx>,
     pub(super) builder: Builder<'ctx>,
@@ -27,7 +28,7 @@ pub struct CodegenUnit<'m, 'ctx> {
 
 impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
     pub fn new(
-        c: &'m mut CodegenContext<'ctx>,
+        c: &'m CodegenContext<'ctx>,
         crate_: &'m Crate<'ctx>,
         file_no: usize,
         source: &'m str,

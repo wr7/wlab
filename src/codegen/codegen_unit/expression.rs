@@ -298,7 +298,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             todo!("modules are not implemented yet")
         };
 
-        let fn_name = &function.name;
+        let fn_name = function.function.name();
 
         // Add a declaration to this module if it doesn't already exist //
         let mod_function = self.module.get_function(fn_name).unwrap_or_else(|| {

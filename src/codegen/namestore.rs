@@ -20,7 +20,6 @@ pub struct FunctionInfo<'ctx> {
     pub signature: FunctionSignature,
     pub function: FnValue<'ctx>,
     pub visibility: ast::Visibility,
-    pub name: String,
 }
 
 pub struct FieldInfo {
@@ -148,7 +147,7 @@ impl<'ctx> NameStore<'ctx> {
         Ok(item)
     }
 
-    pub fn get_item_from_string(&self, key: &str) -> &NameStoreEntry<'ctx> {
+    pub fn get_item_from_string(&self, key: &str) -> Option<&NameStoreEntry<'ctx>> {
         let (parents, funcname) = key.rsplit_once("::").unwrap_or((&key[0..0], key));
 
         let mut parent = &self.store;
@@ -156,11 +155,11 @@ impl<'ctx> NameStore<'ctx> {
         for pmod in parents.split("::") {
             match parent.get(pmod) {
                 Some(NameStoreEntry::Module(store)) => parent = &store.store,
-                _ => unreachable!(),
+                _ => return None,
             }
         }
 
-        &parent[funcname]
+        parent.get(funcname)
     }
 
     pub fn get_item_in_crate(

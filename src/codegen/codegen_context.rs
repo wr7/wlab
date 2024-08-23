@@ -11,6 +11,7 @@ use crate::{
     codegen::{
         self,
         codegen_unit::CodegenUnit,
+        error,
         namestore::{FunctionInfo, FunctionSignature, NameStore},
         scope::Scope,
         types::Type,
@@ -37,6 +38,8 @@ pub struct CodegenContext<'ctx> {
     pub(super) name_store: NameStore<'ctx>,
     pub(super) files: Vec<String>,
     pub(super) params: &'ctx cmdline::Parameters,
+    /// The crate that contains the `main` function
+    pub(super) main_crate: Option<String>,
 }
 
 impl<'ctx> CodegenContext<'ctx> {
@@ -71,6 +74,7 @@ impl<'ctx> CodegenContext<'ctx> {
             name_store,
             files,
             params,
+            main_crate: None,
         }
     }
 }
@@ -224,13 +228,30 @@ impl<'ctx> CodegenContext<'ctx> {
                     },
                     function: ll_function,
                     visibility: function.visibility,
-                    name: fn_name.into(),
                 },
             ) {
                 return Err(codegen::error::item_already_defined(S(
                     function.name,
                     function.1,
                 )));
+            }
+
+            if function.name == "main" {
+                if let Some(other_crate) = &self.main_crate {
+                    return Err(error::duplicate_main(&other_crate, crate_name, function.1));
+                }
+
+                self.main_crate = Some(crate_name.to_owned());
+
+                if !function.params.is_empty() {
+                    return Err(error::main_arguments(function.params.1));
+                }
+
+                if let Some(return_type) = &function.return_type {
+                    if return_type.get(0).is_some_and(|t| **t != "()") {
+                        return Err(error::main_return_type(return_type.1));
+                    }
+                }
             }
         }
 
@@ -252,6 +273,14 @@ impl<'ctx> CodegenContext<'ctx> {
 
         for function in &ast.functions {
             generator.generate_function(function, &mut scope)?;
+        }
+
+        if self
+            .main_crate
+            .as_deref()
+            .is_some_and(|n| n == &crate_.name)
+        {
+            generator.generate_entrypoint()?;
         }
 
         generator.debug_context.builder.finalize();

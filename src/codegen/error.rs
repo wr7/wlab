@@ -288,3 +288,38 @@ pub fn missing_field(field: &str, struct_name: S<&str>) -> Diagnostic {
         ]
     }
 }
+
+pub fn duplicate_main(other_main: &str, this_crate: &str, span: Span) -> Diagnostic {
+    d! {
+        format!("`main` function defined twice: first defined in `{other_main}` then in `{this_crate}`"),
+        [ Hint::new_error("", span) ]
+    }
+}
+
+pub fn main_arguments(span: Span) -> Diagnostic {
+    d! {
+        "main function cannot have arguments",
+        [ Hint::new_error("", span) ]
+    }
+}
+
+pub fn no_exit(crate_name: &str) -> Diagnostic {
+    d! {
+        format!("`std::exit(i32)` does not exist; this is required for `{crate_name}::main`"),
+        []
+    }
+}
+
+pub fn exit_arguments() -> Diagnostic {
+    d! {
+        "if a `main` function exists, `std::exit` must be have parameters `(i32)`",
+        []
+    }
+}
+
+pub fn main_return_type(span: Span) -> Diagnostic {
+    d! {
+        "main function must return `()` (unit) type",
+        [ Hint::new_error("", span) ]
+    }
+}

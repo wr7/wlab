@@ -90,6 +90,7 @@ impl Type {
                 let struct_info = context
                     .name_store
                     .get_item_from_string(path)
+                    .unwrap()
                     .as_struct()
                     .unwrap();
 

@@ -8,7 +8,7 @@ use llvm_sys::{
         LLVMConstStringInContext, LLVMConstStructInContext, LLVMContextCreate, LLVMContextDispose,
         LLVMCreateBuilderInContext, LLVMFunctionType, LLVMInsertBasicBlockInContext,
         LLVMIntTypeInContext, LLVMModuleCreateWithNameInContext, LLVMMoveBasicBlockAfter,
-        LLVMPointerTypeInContext, LLVMStructTypeInContext,
+        LLVMPointerTypeInContext, LLVMStructTypeInContext, LLVMVoidTypeInContext,
     },
     debuginfo::LLVMDIBuilderCreateDebugLocation,
     prelude::LLVMBool,
@@ -19,7 +19,7 @@ use llvm_sys::{
 use crate::{
     debug_info::{DILocation, DIScope},
     target::TargetData,
-    type_::{FnType, IntType, PtrType, StructType},
+    type_::{FnType, IntType, PtrType, StructType, VoidType},
     util,
     value::{ArrayValue, StructValue, Value},
     BasicBlock, Builder, Module, Type,
@@ -163,6 +163,10 @@ impl Context {
                 is_var_arg as LLVMBool,
             ))
         }
+    }
+
+    pub fn void_type<'ctx>(&'ctx self) -> VoidType<'ctx> {
+        unsafe { VoidType::<'ctx>::from_raw(LLVMVoidTypeInContext(self.ptr)) }
     }
 
     pub fn int_type<'ctx>(&'ctx self, num_bits: u32) -> IntType<'ctx> {

@@ -103,6 +103,7 @@ impl<'ctx> DebugContext<'ctx> {
                 let struct_info =
                     cu.c.name_store
                         .get_item_from_string(path)
+                        .unwrap()
                         .as_struct()
                         .unwrap();
 

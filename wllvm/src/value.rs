@@ -9,8 +9,8 @@ use std::{
 
 use llvm_sys::{
     core::{
-        LLVMAddIncoming, LLVMAppendBasicBlockInContext, LLVMCountParams, LLVMGetLinkage,
-        LLVMGetParam, LLVMGetTypeContext, LLVMGetValueKind, LLVMGetValueName2,
+        LLVMAddAttributeAtIndex, LLVMAddIncoming, LLVMAppendBasicBlockInContext, LLVMCountParams,
+        LLVMGetLinkage, LLVMGetParam, LLVMGetTypeContext, LLVMGetValueKind, LLVMGetValueName2,
         LLVMGlobalGetValueType, LLVMIsDeclaration, LLVMIsGlobalConstant, LLVMPrintValueToString,
         LLVMSetGlobalConstant, LLVMSetInitializer, LLVMSetLinkage, LLVMSetValueName2, LLVMTypeOf,
     },
@@ -20,6 +20,7 @@ use llvm_sys::{
 };
 
 use crate::{
+    attribute::Attribute,
     basic_block::BasicBlock,
     debug_info::DISubprogram,
     type_::{ArrayType, FnType, IntType, PtrType, StructType},
@@ -130,6 +131,10 @@ impl<'ctx> FnValue<'ctx> {
                 name.as_ptr(),
             ))
         }
+    }
+
+    pub fn add_attribute(&self, attr: Attribute<'ctx>) {
+        unsafe { LLVMAddAttributeAtIndex(self.ptr, u32::MAX, attr.raw()) }
     }
 
     pub fn num_params(&self) -> u32 {
