@@ -55,7 +55,10 @@ fn handle_io_error<T>(err: std::io::Error) -> T {
 }
 
 fn main() {
-    let params = cmdline::Parameters::args().unwrap();
+    let params = cmdline::Parameters::parse().unwrap_or_else(|err| {
+        eprintln!("\x1b[1;31mwlab error: \x1b[m{err}");
+        std::process::exit(1)
+    });
 
     if params.input_files.is_empty() {
         eprintln!("wlab: at-least one input file must be specified");

@@ -9,10 +9,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
 
 [[package]]
-name = "argwerk"
-version = "0.20.4"
+name = "argtea"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d1372f0ab9e3cf157e61da27ef17af8d98617fc556373d1d08662f99ae996c"
+checksum = "584f21bc91d6cbb495180d1fbc98e58c9935d4748ae44c5d99df9b717df79c5c"
 
 [[package]]
 name = "cc"
@@ -62,7 +62,7 @@ checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 name = "wlab"
 version = "0.1.0"
 dependencies = [
- "argwerk",
+ "argtea",
  "wllvm",
  "wutil",
 ]
