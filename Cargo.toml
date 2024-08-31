@@ -7,6 +7,6 @@ edition = "2021"
 panic = "abort"
 
 [dependencies]
-argtea = "0.1.1"
+argtea = "1.0.0"
 wllvm = { version = "0.1.0", path = "wllvm" }
 wutil = "0.0.6"

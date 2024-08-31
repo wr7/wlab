@@ -21,34 +21,34 @@ argtea_impl! {
             eprint!("{}", Self::HELP);
 
             std::process::exit(0);
-        },
+        }
 
         /// Sets the output directory to write the generated files to.
-        ("--output-directory" | "--output" | "--out" | "-o", output_dir) => {
+        ("--output-directory" | "--output-dir" | "--output" | "-o", output_dir) => {
             out_dir = Cow::Owned(
                 output_dir.ok_or("expected output directory")?
             );
-        },
+        }
 
         /// Disables all compiler optimization
         ("-O0") => {
             opt_level = OptLevel::None;
-        },
+        }
 
         /// Sets optimization level to 1.
         ("-O1") => {
             opt_level = OptLevel::Less;
-        },
+        }
 
         /// Sets optimization level to 2 (default).
         ("-O2") => {
             opt_level = OptLevel::Default;
-        },
+        }
 
         /// Sets optimization level to 3 (maximum).
         ("-O3") => {
             opt_level = OptLevel::Aggressive;
-        },
+        }
 
         /// Generates a `.lex` file for each input.
         ///
@@ -57,12 +57,12 @@ argtea_impl! {
         /// extention removed if present.
         ("--lex" | "-l") => {
             lex_files = true;
-        },
+        }
 
         /// Don't generate a `.lex` file for each input (default).
-        ("--dont-lex" | "--no-lex" | "-nl") => {
+        ("--dont-lex" | "--no-lex") => {
             lex_files = false;
-        },
+        }
 
         /// Generates a `.ast` (Abstract Syntax Tree) file for each input.
         ///
@@ -71,43 +71,43 @@ argtea_impl! {
         /// extention removed if present.
         ("--ast" | "--parse" | "-a") => {
             generate_ast = true;
-        },
+        }
 
         /// Don't generate a `.ast` (Abstract Syntax Tree) file for each input
         /// (default).
-        ("--no-ast" | "--dont-parse" | "-na") => {
+        ("--no-ast" | "--dont-parse") => {
             generate_ast = false;
-        },
+        }
 
         /// Generates a `.ll` LLVM IR file for each input.
         ("--llvm-ir" | "--ir" | "-i") => {
             generate_ir = true;
-        },
+        }
 
         /// Dont generate a `.ll` LLVM IR file for each input (default).
-        ("--no-llvm-ir" | "--no-ir" | "-ni") => {
+        ("--no-llvm-ir" | "--no-ir") => {
             generate_ir = false;
-        },
+        }
 
         /// Generate a `.asm` assembly file for each input.
         ("--assembly" | "--asm" | "-S") => {
             generate_asm = true;
-        },
+        }
 
         /// Don't generate a `.asm` assembly file for each input (default).
-        ("--no-assembly" | "--no-asm" | "-nS") => {
+        ("--no-assembly" | "--no-asm") => {
             generate_asm = false;
-        },
+        }
 
         /// Generate a `.o` object file for each input (default).
         ("--object" | "-s") => {
             generate_object = true;
-        },
+        }
 
         /// Don't generate a `.o` object file for each input.
-        ("--object" | "-s") => {
+        ("--no-object") => {
             generate_object = false;
-        },
+        }
 
         /// Input files
         (input_file) => {
@@ -115,7 +115,7 @@ argtea_impl! {
                 return Err(format!("invalid flag `\x1b[1m{input_file}\x1b[m`").into());
             }
             input_files.push(input_file);
-        },
+        }
     }
 
     impl Parameters {
