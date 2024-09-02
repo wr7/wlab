@@ -1,0 +1,31 @@
+#![declare_crate(test)]
+
+fn main() {
+	if true {
+		std::println("a");
+	} else {
+		std::println("unreachable");
+	}
+
+	if (if false {false} else {true}) {
+		std::println("b");
+	} else {
+		std::println("unreachable");
+	}
+
+	if false {
+		std::println("unreachable");
+	} else if false {
+		std::println("unreachable");
+	} else {
+		std::println("c");
+	}
+
+	if false {
+		std::println("unreachable");
+	} else if true {
+		std::println("d");
+	} else {
+		std::println("unreachable");
+	}
+}

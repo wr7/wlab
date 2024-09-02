@@ -62,11 +62,12 @@ pub fn try_parse_if_from_front<'a, 'src>(
     };
 
     if let Some(S(T!("if"), _)) = remaining_tokens.get(1) {
+        let else_if_span = error_handling::span_of(&remaining_tokens[1..]).unwrap();
+
         let Some((else_if, remaining_tokens)) = try_parse_if_from_front(&remaining_tokens[1..])?
         else {
             unreachable!()
         };
-        let else_if_span = error_handling::span_of(&remaining_tokens[1..]).unwrap();
 
         let else_block = CodeBlock {
             body: vec![S(Statement::Expression(else_if), else_if_span)],

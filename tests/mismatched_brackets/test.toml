@@ -1,0 +1,3 @@
+name = "mismatched_brackets"
+
+should_fail = true

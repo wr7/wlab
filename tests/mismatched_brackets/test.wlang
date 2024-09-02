@@ -1,0 +1,11 @@
+#![declare_crate(test)]
+
+fn do_something() {
+	
+}
+
+fn test() {
+	if true {
+		do_something();
+	}
+)

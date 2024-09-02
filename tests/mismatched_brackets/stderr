@@ -1,0 +1,18 @@
+
+
+[m Failed to parse file: mismatched brackets
+
+   ...
+[1m  5 | [m}
+[1m  6 | [m
+[1m  7 | [mfn test() {
+   [1m | [31m          ^[m
+   [1m | [31mOpening bracket here[m
+   ...
+[1m  9 | [m		do_something();
+[1m 10 | [m	}
+[1m 11 | [m)
+   [1m | [31m^[m
+   [1m | [31mClosing bracket here[m
+
+

@@ -82,8 +82,13 @@ fn main() {
     let mut crates = Vec::new();
 
     for file_name in &params.input_files {
-        let source: &str =
-            src_store.add(String::from_utf8(std::fs::read(file_name).unwrap()).unwrap());
+        let source: &str = src_store.add(
+            String::from_utf8(std::fs::read(file_name).unwrap_or_else(|err| {
+                eprintln!("wlab: failed to open file `{file_name}`: {err}");
+                std::process::exit(1)
+            }))
+            .unwrap(),
+        );
 
         // get base file name
         let file_base_name = file_name.split_terminator('/').last().unwrap();
