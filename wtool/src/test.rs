@@ -24,12 +24,10 @@ pub fn run_tests(test_args: TestArguments) -> Result<ExitCode, TestError> {
     let compiler = build_compiler()?;
     let mut failed_tests = Vec::new();
 
-    let mut full_path_buf = PathBuf::new();
     for test_name in test_list {
-        Path::new("./tests").clone_into(&mut full_path_buf);
-        full_path_buf.push(&test_name);
+        let mut test_name_buf = PathBuf::from(test_name);
 
-        let test = parse_test(&mut full_path_buf)?;
+        let test = parse_test(&mut test_name_buf)?;
 
         let succeeded = run_test(&compiler, &test)?;
         if !succeeded {
@@ -100,6 +98,7 @@ fn compile_test(test: &parse::Test, compiler: &Path) -> Result<bool, TestError> 
 
     let mut compiler = Command::new(compiler)
         .args(&test.args)
+        .arg("--")
         .args(&test.sources)
         .stderr(Stdio::piped())
         .spawn()

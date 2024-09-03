@@ -138,9 +138,15 @@ argtea_impl! {
             let mut generate_asm: bool = false;
             let mut generate_object: bool = true;
 
-            let mut args = std::env::args().skip(1);
+            parse!(std::env::args().skip(1).take_while(|a| a != "--"));
 
-            parse!(args);
+            for file in
+                std::env::args()
+                .skip(1)
+                .skip_while(|a| a != "--")
+                .skip(1) {
+                input_files.push(file);
+            };
 
             return Ok(Self { input_files, out_dir, opt_level, lex_files, generate_ast, generate_ir, generate_asm, generate_object });
         }

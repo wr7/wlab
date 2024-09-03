@@ -43,8 +43,12 @@ argtea_impl! {
         }
 
         #[hidden]
-        (invalid_flag) => {
-            Err(format!("invalid flag \x1b[m`\x1b[1m{invalid_flag}\x1b[m`"))?;
+        (test) => {
+            if test.starts_with("-") {
+                return Err(format!("invalid flag \x1b[m`\x1b[1m{test}\x1b[m`"))?;
+            }
+
+            target.add_test(test);
         }
     }
     impl TestArguments {
