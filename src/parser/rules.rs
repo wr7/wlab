@@ -1,5 +1,6 @@
 //! Contains rules for the parser. Note: inputs are assumed to not have mismatched/unclosed brackets (these checks should be done in advance).
 
+use control_flow::try_parse_loop_from_front;
 use wutil::Span;
 
 use crate::{
@@ -66,6 +67,7 @@ fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression
             )
         },
         |tokens| struct_::try_parse_field_access(tokens),
+        |tokens| control_flow::try_parse_loop(tokens),
         |tokens| function::try_parse_function_call(tokens),
         |tokens| struct_::try_parse_struct_initializer(tokens),
     ];
@@ -91,6 +93,10 @@ fn try_parse_statement_from_front<'a, 'src>(
 
     let rules = [
         |tokens| function::try_parse_function_from_front(tokens),
+        |tokens| {
+            Ok(control_flow::try_parse_loop_from_front(tokens)?
+                .map(|(ex, r)| (Statement::from(ex), r)))
+        },
         |tokens| struct_::try_parse_struct_from_front(tokens),
         |tokens| Ok(control_flow::try_parse_if_from_front(tokens)?.map(|(ex, r)| (ex.into(), r))),
         |tokens| {

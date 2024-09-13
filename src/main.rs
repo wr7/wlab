@@ -35,7 +35,8 @@ mod parser;
 
 /* TODO list
  *  - Allow functions and structs inside of code blocks
- *  - Make `generate_expression` take an immutable reference to scope
+ *  - Add a `Never` type and make `loop` return it
+ *       - Add a "dead code" warning
  *  - Structs
  *       - Add visibility
  *       - Fix structs with out-of-order struct fields (depgraph)

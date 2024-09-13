@@ -104,3 +104,29 @@ pub fn try_parse_if_from_front<'a, 'src>(
         remaining_tokens,
     )))
 }
+
+pub fn try_parse_loop_from_front<'a, 'src>(
+    tokens: &'a TokenStream<'src>,
+) -> PResult<Option<(Expression<'src>, &'a TokenStream<'src>)>> {
+    let Some((S(T!("loop"), _), tokens)) = tokens.split_first() else {
+        return Ok(None);
+    };
+
+    let Some((code_block, tokens)) = try_parse_code_block_from_front(tokens)? else {
+        return Ok(None);
+    };
+
+    Ok(Some((Expression::Loop(code_block), tokens)))
+}
+
+pub fn try_parse_loop<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression<'src>>> {
+    let Some((loop_, remaining_tokens)) = try_parse_loop_from_front(tokens)? else {
+        return Ok(None);
+    };
+
+    if let Some(span) = error_handling::span_of(remaining_tokens) {
+        return Err(error::unexpected_tokens(span));
+    };
+
+    Ok(Some(loop_))
+}

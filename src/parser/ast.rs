@@ -96,6 +96,7 @@ pub enum Expression<'src> {
         block: S<CodeBlock<'src>>,
         else_block: Option<S<CodeBlock<'src>>>,
     },
+    Loop(S<CodeBlock<'src>>),
     StructInitializer {
         name: S<Path<'src>>,
         fields: Vec<S<StructInitializerField<'src>>>,
