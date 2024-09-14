@@ -1,7 +1,6 @@
-
 WLAB (WLAng Bootstrap) is an LLVM-based compiler written from scratch.
 
-Current features of WLang include:
+### Features
 - [Helpful error messages](#error-messages)
 - Name Mangling
 - Visibility
@@ -11,6 +10,7 @@ Current features of WLang include:
 - Type inference
 - Structs
 
+### Example project
 Simple example project:
 ```rust
 #![declare_crate(hello_world)]
@@ -34,8 +34,7 @@ fn get_messages() -> Messages {
     }
 }
 
-#[no_mangle]
-fn _start() {
+fn main() {
     // Variable types are automatically inferred //
     let mut messages = get_messages();
 
@@ -55,8 +54,6 @@ fn _start() {
     };
 
     std::println(third_message);
-
-    std::exit(0);
 }
 ```
 
@@ -67,8 +64,7 @@ src:
 ```rust
 #![declare_crate(test_error)]
 
-#[no_mangle]
-fn _start() {
+fn main() {
     /****************\
     |*              *|
     |*              *|
@@ -86,7 +82,7 @@ fn _start() {
 
 error:
 
-![Screenshot from 2024-08-17 20-21-42](https://github.com/user-attachments/assets/e1ef3444-da6e-469c-8164-cdec40fe36c7)
+![Screenshot from 2024-09-14 16-01-08](https://github.com/user-attachments/assets/3c46d346-6c96-46cc-9acb-e184823119e2)
 
 src:
 ```rust
@@ -97,8 +93,7 @@ struct Foo {
     y: i32,
 };
 
-#[no_mangle]
-fn _start() {
+fn main() {
     let foo = Foo { x: 6, y: 12 }; // by default all variables are immutable
 
     foo.y = 10;
@@ -106,5 +101,4 @@ fn _start() {
 ```
 error:
 
-![Screenshot from 2024-08-22 14-58-16](https://github.com/user-attachments/assets/6b141d75-68c9-4274-937a-9864d397486f)
-
+![Screenshot from 2024-09-14 16-03-48](https://github.com/user-attachments/assets/70c69168-00f5-4c8d-bfb3-9b5841b8f5ae)
