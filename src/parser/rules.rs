@@ -1,6 +1,5 @@
 //! Contains rules for the parser. Note: inputs are assumed to not have mismatched/unclosed brackets (these checks should be done in advance).
 
-use control_flow::try_parse_loop_from_front;
 use wutil::Span;
 
 use crate::{

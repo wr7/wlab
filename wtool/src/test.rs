@@ -12,12 +12,43 @@ mod error;
 mod parse;
 pub use error::TestError;
 
+/// Recursively search `./tests` directory for directories containing a `test.toml` file
+fn find_all_tests() -> Result<Vec<String>, TestError> {
+    let mut tests = Vec::new();
+    let mut dirs = vec![std::fs::read_dir("./tests")?];
+
+    'outer: while let Some(dir) = dirs.last_mut() {
+        while let Some(child) = dir.next() {
+            let child = child?;
+
+            if child.file_type()?.is_dir() {
+                let mut path = child.path();
+                path.push("test.toml");
+
+                let is_test = path.try_exists()?;
+                path.pop();
+
+                if is_test {
+                    tests.push(path.into_os_string().into_string().unwrap());
+                } else {
+                    dirs.push(std::fs::read_dir(path)?);
+                    continue 'outer;
+                }
+            }
+        }
+
+        dirs.pop();
+    }
+
+    Ok(tests)
+}
+
 /// Runs a series of tests; returns the failing tests
 pub fn run_tests(test_args: TestArguments) -> Result<ExitCode, TestError> {
     let test_list;
 
     match test_args.target {
-        crate::cmdline::test::TestTarget::All => todo!(),
+        crate::cmdline::test::TestTarget::All => test_list = find_all_tests()?,
         crate::cmdline::test::TestTarget::Tests(tests) => test_list = tests,
     }
 

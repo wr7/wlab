@@ -55,9 +55,7 @@ pub fn parse_test(path: &mut PathBuf) -> Result<Test, TestError> {
         let mut tmp_buf = PathBuf::new();
 
         for source in &mut test.sources {
-            tmp_buf.clear();
-            tmp_buf.push("./tests");
-            tmp_buf.push(&test.name);
+            tmp_buf.clone_from(&path);
             tmp_buf.push(&*source);
 
             std::mem::swap(&mut tmp_buf, source);
