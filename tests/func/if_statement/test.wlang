@@ -29,3 +29,22 @@ fn main() {
 		std::println("unreachable");
 	}
 }
+
+fn expects_unit (x: () ) {}
+fn expects_i32  (x: i32) {}
+fn expects_never(x: !  ) {}
+
+fn bar(x: bool, y: bool) {
+	expects_unit(if x {5}         );
+	expects_i32 (if x {5} else {7});
+	expects_i32 (if x {5} else {loop {}});
+	expects_i32 (if x {loop {}} else {7});
+
+	expects_unit (if x {loop {}});
+
+	if y {
+		expects_i32 (if x {loop {}} else {loop {}});
+	} else {
+		expects_never (if x {loop {}} else {loop {}});
+	}
+}

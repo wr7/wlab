@@ -35,8 +35,6 @@ mod parser;
 
 /* TODO list
  *  - Allow functions and structs inside of code blocks
- *  - Add a `Never` type and make `loop` return it
- *       - Add a "dead code" warning
  *  - Structs
  *       - Add visibility
  *       - Fix structs with out-of-order struct fields (depgraph)
@@ -47,6 +45,10 @@ mod parser;
  *      - Create DILexicalScope for all code blocks (not just functions)
  *      - Add debug info for variables
  *      - Fix mangled names in debug info
+ *  - Don't do codegen for unreachable code (including uncallable functions)
+ *  - Do not emit unreachable BasicBlocks
+ *  - Recognize dead code involving `let` and assignment statements
+ *  - Switch code away from using `Cell::take` + `Cell::set`
  */
 
 #[allow(clippy::needless_pass_by_value)]
@@ -165,5 +167,10 @@ fn main() {
                 eprintln!("\n{}", err.render(source));
                 process::exit(1);
             });
+    }
+
+    let warnings = codegen_context.warnings.read();
+    for &(file_no, ref warning) in warnings.iter() {
+        eprintln!("\n{}", warning.render(&crates[file_no].0));
     }
 }

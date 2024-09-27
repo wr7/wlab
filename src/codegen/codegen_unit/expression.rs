@@ -6,8 +6,9 @@ use crate::{
         scope::Scope,
         types::Type,
         values::{GenericValue, MutValue, RValue},
+        warning,
     },
-    error_handling::{Diagnostic, Spanned as S},
+    error_handling::{self, Diagnostic, Spanned as S},
     parser::ast::{self, Expression, Literal, Path, Visibility},
     util,
 };
@@ -38,11 +39,11 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         match *expression {
             Expression::Identifier(ident) => match *ident {
                 "true" => Ok(RValue {
-                    val: self.c.core_types.bool.const_(1, false).into(),
+                    val: Some(*self.c.core_types.bool.const_(1, false)),
                     type_: Type::bool,
                 }),
                 "false" => Ok(RValue {
-                    val: self.c.core_types.bool.const_(0, false).into(),
+                    val: Some(*self.c.core_types.bool.const_(0, false)),
                     type_: Type::bool,
                 }),
                 _ => {
@@ -58,7 +59,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 let a = self.generate_rvalue(a_expr.as_sref(), scope)?;
                 let b = self.generate_rvalue(b_expr.as_sref(), scope)?;
 
-                a.generate_operation(&self.builder, a_expr.1, *operator, &S(b, b_expr.1))
+                a.generate_operation(&self, a_expr.1, *operator, &S(b, b_expr.1))
             }
             Expression::CompoundExpression(block) => {
                 let mut scope = Scope::new(scope);
@@ -145,7 +146,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let str_len = self.c.core_types.isize.const_(lit.len() as u64, false);
 
         RValue {
-            val: *self.c.core_types.str.const_(&[*string_ptr, *str_len]),
+            val: Some(*self.c.core_types.str.const_(&[*string_ptr, *str_len])),
             type_: Type::str,
         }
     }
@@ -166,12 +167,14 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         };
 
         Ok(RValue {
-            val: *self
-                .c
-                .context
-                .int_type(32)
-                .const_from_string(&lit[..idx], 10)
-                .ok_or_else(|| codegen::error::invalid_number(S(lit, span)))?,
+            val: Some(
+                *self
+                    .c
+                    .context
+                    .int_type(32)
+                    .const_from_string(&lit[..idx], 10)
+                    .ok_or_else(|| codegen::error::invalid_number(S(lit, span)))?,
+            ),
             type_,
         })
     }
@@ -232,28 +235,57 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         }
 
         let mut metadata_arguments: Vec<wllvm::Value> = Vec::with_capacity(arguments.len());
+        let mut uncallable = false;
 
         for (i, arg) in arguments.iter().enumerate() {
+            let arg_span = arg.1;
             let arg = self.generate_rvalue(arg.as_sref(), scope)?;
 
-            metadata_arguments.push(arg.val);
-
             let expected_type = &signature.params[i];
-            if expected_type != &arg.type_ {
+            if !arg.type_.is(expected_type) {
                 return Err(codegen::error::unexpected_type(
                     arguments[i].1,
                     expected_type,
                     &arg.type_,
                 ));
             }
+
+            let Some(arg_val) = arg.val else {
+                uncallable = true;
+
+                let Some(dead_code) = error_handling::span_of(&arguments[i + 1..]) else {
+                    continue;
+                };
+
+                self.c
+                    .warnings
+                    .push((self.file_no, warning::unreachable_code(arg_span, dead_code)));
+                continue;
+            };
+
+            metadata_arguments.push(arg_val);
+        }
+
+        if uncallable {
+            return Ok(RValue {
+                val: None,
+                type_: function.signature.return_type,
+            });
         }
 
         let ret_val = self
             .builder
             .build_fn_call(mod_function, &metadata_arguments, c"");
 
+        if function.signature.return_type.llvm_type(self.c).is_none() {
+            return Ok(RValue {
+                val: None,
+                type_: function.signature.return_type,
+            });
+        }
+
         Ok(RValue {
-            val: ret_val,
+            val: Some(ret_val),
             type_: function.signature.return_type,
         })
     }

@@ -20,12 +20,19 @@ impl<'ctx> GenericValue<'ctx> {
         match self {
             GenericValue::RValue(rval) => rval,
             GenericValue::MutValue(mut_val) => {
-                let val = cu
-                    .builder
-                    .build_load(mut_val.type_.llvm_type(cu.c), mut_val.ptr, c"");
+                let Some(ptr) = mut_val.ptr else {
+                    return RValue {
+                        val: None,
+                        type_: mut_val.type_,
+                    };
+                };
+
+                let Some(llvm_type) = mut_val.type_.llvm_type(&cu.c) else {
+                    unreachable!("An uninstantiable type cannot have a value!")
+                };
 
                 RValue {
-                    val,
+                    val: Some(cu.builder.build_load(llvm_type, ptr, c"")),
                     type_: mut_val.type_,
                 }
             }
@@ -35,36 +42,69 @@ impl<'ctx> GenericValue<'ctx> {
 
 #[derive(Clone)]
 pub struct RValue<'ctx> {
-    pub val: wllvm::Value<'ctx>,
+    /// The LLVM value or `None` if the type is `!` or the code that creates it is unreachable
+    pub val: Option<wllvm::Value<'ctx>>,
     pub type_: Type,
 }
 
 #[derive(Clone)]
 pub struct MutValue<'ctx> {
-    pub ptr: wllvm::value::PtrValue<'ctx>,
+    /// The LLVM value or `None` if the type is `!` or the code that creates it is unreachable
+    pub ptr: Option<wllvm::value::PtrValue<'ctx>>,
     pub type_: Type,
+}
+
+impl<'ctx> MutValue<'ctx> {
+    pub fn alloca(cu: &CodegenUnit<'_, 'ctx>, rvalue: RValue<'ctx>) -> Self {
+        let Some(val) = rvalue.val else {
+            return Self {
+                ptr: None,
+                type_: rvalue.type_,
+            };
+        };
+
+        let Some(llvm_type) = rvalue.type_.llvm_type(&cu.c) else {
+            unreachable!("Uninstantiable types cannot have values");
+        };
+
+        let ptr = cu.builder.build_alloca(llvm_type, c"");
+        cu.builder.build_store(val, ptr);
+
+        Self {
+            ptr: Some(ptr),
+            type_: rvalue.type_,
+        }
+    }
 }
 
 impl<'ctx> RValue<'ctx> {
     pub fn generate_operation(
         &self,
-        builder: &Builder<'ctx>,
+        cu: &CodegenUnit<'_, 'ctx>,
         lhs_span: Span,
         opcode: OpCode,
         rhs: &S<Self>,
     ) -> Result<Self, Diagnostic> {
+        let builder = &cu.builder;
         match self.type_ {
             Type::i(n) => self.generate_operation_int(n, builder, lhs_span, opcode, rhs),
             Type::unit | Type::str | Type::Struct { .. } => {
                 Err(error::undefined_operator(opcode, lhs_span, &self.type_))
             }
             Type::bool => {
-                if rhs.type_ != Type::bool {
+                if !rhs.type_.is(&Type::bool) {
                     return Err(error::unexpected_type(rhs.1, &Type::bool, &rhs.type_));
                 }
 
+                let Some((lhs_val, rhs_val)) = self.val.zip(rhs.val) else {
+                    return Ok(RValue {
+                        val: None,
+                        type_: Type::bool,
+                    });
+                };
+
                 let Some((ValueEnum::IntValue(lhs), ValueEnum::IntValue(rhs))) =
-                    self.val.downcast().zip(rhs.val.downcast())
+                    lhs_val.downcast().zip(rhs_val.downcast())
                 else {
                     unreachable!();
                 };
@@ -82,9 +122,10 @@ impl<'ctx> RValue<'ctx> {
 
                 Ok(Self {
                     type_: Type::bool,
-                    val: val.into(),
+                    val: Some(*val),
                 })
             }
+            Type::never => Err(error::undefined_operator(opcode, lhs_span, &self.type_)),
         }
     }
 
@@ -96,12 +137,19 @@ impl<'ctx> RValue<'ctx> {
         opcode: OpCode,
         rhs: &S<RValue<'ctx>>,
     ) -> Result<RValue<'ctx>, Diagnostic> {
-        if rhs.type_ != Type::i(bits) {
+        if !rhs.type_.is(&Type::i(bits)) {
             return Err(error::unexpected_type(rhs.1, &Type::i(bits), &rhs.type_));
         }
 
+        let Some((lhs_val, rhs_val)) = self.val.zip(rhs.val) else {
+            return Ok(RValue {
+                val: None,
+                type_: Type::i(bits),
+            });
+        };
+
         let Some((ValueEnum::IntValue(lhs), ValueEnum::IntValue(rhs))) =
-            self.val.downcast().zip(rhs.val.downcast())
+            lhs_val.downcast().zip(rhs_val.downcast())
         else {
             unreachable!();
         };
@@ -157,7 +205,7 @@ impl<'ctx> RValue<'ctx> {
 
         Ok(Self {
             type_,
-            val: val.into(),
+            val: Some(*val),
         })
     }
 }

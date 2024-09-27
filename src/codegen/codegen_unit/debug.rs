@@ -21,6 +21,7 @@ struct DebugPrimitives<'ctx> {
     pub str: DIBasicType<'ctx>,
     pub unit: DIBasicType<'ctx>,
     pub bool: DIBasicType<'ctx>,
+    pub never: DIBasicType<'ctx>,
     int_types: Cell<BinarySearchMap<u32, DIBasicType<'ctx>>>,
 }
 
@@ -90,15 +91,19 @@ impl<'ctx> DebugContext<'ctx> {
             Type::str => *self.primitives.str,
             Type::unit => *self.primitives.unit,
             Type::bool => *self.primitives.bool,
+            Type::never => *self.primitives.never,
             Type::Struct { ref path } => {
-                let structs = self.structs.take();
+                {
+                    let structs = self.structs.take();
 
-                if let Some(ty) = structs.get(path).copied() {
+                    if let Some(ty) = structs.get(path).copied() {
+                        self.structs.set(structs);
+
+                        return ty;
+                    }
+
                     self.structs.set(structs);
-
-                    return ty;
                 }
-                self.structs.set(structs);
 
                 let struct_info =
                     cu.c.name_store
@@ -108,14 +113,25 @@ impl<'ctx> DebugContext<'ctx> {
                         .unwrap();
 
                 let file = self.get_file(cu.c, struct_info.file_no);
-                let Ok(llvm_ty) = StructType::try_from(type_.llvm_type(cu.c)) else {
+
+                let Some(llvm_type) = type_.llvm_type(cu.c) else {
+                    let di_type = *self.builder.basic_type(path, 0, None, DIFlags::Private);
+
+                    let mut structs = self.structs.take();
+                    structs.insert(path.clone(), di_type).unwrap();
+                    self.structs.set(structs);
+
+                    return di_type;
+                };
+
+                let Ok(llvm_ty) = StructType::try_from(llvm_type) else {
                     unreachable!()
                 };
 
                 let mut member_types = Vec::new();
 
                 for (i, FieldInfo { name, ty, line_no }) in struct_info.fields.iter().enumerate() {
-                    let llvm_field_ty = ty.llvm_type(cu.c);
+                    let llvm_field_ty = ty.llvm_type(cu.c).unwrap();
                     let size = llvm_field_ty.size_bits(&cu.c.target_data);
                     let align = llvm_field_ty.alignment(&cu.c.target_data);
 
@@ -190,6 +206,7 @@ impl<'ctx> DebugPrimitives<'ctx> {
             DIFlags::Private,
         );
         let unit = builder.basic_type("unit", 0, None, DIFlags::Private);
+        let never = builder.basic_type("!", 0, None, DIFlags::Private);
         let bool = builder.basic_type("bool", 1, Some(TypeEncoding::boolean), DIFlags::Private);
 
         Self {
@@ -197,6 +214,7 @@ impl<'ctx> DebugPrimitives<'ctx> {
             unit,
             bool,
             int_types: BinarySearchMap::new().into(),
+            never,
         }
     }
 }

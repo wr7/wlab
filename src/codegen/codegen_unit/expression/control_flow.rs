@@ -1,8 +1,10 @@
 use wllvm::value::ValueEnum;
 
 use crate::{
-    codegen::{self, codegen_unit::CodegenUnit, scope::Scope, types::Type, values::RValue},
-    error_handling::{Diagnostic, Spanned as S},
+    codegen::{
+        self, codegen_unit::CodegenUnit, scope::Scope, types::Type, values::RValue, warning,
+    },
+    error_handling::{self, Diagnostic, Spanned as S},
     parser::ast,
 };
 
@@ -32,11 +34,11 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         self.builder.position_at_end(new_block);
 
-        let unit = self.c.context.const_struct(&[], false);
+        // TODO: set builder's current block to `None`
 
         Ok(RValue {
-            val: *unit,
-            type_: Type::unit,
+            val: None,
+            type_: Type::never,
         })
     }
 
@@ -50,7 +52,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let condition_span = condition.1;
         let condition = self.generate_rvalue(condition.as_sref(), scope)?;
 
-        if condition.type_ != Type::bool {
+        if !condition.type_.is(&Type::bool) {
             return Err(codegen::error::unexpected_type(
                 condition_span,
                 &Type::bool,
@@ -58,74 +60,109 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             ));
         }
 
-        let Some(ValueEnum::IntValue(condition)) = condition.val.downcast() else {
-            unreachable!()
-        };
-
         let Some(base_bb) = self.builder.current_block() else {
             unreachable!()
         };
 
         let if_bb = self.c.context.insert_basic_block_after(base_bb, c"");
+        let else_bb = else_block
+            .as_ref()
+            .map(|_| self.c.context.insert_basic_block_after(if_bb, c""));
         let continuing_bb = self.c.context.insert_basic_block_after(if_bb, c"");
+
+        if let Some(condition_val) = condition.val {
+            let Some(ValueEnum::IntValue(condition)) = condition_val.downcast() else {
+                unreachable!()
+            };
+
+            self.builder
+                .build_cond_br(condition, if_bb, else_bb.unwrap_or(continuing_bb));
+        } else {
+            let dead_span = if let Some(else_block) = else_block {
+                error_handling::span_of(&[block, else_block.as_sref()])
+            } else {
+                error_handling::span_of(&[block])
+            }
+            .unwrap();
+
+            self.c.warnings.push((
+                self.file_no,
+                warning::unreachable_code(condition_span, dead_span),
+            ));
+
+            self.builder.build_unreachable();
+        };
 
         self.builder.position_at_end(if_bb);
 
         let mut if_scope = Scope::new(scope);
         let if_retval = self.generate_codeblock(*block, &mut if_scope)?;
 
-        self.builder.build_br(continuing_bb);
-
-        let else_bb;
-        let else_retval: Option<RValue<'ctx>> = if let Some(else_block) = else_block {
-            let else_bb_ = self.c.context.insert_basic_block_after(if_bb, c"");
-            else_bb = Some(else_bb_);
-
-            self.builder.position_at_end(else_bb_);
-            let mut else_scope = Scope::new(scope);
-
-            let else_retval = self.generate_codeblock(else_block, &mut else_scope)?;
-
+        if if_retval.val.is_some() {
             self.builder.build_br(continuing_bb);
-
-            Some(else_retval)
         } else {
-            else_bb = None;
-            None
-        };
+            self.builder.build_unreachable();
+        }
 
-        self.builder.position_at_end(base_bb);
-        self.builder
-            .build_cond_br(condition, if_bb, else_bb.unwrap_or(continuing_bb));
+        let else_retval: Option<RValue<'ctx>> =
+            if let Some((else_bb, else_block)) = else_bb.zip(else_block.as_ref()) {
+                self.builder.position_at_end(else_bb);
+                let mut else_scope = Scope::new(scope);
+
+                let else_retval = self.generate_codeblock(else_block, &mut else_scope)?;
+
+                if else_retval.val.is_some() {
+                    self.builder.build_br(continuing_bb);
+                } else {
+                    self.builder.build_unreachable();
+                }
+
+                Some(else_retval)
+            } else {
+                None
+            };
 
         self.builder.position_at_end(continuing_bb);
 
-        let retval = if let Some(else_retval) = else_retval {
-            if else_retval.type_ != if_retval.type_ {
-                return Err(codegen::error::mismatched_if_else(
-                    S(&if_retval.type_, block.1),
-                    S(&else_retval.type_, else_block.as_ref().unwrap().1),
-                ));
-            }
-
-            let phi = self.builder.build_phi(if_retval.val.type_(), c"");
-
-            phi.add_incoming(
-                &[if_retval.val, else_retval.val],
-                &[if_bb, else_bb.unwrap()],
-            );
-
-            RValue {
-                type_: if_retval.type_,
-                val: *phi,
-            }
-        } else {
-            RValue {
+        let Some(else_retval) = else_retval else {
+            return Ok(RValue {
                 type_: Type::unit,
-                val: *self.c.core_types.unit.const_(&[]),
-            }
+                val: Some(*self.c.core_types.unit.const_(&[])),
+            });
         };
 
-        Ok(retval)
+        if let Some((type_, val)) = if_retval
+            .val
+            .map(|v| (&if_retval.type_, v))
+            .xor(else_retval.val.map(|v| (&else_retval.type_, v)))
+        {
+            return Ok(RValue {
+                val: Some(val),
+                type_: type_.clone(),
+            });
+        }
+
+        let Some((if_val, else_val)) = if_retval.val.zip(else_retval.val) else {
+            return Ok(RValue {
+                val: None,
+                type_: Type::never,
+            });
+        };
+
+        if else_retval.type_ != if_retval.type_ {
+            return Err(codegen::error::mismatched_if_else(
+                S(&if_retval.type_, block.1),
+                S(&else_retval.type_, else_block.as_ref().unwrap().1),
+            ));
+        }
+
+        let phi = self.builder.build_phi(if_val.type_(), c"");
+
+        phi.add_incoming(&[if_val, else_val], &[if_bb, else_bb.unwrap()]);
+
+        Ok(RValue {
+            type_: if_retval.type_,
+            val: Some(*phi),
+        })
     }
 }

@@ -15,6 +15,7 @@ mod namestore;
 mod scope;
 mod types;
 mod values;
+mod warning;
 
 use codegen_unit::CodegenUnit;
 

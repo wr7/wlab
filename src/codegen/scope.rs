@@ -47,7 +47,22 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
             self.create_variable(
                 param.0,
                 GenericValue::RValue(RValue {
-                    val,
+                    val: Some(val),
+                    type_: param.1.clone(),
+                }),
+            );
+        }
+
+        self
+    }
+
+    /// Creates a function scope for an uncallable function (ie one of its parameters is uninstantiable)
+    pub fn with_uninstatiable_params(mut self, params: &[(S<&str>, Type)]) -> Self {
+        for param in params.iter() {
+            self.create_variable(
+                param.0,
+                GenericValue::RValue(RValue {
+                    val: None,
                     type_: param.1.clone(),
                 }),
             );

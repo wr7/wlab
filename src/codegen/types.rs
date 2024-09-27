@@ -17,6 +17,7 @@ pub enum Type {
     i(u32),
     str,
     unit,
+    never,
     bool,
     Struct { path: String },
 }
@@ -29,6 +30,7 @@ impl Display for Type {
             Type::unit => "()".into(),
             Type::bool => "bool".into(),
             Type::Struct { path } => Cow::Borrowed(path),
+            Type::never => "!".into(),
         };
 
         f.write_str(&str)
@@ -36,6 +38,13 @@ impl Display for Type {
 }
 
 impl Type {
+    /// Checks if `self` can be used in-place-of `type_`
+    ///
+    /// This has special handling for the `!` type which can be used in-place-of any type.
+    pub fn is(&self, type_: &Self) -> bool {
+        self == type_ || self == &Type::never
+    }
+
     pub fn new(
         cc: &CodegenContext,
         crate_name: &str,
@@ -44,6 +53,7 @@ impl Type {
         Ok(match &***type_ {
             [S("str", _)] => Self::str,
             [S("()", _)] => Self::unit,
+            [S("!", _)] => Self::never,
             [S("bool", _)] => Self::bool,
             [type_] => {
                 if let Some(num) = type_.strip_prefix("i").and_then(|n| n.parse::<u32>().ok()) {
@@ -80,8 +90,9 @@ impl Type {
         })
     }
 
-    pub fn llvm_type<'ctx>(&self, context: &CodegenContext<'ctx>) -> wllvm::Type<'ctx> {
-        match *self {
+    /// Gets the underlying LLVM type or `None` if the type is uninstantiable
+    pub fn llvm_type<'ctx>(&self, context: &CodegenContext<'ctx>) -> Option<wllvm::Type<'ctx>> {
+        Some(match *self {
             Type::i(n) => context.context.int_type(n).into(),
             Type::str => context.core_types.str.into(),
             Type::unit => context.core_types.unit.into(),
@@ -98,11 +109,12 @@ impl Type {
                     .fields
                     .iter()
                     .map(|FieldInfo { ty, .. }| ty.llvm_type(context))
-                    .collect::<Vec<_>>();
+                    .collect::<Option<Vec<_>>>();
 
-                *context.context.struct_type(&fields, struct_info.packed)
+                *context.context.struct_type(&fields?, struct_info.packed)
             }
-        }
+            Type::never => return None,
+        })
     }
 
     pub fn get_dwarf_type<'ctx>(&self, cu: &CodegenUnit<'_, 'ctx>) -> DIType<'ctx> {

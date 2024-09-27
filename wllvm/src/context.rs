@@ -6,9 +6,10 @@ use std::{
 use llvm_sys::{
     core::{
         LLVMConstStringInContext, LLVMConstStructInContext, LLVMContextCreate, LLVMContextDispose,
-        LLVMCreateBuilderInContext, LLVMFunctionType, LLVMInsertBasicBlockInContext,
-        LLVMIntTypeInContext, LLVMModuleCreateWithNameInContext, LLVMMoveBasicBlockAfter,
-        LLVMPointerTypeInContext, LLVMStructTypeInContext, LLVMVoidTypeInContext,
+        LLVMCreateBasicBlockInContext, LLVMCreateBuilderInContext, LLVMFunctionType,
+        LLVMInsertBasicBlockInContext, LLVMIntTypeInContext, LLVMModuleCreateWithNameInContext,
+        LLVMMoveBasicBlockAfter, LLVMPointerTypeInContext, LLVMStructTypeInContext,
+        LLVMVoidTypeInContext,
     },
     debuginfo::LLVMDIBuilderCreateDebugLocation,
     prelude::LLVMBool,
@@ -53,6 +54,10 @@ impl Context {
 
     pub fn create_builder<'ctx>(&'ctx self) -> Builder<'ctx> {
         unsafe { Builder::from_raw(LLVMCreateBuilderInContext(self.ptr)) }
+    }
+
+    pub fn create_basic_block<'ctx>(&'ctx self, name: &CStr) -> BasicBlock<'ctx> {
+        unsafe { BasicBlock::from_raw(LLVMCreateBasicBlockInContext(self.ptr, name.as_ptr())) }
     }
 
     pub fn insert_basic_block_after<'ctx>(

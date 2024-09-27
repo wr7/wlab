@@ -4,7 +4,7 @@
 fn write(fd: i32, data: str) {}
 
 #[intrinsic(exit)]
-pub fn exit(code: i32) {}
+pub fn exit(code: i32) -> ! {}
 
 pub fn println(val: str) {
     write(1, val);

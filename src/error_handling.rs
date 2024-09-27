@@ -94,6 +94,17 @@ impl Hint {
             escape: "\x1b[31m", // Red
         }
     }
+    pub fn new_warning<M>(msg: M, span: Span) -> Self
+    where
+        M: Into<Cow<'static, str>>,
+    {
+        Self {
+            msg: msg.into(),
+            span: span.into(),
+            pointer_char: '~',
+            escape: "\x1b[33m", // Yellow
+        }
+    }
     pub fn new_info<M>(msg: M, span: Span) -> Self
     where
         M: Into<Cow<'static, str>>,

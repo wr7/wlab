@@ -6,7 +6,7 @@ use crate::{
         codegen_unit::debug::DebugContext,
         error,
         scope::Scope,
-        values::{GenericValue, MutValue},
+        values::{GenericValue, MutValue, RValue},
     },
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Statement},
@@ -24,6 +24,7 @@ pub struct CodegenUnit<'m, 'ctx> {
     pub(super) builder: Builder<'ctx>,
     pub(super) crate_name: &'m str,
     pub(super) source: &'m str,
+    pub(super) file_no: usize,
 }
 
 impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
@@ -45,6 +46,7 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
             builder: context.create_builder(),
             crate_name,
             source,
+            file_no,
         }
     }
 
@@ -52,11 +54,11 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
         &self,
         scope: &mut Scope<'_, 'ctx>,
         statement: S<&ast::Statement>,
-    ) -> Result<(), Diagnostic> {
+    ) -> Result<Option<RValue>, Diagnostic> {
         match *statement {
-            Statement::Expression(expr) => {
-                self.generate_rvalue(S(expr, statement.1), scope)?;
-            }
+            Statement::Expression(expr) => self
+                .generate_rvalue(S(expr, statement.1), scope)
+                .map(|v| Some(v)),
             Statement::Let {
                 name,
                 value,
@@ -65,25 +67,20 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                 let val = self.generate_rvalue(value.as_sref(), scope)?;
 
                 let val = if *mutable {
-                    let ptr = self.builder.build_alloca(val.val.type_(), c"");
-                    self.builder.build_store(val.val, ptr);
-
-                    GenericValue::MutValue(MutValue {
-                        ptr,
-                        type_: val.type_,
-                    })
+                    GenericValue::MutValue(MutValue::alloca(self, val))
                 } else {
                     GenericValue::RValue(val)
                 };
 
                 scope.create_variable(*name, val);
+                Ok(None)
             }
             Statement::Struct(_) => todo!(),
             Statement::Assign { lhs, rhs } => {
                 let lhs_val = self.generate_mutvalue(lhs.as_sref(), scope)?;
                 let rhs_val = self.generate_rvalue(rhs.as_sref(), scope)?;
 
-                if lhs_val.type_ != rhs_val.type_ {
+                if !rhs_val.type_.is(&lhs_val.type_) {
                     return Err(error::unexpected_type(
                         rhs.1,
                         &lhs_val.type_,
@@ -91,10 +88,14 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                     ));
                 }
 
-                self.builder.build_store(rhs_val.val, lhs_val.ptr);
+                let Some((lhs_ptr, rhs_val)) = lhs_val.ptr.zip(rhs_val.val) else {
+                    return Ok(None);
+                };
+
+                self.builder.build_store(rhs_val, lhs_ptr);
+                Ok(None)
             }
             Statement::Function(_) => todo!(),
         }
-        Ok(())
     }
 }

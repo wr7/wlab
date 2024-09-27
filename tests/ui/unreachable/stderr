@@ -1,0 +1,102 @@
+
+
+[m Warning: unreachable code
+
+   ...
+[1m  9 | [m
+[1m 10 | [mfn foo(x: bool) {
+[1m 11 | [m    if x {
+   [1m | [36m    ------[m
+[1m 12 | [m        loop {}
+   [1m | [36m---------------[m
+[1m 13 | [m    } else {
+   [1m | [36m------------[m
+[1m 14 | [m        std::exit(0);
+   [1m | [36m---------------------[m
+[1m 15 | [m    }
+   [1m | [36m-----[m
+   [1m | [36mBecause of this statement here,[m
+    |
+[1m 16 | [m
+[1m 17 | [m    std::println("this is unreachable");
+   [1m | [33m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m
+   [1m | [33mThis code cannot be reached[m
+
+
+
+
+[m Warning: unreachable code
+
+   ...
+[1m 19 | [m
+[1m 20 | [mfn bar() {
+[1m 21 | [m    loop {}
+   [1m | [36m    -------[m
+   [1m | [36mBecause of this statement here,[m
+    |
+[1m 22 | [m
+[1m 23 | [m    std::println("this is unreachable");
+   [1m | [33m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m
+   [1m | [33mThis code cannot be reached[m
+
+
+
+
+[m Warning: unreachable code
+
+   ...
+[1m 25 | [m
+[1m 26 | [mfn biz() -> TestStruct {
+[1m 27 | [m    takes_2_i32(std::exit(0), 5);
+   [1m | [36m                ------------[m
+   [1m | [36mBecause of this statement here,[m
+    |
+[1m 27 | [m    takes_2_i32(std::exit(0), 5);
+   [1m | [33m                              ~[m
+   [1m | [33mThis code cannot be reached[m
+
+
+
+
+[m Warning: unreachable code
+
+   ...
+[1m 31 | [m
+[1m 32 | [m    TestStruct {
+[1m 33 | [m        x: std::exit(1),
+   [1m | [36m           ------------[m
+   [1m | [36mBecause of this statement here,[m
+    |
+[1m 34 | [m        y: "this is unreachable",
+   [1m | [33m        ~~~~~~~~~~~~~~~~~~~~~~~~[m
+   [1m | [33mThis code cannot be reached[m
+
+
+
+
+[m Warning: unreachable code
+
+   ...
+[1m 25 | [m
+[1m 26 | [mfn biz() -> TestStruct {
+[1m 27 | [m    takes_2_i32(std::exit(0), 5);
+   [1m | [36m    ----------------------------[m
+   [1m | [36mBecause of this statement here,[m
+    |
+[1m 28 | [m
+[1m 29 | [m    std::println("This is unreachable");
+   [1m | [33m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m
+[1m 30 | [m    std::println("This is also unreachable");
+   [1m | [33m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m
+[1m 31 | [m
+[1m 32 | [m    TestStruct {
+   [1m | [33m~~~~~~~~~~~~~~~~[m
+[1m 33 | [m        x: std::exit(1),
+   [1m | [33m~~~~~~~~~~~~~~~~~~~~~~~~[m
+[1m 34 | [m        y: "this is unreachable",
+   [1m | [33m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m
+[1m 35 | [m    }
+   [1m | [33m~~~~~[m
+   [1m | [33mThis code cannot be reached[m
+
+

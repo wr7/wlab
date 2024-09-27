@@ -1,8 +1,9 @@
 use crate::{
     codegen::{
-        self, namestore::NameStoreEntry, scope::Scope, types::Type, values::RValue, CodegenUnit,
+        self, namestore::NameStoreEntry, scope::Scope, types::Type, values::RValue, warning,
+        CodegenUnit,
     },
-    error_handling::{Diagnostic, Spanned as S},
+    error_handling::{self, Diagnostic, Spanned as S},
     parser::ast::{self, Attribute, Visibility},
     util,
 };
@@ -32,6 +33,8 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .map(|(n, t)| Ok((*n, Type::new(self.c, self.crate_name, t)?)))
             .collect();
         let params = params?;
+
+        let uncallable = params.iter().any(|(_, ty)| ty.llvm_type(self.c).is_none());
 
         let return_type = function_info.signature.return_type.clone();
 
@@ -107,11 +110,15 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let main_block = ll_function.add_basic_block(c"");
         self.builder.position_at_end(main_block);
 
-        let mut fn_scope = Scope::new(scope).with_params(&params, ll_function);
+        let mut fn_scope = if uncallable {
+            Scope::new(scope).with_uninstatiable_params(&params)
+        } else {
+            Scope::new(scope).with_params(&params, ll_function)
+        };
 
         let return_value = self.generate_codeblock(&function.body, &mut fn_scope)?;
 
-        if return_value.type_ != return_type {
+        if !return_value.type_.is(&return_type) {
             return Err(codegen::error::incorrect_return_type(
                 function.body.as_sref(),
                 &return_type,
@@ -119,7 +126,11 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             ));
         }
 
-        self.builder.build_ret(return_value.val);
+        if let Some(val) = return_value.val {
+            self.builder.build_ret(val);
+        } else {
+            self.builder.build_unreachable();
+        }
 
         std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
 
@@ -132,14 +143,16 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         block: &ast::CodeBlock,
         scope: &mut Scope<'_, 'ctx>,
     ) -> Result<RValue<'ctx>, Diagnostic> {
-        let mut statements: &[S<ast::Statement>] = &block.body;
+        let statements = &block.body;
+
         let implicit_return: Option<S<&ast::Expression>>;
+        let mut other_statements: &[S<ast::Statement>] = &statements;
 
         if block.trailing_semicolon.is_none() {
-            if let Some((last_statement, statements_)) = statements.split_last() {
+            if let Some((last_statement, other_statements_)) = statements.split_last() {
                 if let ast::Statement::Expression(expr) = &**last_statement {
                     implicit_return = Some(S(expr, last_statement.1));
-                    statements = statements_;
+                    other_statements = other_statements_;
                 } else {
                     implicit_return = None;
                 };
@@ -150,18 +163,43 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             implicit_return = None;
         }
 
-        for statement in statements {
-            self.generate_statement(scope, statement.as_sref())?;
+        // Index of first statement that yields the `!` type
+        let mut terminating_idx = None;
+
+        for (i, statement) in other_statements.iter().enumerate() {
+            let retval = self.generate_statement(scope, statement.as_sref())?;
+
+            if retval.is_some_and(|r| r.val.is_none()) {
+                terminating_idx = terminating_idx.or(Some(i));
+            }
         }
 
-        let return_value: RValue = implicit_return
+        let return_value: Option<RValue> = implicit_return
             .map(|r| self.generate_rvalue(r, scope))
-            .transpose()?
-            .unwrap_or_else(|| RValue {
-                type_: Type::unit,
-                val: *self.c.core_types.unit.const_(&[]),
-            });
+            .transpose()?;
 
-        Ok(return_value)
+        if let Some(terminating_idx) = terminating_idx {
+            if let Some(dead_code) = statements
+                .get(terminating_idx + 1..)
+                .and_then(error_handling::span_of)
+            {
+                let terminating_statement = statements[terminating_idx].1;
+
+                self.c.warnings.push((
+                    self.file_no,
+                    warning::unreachable_code(terminating_statement, dead_code),
+                ));
+            }
+
+            return Ok(RValue {
+                val: None,
+                type_: return_value.map_or(Type::never, |r| r.type_),
+            });
+        }
+
+        Ok(return_value.unwrap_or_else(|| RValue {
+            val: Some(*self.c.context.const_struct(&[], false)),
+            type_: Type::unit,
+        }))
     }
 }

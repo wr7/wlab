@@ -13,6 +13,11 @@ use super::PResult;
 pub fn try_parse_type_from_front<'src>(
     tokens: &mut &TokenStream<'src>,
 ) -> PResult<Option<S<ast::Path<'src>>>> {
+    if let [S(T!("!"), span), ..] = *tokens {
+        *tokens = &tokens[1..];
+        return Ok(Some(S(MaybeVec::of(S("!", *span)), *span)));
+    }
+
     if let [S(T!("("), s1), S(T!(")"), s2), rem @ ..] = *tokens {
         *tokens = rem;
         let span = (s1.start..s2.end).into();

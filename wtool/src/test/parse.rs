@@ -19,6 +19,9 @@ pub struct Test {
     #[serde(default)]
     pub should_fail: bool,
 
+    #[serde(default)]
+    pub dont_link: bool,
+
     #[serde(default = "default_sources")]
     pub sources: Vec<PathBuf>,
 

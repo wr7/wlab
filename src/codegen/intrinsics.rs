@@ -142,10 +142,10 @@ fn add_exit(
         ));
     }
 
-    if function_info.signature.return_type != Type::unit {
+    if function_info.signature.return_type != Type::never {
         return Err(codegen::error::invalid_intrinsic_ret_type(
             params_span,
-            &Type::unit,
+            &Type::never,
         ));
     }
 

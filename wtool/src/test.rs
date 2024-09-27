@@ -75,7 +75,7 @@ fn run_test(compiler: &Path, test: &parse::Test) -> Result<bool, TestError> {
         return Ok(false);
     }
 
-    if test.should_fail {
+    if test.should_fail || test.dont_link {
         return Ok(true);
     }
 

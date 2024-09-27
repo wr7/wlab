@@ -1,0 +1,44 @@
+#![declare_crate(test)]
+
+struct TestStruct {
+    x: i32,
+    y: str,
+}
+
+fn takes_2_i32(x: i32, y: i32) {}
+
+fn foo(x: bool) {
+    if x {
+        loop {}
+    } else {
+        std::exit(0);
+    }
+
+    std::println("this is unreachable");
+}
+
+fn bar() {
+    loop {}
+
+    std::println("this is unreachable");
+}
+
+fn biz() -> TestStruct {
+    takes_2_i32(std::exit(0), 5);
+
+    std::println("This is unreachable");
+    std::println("This is also unreachable");
+
+    TestStruct {
+        x: std::exit(1),
+        y: "this is unreachable",
+    }
+}
+
+fn bang() -> i32 {
+    std::exit(0); // this is fine
+}
+
+fn harr() -> ! {
+    std::exit(0); // this is also fine
+}

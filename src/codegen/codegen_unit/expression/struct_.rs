@@ -8,8 +8,9 @@ use crate::{
         scope::Scope,
         types::Type,
         values::{MutValue, RValue},
+        warning,
     },
-    error_handling::{Diagnostic, Spanned as S},
+    error_handling::{self, Diagnostic, Spanned as S},
     parser::ast::{self, Expression},
     util,
 };
@@ -44,7 +45,14 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .position(|fi| fi.name == **field)
             .ok_or_else(|| codegen::error::invalid_field(&path, *field))?;
 
-        let Ok(lhs) = StructValue::try_from(lhs.val) else {
+        let Some(lhs_val) = lhs.val else {
+            return Ok(RValue {
+                val: None,
+                type_: struct_info.fields[idx].ty.clone(),
+            });
+        };
+
+        let Ok(lhs) = StructValue::try_from(lhs_val) else {
             unreachable!()
         };
 
@@ -54,7 +62,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .unwrap();
 
         Ok(RValue {
-            val,
+            val: Some(val),
             type_: struct_info.fields[idx].ty.clone(),
         })
     }
@@ -84,15 +92,24 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .iter()
             .position(|f| f.name == **field)
             .ok_or_else(|| error::invalid_field(path, *field))?;
+
+        let Some((lhs_ptr, lhs_llvm_type)) = lhs.ptr.zip(lhs.type_.llvm_type(&self.c)) else {
+            return Ok(MutValue {
+                ptr: None,
+                type_: struct_info.fields[idx].ty.clone(),
+            });
+        };
+
         let isize = self.c.core_types.isize;
         let field_ptr = self.builder.build_gep(
-            lhs.type_.llvm_type(self.c),
-            lhs.ptr,
+            lhs_llvm_type,
+            lhs_ptr,
             &[isize.const_(0, false), isize.const_(idx as u64, false)],
             c"",
         );
+
         Ok(MutValue {
-            ptr: field_ptr,
+            ptr: Some(field_ptr),
             type_: struct_info.fields[idx].ty.clone(),
         })
     }
@@ -103,6 +120,12 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         name: &S<util::MaybeVec<S<&str>>>,
         fields: &Vec<S<ast::StructInitializerField>>,
     ) -> Result<RValue<'ctx>, Diagnostic> {
+        struct AssignedField<'a, 'ctx> {
+            src_idx: usize,
+            name: S<&'a str>,
+            value: S<RValue<'ctx>>,
+        }
+
         let type_ = Type::new(self.c, self.crate_name, name)?;
 
         let Type::Struct { path } = &type_ else {
@@ -119,53 +142,85 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             .as_struct()
             .unwrap();
 
-        let mut assigned_fields = Vec::<S<(S<&str>, S<RValue<'ctx>>)>>::new();
+        let mut assigned_fields = Vec::<S<AssignedField>>::new();
 
-        for field in fields {
-            let idx = match assigned_fields.binary_search_by(|S(f, _)| f.0.cmp(&field.name)) {
+        for (src_idx, field) in fields.iter().enumerate() {
+            let idx = match assigned_fields.binary_search_by(|f| f.name.cmp(&field.name)) {
                 Ok(idx) => {
                     let first = &assigned_fields[idx];
 
-                    return Err(error::duplicate_field(first.0 .0, field.name.1));
+                    return Err(error::duplicate_field(first.name, field.name.1));
                 }
                 Err(idx) => idx,
             };
 
             let mut scope = Scope::new(scope);
-            let val = S(
+            let value = S(
                 self.generate_rvalue(field.val.as_sref(), &mut scope)?,
                 field.val.1,
             );
 
-            assigned_fields.insert(idx, S((field.name, val), field.1));
+            assigned_fields.insert(
+                idx,
+                S(
+                    AssignedField {
+                        src_idx,
+                        name: field.name,
+                        value,
+                    },
+                    field.1,
+                ),
+            );
         }
 
         let mut field_values = Vec::<wllvm::Value>::new();
+        let mut first_diverging_src_idx: Option<usize> = None;
 
         for field in &struct_info.fields {
-            let val = match assigned_fields.binary_search_by(|v| v.0 .0.cmp(&field.name)) {
-                Ok(idx) => &assigned_fields[idx].0 .1,
+            let assigned_val = match assigned_fields.binary_search_by(|v| v.name.cmp(&field.name)) {
+                Ok(idx) => &assigned_fields[idx],
                 Err(_) => return Err(error::missing_field(&field.name, S(path, name.1))),
             };
 
-            if val.type_ != field.ty {
+            let val = &assigned_val.value;
+            if !val.type_.is(&field.ty) {
                 return Err(error::unexpected_type(val.1, &field.ty, &val.type_));
             }
 
-            field_values.push(val.val);
+            let Some(val) = val.val else {
+                first_diverging_src_idx = Some(
+                    first_diverging_src_idx
+                        .map_or(assigned_val.src_idx, |i| i.min(assigned_val.src_idx)),
+                );
+
+                continue;
+            };
+
+            field_values.push(val);
         }
 
         if struct_info.fields.len() != assigned_fields.len() {
             for field in assigned_fields {
-                if !struct_info.fields.iter().any(|s| s.name == *field.0 .0) {
-                    return Err(error::invalid_field(path, field.0 .0));
+                if !struct_info.fields.iter().any(|s| s.name == *field.name) {
+                    return Err(error::invalid_field(path, field.name));
                 }
             }
         }
 
-        let llvm_type = StructType::try_from(type_.llvm_type(self.c)).unwrap();
+        if let Some(idx) = first_diverging_src_idx {
+            if let Some(dead_code) = error_handling::span_of(&fields[idx + 1..]) {
+                self.c.warnings.push((
+                    self.file_no,
+                    warning::unreachable_code(fields[idx].val.1, dead_code),
+                ))
+            }
 
-        let val = *llvm_type.const_(&field_values);
+            return Ok(RValue { val: None, type_ });
+        }
+
+        let llvm_type = StructType::try_from(type_.llvm_type(self.c).unwrap()).unwrap();
+
+        let val = Some(*llvm_type.const_(&field_values));
 
         Ok(RValue { val, type_ })
     }

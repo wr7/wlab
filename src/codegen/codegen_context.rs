@@ -1,6 +1,7 @@
 use std::{borrow::Cow, ffi::CString, path::Path};
 
 use wllvm::{
+    attribute::AttrKind,
     target::{self, Target, TargetData, TargetMachine},
     value::Linkage,
     Context, Module as LlvmModule,
@@ -19,7 +20,7 @@ use crate::{
     },
     error_handling::{Diagnostic, Spanned as S},
     parser::ast::{self, Visibility},
-    util,
+    util::{self, PushVec},
 };
 
 use super::namestore::{FieldInfo, StructInfo};
@@ -40,6 +41,7 @@ pub struct CodegenContext<'ctx> {
     pub(super) params: &'ctx cmdline::Parameters,
     /// The crate that contains the `main` function
     pub(super) main_crate: Option<String>,
+    pub warnings: PushVec<(usize, Diagnostic)>,
 }
 
 impl<'ctx> CodegenContext<'ctx> {
@@ -65,6 +67,7 @@ impl<'ctx> CodegenContext<'ctx> {
         let core_types = CoreTypes::new(context, &target_data);
         let name_store = NameStore::new();
         let files = Vec::new();
+        let warnings = PushVec::new();
 
         Self {
             target,
@@ -75,6 +78,7 @@ impl<'ctx> CodegenContext<'ctx> {
             files,
             params,
             main_crate: None,
+            warnings,
         }
     }
 }
@@ -180,7 +184,7 @@ impl<'ctx> CodegenContext<'ctx> {
 
             let llvm_param_types: Vec<wllvm::Type<'ctx>> = params
                 .iter()
-                .map(|(_, type_)| type_.llvm_type(self))
+                .map(|(_, type_)| type_.llvm_type(self).unwrap_or(*self.core_types.unit))
                 .collect();
 
             let return_type = function
@@ -206,11 +210,20 @@ impl<'ctx> CodegenContext<'ctx> {
                 Cow::from(format!("_WL@{crate_name}::{}", function.name))
             };
 
+            let llvm_return_type = return_type.llvm_type(self);
+
             let ll_function = module.add_function(
                 c"",
-                self.context
-                    .fn_type(return_type.llvm_type(self), &llvm_param_types, false),
+                self.context.fn_type(
+                    llvm_return_type.unwrap_or(*self.core_types.unit),
+                    &llvm_param_types,
+                    false,
+                ),
             );
+
+            if llvm_return_type.is_none() {
+                ll_function.add_attribute(self.context.attribute(AttrKind::NoReturn()));
+            }
 
             ll_function.set_name(&*fn_name);
             ll_function.set_linkage(if private {
