@@ -48,7 +48,6 @@ mod parser;
  *  - Don't do codegen for unreachable code (including uncallable functions)
  *  - Do not emit unreachable BasicBlocks
  *  - Recognize dead code involving `let` and assignment statements
- *  - Switch code away from using `Cell::take` + `Cell::set`
  */
 
 #[allow(clippy::needless_pass_by_value)]

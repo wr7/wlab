@@ -1,7 +1,13 @@
-use std::borrow::Borrow;
+use std::{borrow::Borrow, cell::UnsafeCell};
 
-pub(crate) struct BinarySearchMap<K, V> {
-    pub(crate) map: Vec<(K, V)>,
+/// A [`BinarySearchMap`] that can be modified by immutable reference
+#[repr(transparent)]
+pub struct SharedBinarySearchMap<K, V> {
+    inner: UnsafeCell<BinarySearchMap<K, V>>,
+}
+
+pub struct BinarySearchMap<K, V> {
+    map: Vec<(K, V)>,
 }
 
 impl<K, V> Default for BinarySearchMap<K, V> {
@@ -89,5 +95,95 @@ impl<K, V> BinarySearchMap<K, V> {
             .ok()
             .and_then(|idx| self.map.get(idx))
             .map(|(k, v)| (k, v))
+    }
+}
+
+#[allow(unused)]
+impl<K, V: Clone> SharedBinarySearchMap<K, V> {
+    pub fn insert_at(&self, idx: usize, key: K, val: V) {
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.insert_at(idx, key, val);
+    }
+
+    pub fn index_of<Q>(&self, key: &Q) -> Result<usize, usize>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.index_of(key)
+    }
+
+    pub fn val_at(&self, idx: usize) -> V {
+        let inner = unsafe { &mut *self.inner.get() };
+        inner.pair_at(idx).1.clone()
+    }
+
+    /// Inserts a given key and value.
+    ///
+    /// Upon success, the index of the value is returned.
+    /// If that key already exists, the index of it is returned.
+    pub fn insert(&self, key: K, val: V) -> Result<usize, usize>
+    where
+        K: Ord,
+    {
+        let idx = match self.index_of(&key) {
+            Ok(idx) => return Err(idx),
+            Err(idx) => idx,
+        };
+
+        self.insert_at(idx, key, val);
+        Ok(idx)
+    }
+
+    pub fn get<'a, Q>(&'a self, key: &Q) -> Option<V>
+    where
+        K: Borrow<Q>,
+        Q: Ord + ?Sized,
+    {
+        let idx = self.index_of(key).ok()?;
+        Some(self.val_at(idx))
+    }
+
+    pub fn get_or_insert_with<F, Q>(&self, key: &Q, func: F) -> V
+    where
+        K: Borrow<Q>,
+        Q: Ord + ToOwned<Owned = K> + ?Sized,
+        F: FnOnce() -> V,
+    {
+        match self.index_of(key) {
+            Ok(idx) => self.val_at(idx),
+            Err(idx) => {
+                let val = func();
+                self.insert_at(idx, key.to_owned(), val.clone());
+                val
+            }
+        }
+    }
+}
+
+impl<K, V> From<BinarySearchMap<K, V>> for SharedBinarySearchMap<K, V> {
+    fn from(value: BinarySearchMap<K, V>) -> Self {
+        Self {
+            inner: UnsafeCell::new(value),
+        }
+    }
+}
+
+impl<K, V> From<SharedBinarySearchMap<K, V>> for BinarySearchMap<K, V> {
+    fn from(value: SharedBinarySearchMap<K, V>) -> Self {
+        value.inner.into_inner()
+    }
+}
+
+impl<K, V> AsMut<BinarySearchMap<K, V>> for SharedBinarySearchMap<K, V> {
+    fn as_mut(&mut self) -> &mut BinarySearchMap<K, V> {
+        unsafe { wutil::transmute_mut::<SharedBinarySearchMap<K, V>, BinarySearchMap<K, V>>(self) }
+    }
+}
+
+impl<K, V> AsMut<SharedBinarySearchMap<K, V>> for BinarySearchMap<K, V> {
+    fn as_mut(&mut self) -> &mut SharedBinarySearchMap<K, V> {
+        unsafe { wutil::transmute_mut::<BinarySearchMap<K, V>, SharedBinarySearchMap<K, V>>(self) }
     }
 }

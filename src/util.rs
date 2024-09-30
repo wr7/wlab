@@ -2,6 +2,7 @@ mod intersperse;
 pub use intersperse::Intersperse;
 
 pub(crate) use binary_search_map::BinarySearchMap;
+pub(crate) use binary_search_map::SharedBinarySearchMap;
 pub(crate) use hashmap_ext::HashMapExt;
 pub(crate) use max_vec::MaxVec;
 pub(crate) use maybe_vec::MaybeVec;
