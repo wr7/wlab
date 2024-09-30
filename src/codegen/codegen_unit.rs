@@ -12,6 +12,8 @@ use crate::{
     parser::ast::{self, Statement},
 };
 
+use super::types::Type;
+
 pub(super) mod debug;
 mod expression;
 mod function;
@@ -64,21 +66,28 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                 value,
                 mutable,
             } => {
-                let val = self.generate_rvalue(value.as_sref(), scope)?;
+                let orig_val = self.generate_rvalue(value.as_sref(), scope)?;
+
+                let unreachable = orig_val.val.is_none();
 
                 let val = if *mutable {
-                    GenericValue::MutValue(MutValue::alloca(self, val))
+                    GenericValue::MutValue(MutValue::alloca(self, orig_val))
                 } else {
-                    GenericValue::RValue(val)
+                    GenericValue::RValue(orig_val)
                 };
 
                 scope.create_variable(*name, val);
-                Ok(None)
+                Ok(unreachable.then_some(RValue {
+                    val: None,
+                    type_: Type::never,
+                }))
             }
             Statement::Struct(_) => todo!(),
             Statement::Assign { lhs, rhs } => {
                 let lhs_val = self.generate_mutvalue(lhs.as_sref(), scope)?;
                 let rhs_val = self.generate_rvalue(rhs.as_sref(), scope)?;
+
+                let unreachable = lhs_val.ptr.is_none() || rhs_val.val.is_some();
 
                 if !rhs_val.type_.is(&lhs_val.type_) {
                     return Err(error::unexpected_type(
@@ -93,7 +102,10 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                 };
 
                 self.builder.build_store(rhs_val, lhs_ptr);
-                Ok(None)
+                Ok(unreachable.then_some(RValue {
+                    val: None,
+                    type_: Type::never,
+                }))
             }
             Statement::Function(_) => todo!(),
         }
