@@ -6,7 +6,7 @@ use std::{
 use wllvm::debug_info::DIType;
 
 use crate::{
-    codegen::{codegen_unit::CodegenUnit, error, namestore::FieldInfo, CodegenContext},
+    codegen::{codegen_unit::CodegenUnit, error, CodegenContext},
     error_handling::{Diagnostic, Spanned as S},
     parser::ast,
 };
@@ -105,13 +105,7 @@ impl Type {
                     .as_struct()
                     .unwrap();
 
-                let fields = struct_info
-                    .fields
-                    .iter()
-                    .map(|FieldInfo { ty, .. }| ty.llvm_type(context))
-                    .collect::<Option<Vec<_>>>();
-
-                *context.context.struct_type(&fields?, struct_info.packed)
+                return struct_info.llvm_type.as_deref().copied();
             }
             Type::never => return None,
         })

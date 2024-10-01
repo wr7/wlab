@@ -51,7 +51,6 @@ impl<'ctx> Value<'ctx> {
         self.ptr
     }
 
-    // TODO: test with no name and with inline asm value
     pub fn name(&self) -> &'ctx [u8] {
         unsafe {
             let mut len = MaybeUninit::uninit();

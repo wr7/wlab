@@ -10,7 +10,7 @@ use llvm_sys::{
         LLVMArrayType2, LLVMConstInt, LLVMConstIntOfArbitraryPrecision,
         LLVMConstIntOfStringAndSize, LLVMConstNamedStruct, LLVMConstNull, LLVMCountParamTypes,
         LLVMGetInlineAsm, LLVMGetIntTypeWidth, LLVMGetParamTypes, LLVMGetReturnType,
-        LLVMGetTypeKind, LLVMIsFunctionVarArg, LLVMPrintTypeToString,
+        LLVMGetTypeKind, LLVMIsFunctionVarArg, LLVMPrintTypeToString, LLVMStructSetBody,
     },
     prelude::LLVMBool,
     target::{
@@ -243,6 +243,14 @@ impl<'ctx> StructType<'ctx> {
     /// Gets the offset of an element in bytes
     pub fn offset_of(&self, td: &TargetData, elem: u32) -> u64 {
         unsafe { LLVMOffsetOfElement(td.raw(), self.ptr, elem) }
+    }
+
+    pub fn set_body(&self, body: &[Type<'ctx>], packed: bool) {
+        let body_ptr = body.as_ptr().cast::<*mut LLVMType>().cast_mut();
+
+        unsafe {
+            LLVMStructSetBody(self.ptr, body_ptr, body.len() as u32, packed as LLVMBool);
+        }
     }
 }
 

@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, collections::HashMap};
 
-use wllvm::value::FnValue;
+use wllvm::{type_::StructType, value::FnValue};
 
 use crate::{
     codegen::{self, types::Type},
@@ -28,7 +28,9 @@ pub struct FieldInfo {
     pub line_no: u32,
 }
 
-pub struct StructInfo {
+pub struct StructInfo<'ctx> {
+    /// The LLVM representation of the type (or `None` if it is uninstantiable)
+    pub llvm_type: Option<StructType<'ctx>>,
     pub fields: Vec<FieldInfo>,
     pub packed: bool,
     pub line_no: u32,
@@ -42,7 +44,7 @@ pub struct NameStore<'ctx> {
 pub enum NameStoreEntry<'ctx> {
     Module(NameStore<'ctx>),
     Function(FunctionInfo<'ctx>),
-    Struct(StructInfo),
+    Struct(StructInfo<'ctx>),
 }
 
 impl<'ctx> NameStoreEntry<'ctx> {
@@ -54,7 +56,7 @@ impl<'ctx> NameStoreEntry<'ctx> {
         }
     }
 
-    pub fn as_struct(&self) -> Option<&StructInfo> {
+    pub fn as_struct(&self) -> Option<&StructInfo<'ctx>> {
         if let NameStoreEntry::Struct(struct_) = self {
             Some(struct_)
         } else {
@@ -78,7 +80,7 @@ impl<'ctx> NameStore<'ctx> {
     }
 
     /// Returns false if the struct already exists
-    pub fn add_struct<S>(&mut self, key: &[S], struct_: StructInfo) -> bool
+    pub fn add_struct<S>(&mut self, key: &[S], struct_: StructInfo<'ctx>) -> bool
     where
         S: Borrow<str>,
     {
@@ -175,5 +177,17 @@ impl<'ctx> NameStore<'ctx> {
             .store
             .get(*item_name)
             .ok_or_else(|| codegen::error::undefined_item(item_name))
+    }
+
+    pub fn get_item_in_crate_mut(
+        &mut self,
+        crate_name: &str,
+        item_name: &str,
+    ) -> &mut NameStoreEntry<'ctx> {
+        let Some(NameStoreEntry::Module(crate_)) = self.store.get_mut(crate_name) else {
+            unreachable!()
+        };
+
+        crate_.store.get_mut(item_name).unwrap()
     }
 }

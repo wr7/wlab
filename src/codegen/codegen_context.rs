@@ -1,9 +1,7 @@
-use std::{borrow::Cow, ffi::CString, path::Path};
+use std::{ffi::CString, path::Path};
 
 use wllvm::{
-    attribute::AttrKind,
     target::{self, Target, TargetData, TargetMachine},
-    value::Linkage,
     Context, Module as LlvmModule,
 };
 
@@ -12,18 +10,17 @@ use crate::{
     codegen::{
         self,
         codegen_unit::CodegenUnit,
-        error,
-        namestore::{FunctionInfo, FunctionSignature, NameStore},
+        namestore::{NameStore, StructInfo},
         scope::Scope,
-        types::Type,
         CoreTypes,
     },
-    error_handling::{Diagnostic, Spanned as S},
-    parser::ast::{self, Visibility},
-    util::{self, PushVec},
+    error_handling::Diagnostic,
+    parser::ast::{self},
+    util::PushVec,
 };
 
-use super::namestore::{FieldInfo, StructInfo};
+mod functions;
+mod structs;
 
 pub struct Crate<'ctx> {
     pub llvm_module: LlvmModule<'ctx>,
@@ -87,7 +84,6 @@ impl<'ctx> CodegenContext<'ctx> {
     pub fn create_crate(
         &mut self,
         ast: &ast::Module,
-        source: &str,
         file_name: String,
     ) -> Result<Crate<'ctx>, Diagnostic> {
         self.files.push(file_name);
@@ -110,53 +106,19 @@ impl<'ctx> CodegenContext<'ctx> {
             .create_module(&CString::new(crate_name).unwrap());
 
         for struct_ in &ast.structs {
-            let mut packed = false;
+            let llvm_type = self.context.create_named_struct(struct_.name);
 
-            for attr in &struct_.attributes {
-                match &**attr {
-                    ast::Attribute::Packed => packed = true,
-                    _ => return Err(codegen::error::non_struct_attribute(attr)),
-                }
-            }
-
-            let line_no = util::line_and_col(source, struct_.1.start).0 as u32;
-
-            let mut fields = Vec::new();
-            let mut field_names: Vec<S<&str>> = Vec::new();
-
-            for field in &struct_.fields {
-                match field_names.binary_search_by(|f| f.cmp(field.name)) {
-                    Ok(idx) => {
-                        let field1 = field_names[idx];
-                        return Err(codegen::error::duplicate_field(field1, field.1));
-                    }
-                    Err(idx) => field_names.insert(idx, S(field.name, field.1)),
-                }
-
-                let line_no = util::line_and_col(source, field.1.start).0 as u32;
-                let ty = Type::new(self, crate_name, &field.type_)?;
-
-                fields.push(FieldInfo {
-                    name: field.name.to_owned(),
-                    ty,
-                    line_no,
-                });
-            }
-
-            if !self.name_store.add_struct(
+            self.name_store.add_struct(
                 &[crate_name, struct_.name],
+                // placeholder values; these will be replaced by Self::generate_struct_bodies
                 StructInfo {
-                    fields,
-                    packed,
-                    line_no,
-                    file_no,
+                    llvm_type: Some(llvm_type),
+                    fields: Vec::new(),
+                    packed: false,
+                    line_no: 0,
+                    file_no: 0,
                 },
-            ) {
-                return Err(codegen::error::item_already_defined(S(
-                    struct_.name,
-                    struct_.1,
-                )));
-            }
+            );
         }
 
         Ok(Crate {
@@ -166,107 +128,14 @@ impl<'ctx> CodegenContext<'ctx> {
         })
     }
 
-    pub fn add_functions(
+    pub fn add_types_and_functions(
         &mut self,
         ast: &ast::Module,
+        source: &str,
         crate_: &Crate<'ctx>,
     ) -> Result<(), Diagnostic> {
-        let crate_name = &*crate_.name;
-        let module = &crate_.llvm_module;
-
-        for function in &ast.functions {
-            let params: Result<Vec<(S<&str>, Type)>, _> = function
-                .params
-                .iter()
-                .map(|(n, t)| Ok((*n, Type::new(self, &crate_.name, t)?)))
-                .collect();
-            let params = params?;
-
-            let llvm_param_types: Vec<wllvm::Type<'ctx>> = params
-                .iter()
-                .map(|(_, type_)| type_.llvm_type(self).unwrap_or(*self.core_types.unit))
-                .collect();
-
-            let return_type = function
-                .return_type
-                .as_ref()
-                .map_or(Ok(Type::unit), |t| Type::new(self, &crate_.name, t))?;
-
-            let mut no_mangle = false;
-
-            for attr in &function.attributes {
-                match **attr {
-                    ast::Attribute::NoMangle => no_mangle = true,
-                    ast::Attribute::Intrinsic(_) => {}
-                    _ => return Err(codegen::error::non_function_attribute(attr)),
-                }
-            }
-
-            let private = function.visibility == Visibility::Private && !no_mangle;
-
-            let fn_name = if no_mangle {
-                Cow::from(function.name)
-            } else {
-                Cow::from(format!("_WL@{crate_name}::{}", function.name))
-            };
-
-            let llvm_return_type = return_type.llvm_type(self);
-
-            let ll_function = module.add_function(
-                c"",
-                self.context.fn_type(
-                    llvm_return_type.unwrap_or(*self.core_types.unit),
-                    &llvm_param_types,
-                    false,
-                ),
-            );
-
-            if llvm_return_type.is_none() {
-                ll_function.add_attribute(self.context.attribute(AttrKind::NoReturn()));
-            }
-
-            ll_function.set_name(&*fn_name);
-            ll_function.set_linkage(if private {
-                Linkage::Internal
-            } else {
-                Linkage::External
-            });
-
-            if !self.name_store.add_function(
-                &[crate_name, function.name],
-                FunctionInfo {
-                    signature: FunctionSignature {
-                        params: params.into_iter().map(|(_, t)| t).collect(),
-                        return_type,
-                    },
-                    function: ll_function,
-                    visibility: function.visibility,
-                },
-            ) {
-                return Err(codegen::error::item_already_defined(S(
-                    function.name,
-                    function.1,
-                )));
-            }
-
-            if function.name == "main" {
-                if let Some(other_crate) = &self.main_crate {
-                    return Err(error::duplicate_main(&other_crate, crate_name, function.1));
-                }
-
-                self.main_crate = Some(crate_name.to_owned());
-
-                if !function.params.is_empty() {
-                    return Err(error::main_arguments(function.params.1));
-                }
-
-                if let Some(return_type) = &function.return_type {
-                    if return_type.get(0).is_some_and(|t| **t != "()") {
-                        return Err(error::main_return_type(return_type.1));
-                    }
-                }
-            }
-        }
+        self.generate_struct_bodies(ast, source, crate_)?;
+        self.generate_function_declarations(ast, crate_)?;
 
         Ok(())
     }

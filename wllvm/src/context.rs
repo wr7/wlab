@@ -8,8 +8,8 @@ use llvm_sys::{
         LLVMConstStringInContext, LLVMConstStructInContext, LLVMContextCreate, LLVMContextDispose,
         LLVMCreateBasicBlockInContext, LLVMCreateBuilderInContext, LLVMFunctionType,
         LLVMInsertBasicBlockInContext, LLVMIntTypeInContext, LLVMModuleCreateWithNameInContext,
-        LLVMMoveBasicBlockAfter, LLVMPointerTypeInContext, LLVMStructTypeInContext,
-        LLVMVoidTypeInContext,
+        LLVMMoveBasicBlockAfter, LLVMPointerTypeInContext, LLVMStructCreateNamed,
+        LLVMStructTypeInContext, LLVMVoidTypeInContext,
     },
     debuginfo::LLVMDIBuilderCreateDebugLocation,
     prelude::LLVMBool,
@@ -38,6 +38,21 @@ impl Context {
 
     pub unsafe fn from_raw_ref<'a>(raw: &'a *mut LLVMContext) -> &'a Self {
         util::transmute_ref::<*mut LLVMContext, Self>(raw)
+    }
+
+    pub fn create_named_struct<'ctx>(
+        &'ctx self,
+        name: &(impl AsRef<[u8]> + ?Sized),
+    ) -> StructType<'ctx> {
+        // C Strings :(
+        let name = util::get_cstr_of(name.as_ref()).unwrap();
+
+        let ret_val =
+            unsafe { StructType::from_raw(LLVMStructCreateNamed(self.raw(), name.as_ptr())) };
+
+        util::recycle_cstr(name);
+
+        ret_val
     }
 
     pub fn raw(&self) -> *mut LLVMContext {

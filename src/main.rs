@@ -37,8 +37,7 @@ mod parser;
  *  - Allow functions and structs inside of code blocks
  *  - Structs
  *       - Add visibility
- *       - Fix structs with out-of-order struct fields (depgraph)
- *       - Properly handle recursively-defined types
+ *       - Give errors for recursively-defined types
  *  - Give parser access to source code to further reduce allocations
  *  - Use more efficient representation of ast::Path
  *  - Debug info
@@ -47,7 +46,6 @@ mod parser;
  *      - Fix mangled names in debug info
  *  - Don't do codegen for unreachable code (including uncallable functions)
  *  - Do not emit unreachable BasicBlocks
- *  - Recognize dead code involving `let` and assignment statements
  */
 
 #[allow(clippy::needless_pass_by_value)]
@@ -137,7 +135,7 @@ fn main() {
         }
 
         let crate_ = codegen_context
-            .create_crate(&ast, source, file_name.clone())
+            .create_crate(&ast, file_name.clone())
             .unwrap_or_else(|err| {
                 eprintln!("\n{}", err.render(source));
                 process::exit(1);
@@ -152,7 +150,7 @@ fn main() {
 
     for (source, ast, crate_) in &crates {
         codegen_context
-            .add_functions(ast, crate_)
+            .add_types_and_functions(ast, source, crate_)
             .unwrap_or_else(|err| {
                 eprintln!("\n{}", err.render(source));
                 process::exit(1);
