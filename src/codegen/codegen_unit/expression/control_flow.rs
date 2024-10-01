@@ -34,8 +34,6 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         self.builder.position_at_end(new_block);
 
-        // TODO: set builder's current block to `None`
-
         Ok(RValue {
             val: None,
             type_: Type::never,

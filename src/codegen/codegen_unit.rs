@@ -87,7 +87,7 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                 let lhs_val = self.generate_mutvalue(lhs.as_sref(), scope)?;
                 let rhs_val = self.generate_rvalue(rhs.as_sref(), scope)?;
 
-                let unreachable = lhs_val.ptr.is_none() || rhs_val.val.is_some();
+                let unreachable = lhs_val.ptr.is_none() || rhs_val.val.is_none();
 
                 if !rhs_val.type_.is(&lhs_val.type_) {
                     return Err(error::unexpected_type(
