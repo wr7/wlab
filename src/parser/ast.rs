@@ -102,6 +102,8 @@ pub enum Expression<'src> {
         fields: Vec<S<StructInitializerField<'src>>>,
     },
     FieldAccess(Box<S<Self>>, S<&'src str>),
+    Break(Option<Box<S<Self>>>),
+    Return(Option<Box<S<Self>>>),
 }
 
 impl<'src> From<Expression<'src>> for Statement<'src> {

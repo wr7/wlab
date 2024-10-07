@@ -36,9 +36,10 @@ fn try_parse_expr<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expression
     }
 
     let rules = [
+        |tokens| control_flow::try_parse_if_expression(tokens),
+        |tokens| control_flow::try_parse_break_or_return(tokens),
         |tokens| Ok(try_parse_literal(tokens)),
         |tokens| Ok(try_parse_identifier(tokens)),
-        |tokens| control_flow::try_parse_if_expression(tokens),
         |tokens| bracket_expr::try_parse_bracket_expr(tokens),
         |tokens| {
             try_parse_binary_operator(tokens, &[(T!("||"), OpCode::Or), (T!("&&"), OpCode::And)])

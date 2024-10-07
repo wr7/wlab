@@ -3,6 +3,7 @@ use crate::{
     parser::{
         ast::{CodeBlock, Expression, Statement},
         error,
+        macros::match_tokens,
         rules::{bracket_expr::try_parse_code_block_from_front, try_parse_expr, PResult},
         util::NonBracketedIter,
         TokenStream,
@@ -129,4 +130,31 @@ pub fn try_parse_loop<'src>(tokens: &TokenStream<'src>) -> PResult<Option<Expres
     };
 
     Ok(Some(loop_))
+}
+
+pub fn try_parse_break_or_return<'src>(
+    tokens: &TokenStream<'src>,
+) -> PResult<Option<Expression<'src>>> {
+    match_tokens! {
+        tokens: {
+            required {
+                either(
+                    token("break");
+                    token("return")
+                ) @ tok
+            };
+
+            do_(|remaining| {
+                try_parse_expr(remaining)?
+            }) @ expr;
+        } => |remaining| {
+            let expr = expr.and_then(|expr| Some(S(expr, error_handling::span_of(remaining)?).into()));
+
+            if matches!(tok, S(T!("break"), _)) {
+                Ok(Some(Expression::Break(expr)))
+            } else {
+                Ok(Some(Expression::Return(expr)))
+            }
+        }
+    }
 }

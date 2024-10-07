@@ -46,6 +46,7 @@ mod parser;
  *      - Fix mangled names in debug info
  *  - Don't do codegen for unreachable code (including uncallable functions)
  *  - Do not emit unreachable BasicBlocks
+ *  - Add `return` and `break` statements
  */
 
 #[allow(clippy::needless_pass_by_value)]

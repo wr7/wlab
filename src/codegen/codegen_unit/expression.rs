@@ -78,6 +78,8 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 self.generate_struct(scope, name, fields)
             }
             Expression::FieldAccess(lhs, field) => self.generate_field_access(scope, lhs, field),
+            Expression::Break(val) => todo!(), // TODO: break/return codegen
+            Expression::Return(val) => todo!(),
         }
     }
 
