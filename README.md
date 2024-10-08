@@ -58,31 +58,26 @@ fn main() {
 ```
 
 ### Error messages
-Example error messages:
+Example error/warning messages:
 
 src:
 ```rust
-#![declare_crate(test_error)]
+#![declare_crate(a)]
 
-fn main() {
-    /****************\
-    |*              *|
-    |*              *|
-    |*  This long   *|
-    |*   comment    *|
-    |*   will be    *|
-    |* omitted from *|
-    |*  the error   *|
-    |*    message   *|
-    |*              *|
-    |*              *|
-    \****************/
-)
+fn foo(x: bool) {
+    if x {
+        loop {std::println("this will loop forever")};
+    } else {
+        std::exit(1);
+    }
+
+    std::println("This will never be printed")
+}
 ```
 
 error:
 
-![Screenshot from 2024-09-14 16-01-08](https://github.com/user-attachments/assets/3c46d346-6c96-46cc-9acb-e184823119e2)
+![image](https://github.com/user-attachments/assets/b22e497a-6073-45dd-8d3f-1a69b726286a)
 
 src:
 ```rust
