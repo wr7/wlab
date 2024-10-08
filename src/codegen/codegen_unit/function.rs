@@ -122,12 +122,13 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             Scope::new(scope).with_uninstatiable_params(&params)
         } else {
             Scope::new(scope).with_params(&params, ll_function)
-        };
+        }
+        .with_return_type(return_type.clone());
 
         let return_value = self.generate_codeblock(&function.body, &mut fn_scope)?;
 
         if !return_value.type_.is(&return_type) {
-            return Err(codegen::error::incorrect_return_type(
+            return Err(codegen::error::incorrect_implicit_return_type(
                 function.body.as_sref(),
                 &return_type,
                 &return_value.type_,

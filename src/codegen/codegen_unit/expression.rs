@@ -81,7 +81,9 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             Expression::Break(value) => {
                 self.generate_break(scope, value.as_ref().map(|v| v.as_sref()), expression.1)
             }
-            Expression::Return(_val) => unimplemented!(),
+            Expression::Return(_val) => {
+                self.generate_return(scope, _val.as_ref().map(|v| v.as_sref()), expression.1)
+            }
         }
     }
 

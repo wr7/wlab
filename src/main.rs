@@ -44,7 +44,6 @@ mod parser;
  *      - Create DILexicalScope for all code blocks (not just functions)
  *      - Add debug info for variables
  *      - Fix mangled names in debug info
- *  - Add `return` statements
  */
 
 #[allow(clippy::needless_pass_by_value)]

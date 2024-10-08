@@ -44,6 +44,49 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         })
     }
 
+    pub fn generate_return(
+        &self,
+        scope: &mut Scope<'_, 'ctx>,
+        value: Option<S<&Expression>>,
+        span: Span,
+    ) -> Result<RValue<'ctx>, Diagnostic> {
+        let value_span = value.map_or(span, |S(_, s)| s);
+
+        let rvalue = value.map(|v| self.generate_rvalue(v, scope)).transpose()?;
+        let rvalue = rvalue.unwrap_or_else(|| RValue {
+            val: Some(*self.c.context.const_struct(&[], false)),
+            type_: Type::unit,
+        });
+
+        let Some(return_type) = scope.get_return_type() else {
+            return Err(error::return_outside_of_function(span));
+        };
+
+        if !rvalue.type_.is(return_type) {
+            return Err(error::incorrect_explicit_return_type(
+                return_type,
+                S(&rvalue.type_, value_span),
+            ));
+        }
+
+        if let Some(val) = rvalue.val {
+            self.builder.build_ret(val);
+        } else {
+            self.builder.build_unreachable();
+        }
+
+        self.builder.position_at_end(
+            self.c
+                .context
+                .insert_basic_block_after(self.builder.current_block().unwrap(), c""),
+        );
+
+        Ok(RValue {
+            val: None,
+            type_: Type::never,
+        })
+    }
+
     pub fn generate_loop(
         &self,
         scope: &mut Scope<'_, 'ctx>,

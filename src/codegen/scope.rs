@@ -23,6 +23,7 @@ pub struct Scope<'p, 'ctx> {
     parent: Option<&'p Scope<'p, 'ctx>>,
     variables: HashMap<String, ScopeVariable<'ctx>>,
     break_context: Option<&'p BreakContext<'ctx>>,
+    return_type: Option<Type>,
 }
 
 impl<'ctx> Scope<'_, 'ctx> {
@@ -31,6 +32,7 @@ impl<'ctx> Scope<'_, 'ctx> {
             parent: None,
             variables: HashMap::new(),
             break_context: None,
+            return_type: None,
         }
     }
 }
@@ -41,7 +43,13 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
             parent: Some(parent),
             variables: HashMap::new(),
             break_context: None,
+            return_type: None,
         }
+    }
+
+    pub fn with_return_type(mut self, return_type: Type) -> Self {
+        self.return_type = Some(return_type);
+        self
     }
 
     pub fn with_params(mut self, params: &[(S<&str>, Type)], function: FnValue<'ctx>) -> Self {
@@ -100,5 +108,11 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
 
     pub fn get_break(&self) -> Option<&'p BreakContext<'ctx>> {
         self.break_context.or_else(|| self.parent?.get_break())
+    }
+
+    pub fn get_return_type(&self) -> Option<&Type> {
+        self.return_type
+            .as_ref()
+            .or_else(|| self.parent?.get_return_type())
     }
 }

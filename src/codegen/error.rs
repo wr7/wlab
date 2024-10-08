@@ -70,7 +70,17 @@ pub fn invalid_number(num: S<&str>) -> Diagnostic {
         [Hint::new_error("Literal used here", num.1)]
     }
 }
-pub fn incorrect_return_type(body: S<&CodeBlock>, expected: &Type, got: &Type) -> Diagnostic {
+pub fn incorrect_explicit_return_type(expected: &Type, got: S<&Type>) -> Diagnostic {
+    d! {
+        format!("Incorrect return type: expected `{expected}`; got `{}`", *got),
+        [Hint::new_error("", got.1)]
+    }
+}
+pub fn incorrect_implicit_return_type(
+    body: S<&CodeBlock>,
+    expected: &Type,
+    got: &Type,
+) -> Diagnostic {
     if body.body.is_empty() {
         return d! {
             format!("Expected return type `{expected}` from function body"),
@@ -336,6 +346,13 @@ pub fn main_return_type(span: Span) -> Diagnostic {
 pub fn break_outside_of_loop(span: Span) -> Diagnostic {
     d! {
         "Break statements can only be used within loops. Did you mean `return` instead?",
+        [ Hint::new_error("", span) ]
+    }
+}
+
+pub fn return_outside_of_function(span: Span) -> Diagnostic {
+    d! {
+        "Return statements can only be used within functions",
         [ Hint::new_error("", span) ]
     }
 }
