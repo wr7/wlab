@@ -53,7 +53,11 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             exit_fn
         });
 
-        self.builder.build_fn_call(exit_fn, &[], c"");
+        self.builder.build_fn_call(
+            exit_fn,
+            &[*self.c.context.int_type(32).const_(0, false)],
+            c"",
+        );
 
         self.builder.build_unreachable();
 

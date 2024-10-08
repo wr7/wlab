@@ -1,4 +1,4 @@
-use std::{ffi::CString, path::Path};
+use std::{ffi::CString, io::Write as _, path::Path};
 
 use wllvm::{
     target::{self, Target, TargetData, TargetMachine},
@@ -176,13 +176,13 @@ impl<'ctx> CodegenContext<'ctx> {
             .unwrap();
         }
 
-        // if let Err(e) = generator.module.verify() {
-        //     std::eprintln!("\n COMPILER BUG: LLVM ERROR:\n");
-        //     std::io::stderr().write_all(e.as_bytes()).unwrap();
-        //     std::eprintln!();
+        if let Err(e) = generator.module.verify() {
+            std::eprintln!("\n COMPILER BUG: LLVM ERROR:\n");
+            std::io::stderr().write_all(e.as_bytes()).unwrap();
+            std::eprintln!();
 
-        //     std::process::abort();
-        // }
+            std::process::abort();
+        }
 
         if params.generate_asm {
             let asm = generator

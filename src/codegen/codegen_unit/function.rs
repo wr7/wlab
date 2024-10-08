@@ -84,6 +84,14 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let mut dbg_scope = **dbg_lexical_block;
         std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
 
+        self.builder
+            .set_debug_location(self.c.context.debug_location(
+                scope_line_no as u32,
+                scope_col_no as u32,
+                self.debug_context.scope,
+                None,
+            ));
+
         let mut intrinsic_span = None;
 
         for attr in &function.attributes {

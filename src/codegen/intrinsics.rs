@@ -8,7 +8,6 @@ use crate::{
     codegen::{self, namestore::FunctionInfo, types::Type, CodegenUnit},
     error_handling::{Diagnostic, Spanned as S},
     parser::ast,
-    util,
 };
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
@@ -19,16 +18,6 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         params: &[(S<&str>, Type)],
         intrinsic: S<&str>,
     ) -> Result<(), Diagnostic> {
-        let (line_no, col_no) = util::line_and_col(self.source, function.body.1.start);
-        let dbg_location = self.c.context.debug_location(
-            line_no as u32,
-            col_no as u32,
-            self.debug_context.scope,
-            None,
-        );
-
-        self.builder.set_debug_location(dbg_location);
-
         if !function.body.body.is_empty() {
             return Err(codegen::error::non_empty_intrinsic(function.body.1));
         }

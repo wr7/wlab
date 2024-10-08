@@ -131,6 +131,10 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             self.builder.build_unreachable();
         }
 
+        // `self.generate_codeblock` may create additional basic blocks. We want to use the last one
+        // for our phi node
+        let if_bb = self.builder.current_block().unwrap();
+
         let else_retval: Option<RValue<'ctx>> =
             if let Some((else_bb, else_block)) = else_bb.zip(else_block.as_ref()) {
                 self.builder.position_at_end(else_bb);
@@ -148,6 +152,10 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
             } else {
                 None
             };
+
+        // `self.generate_codeblock` may create additional basic blocks. We want to use the last one
+        // for our phi node
+        let else_bb = else_bb.and_then(|_| self.builder.current_block());
 
         self.builder.position_at_end(continuing_bb);
 
