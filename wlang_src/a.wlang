@@ -1,31 +1,25 @@
 #![declare_crate(a)]
 
-/****************\
-|* test comment *|
-|*     1234     *|
-\****************/
-
-struct TestStruct {
-    first: str,
-    second: str,
-};
-
 fn main() {
-    std::println("hello from wlang!");
-    if 9 + 10 != 21 { // single line comment
-        std::println("9 + 10 isn't 21 \n\n :( ");
+    let mut x = 5;
+    let mut y = false;
+
+    loop {
+        let str_to_print = if y {"X"} else {"x"};
+
+        std::print(str_to_print);
+
+        if x == 0 {
+            break;
+        } else {
+            x = x - 1;
+            y = not(y);
+        }
     }
 
-    let mut messages = get_messages();
-    messages.second = "This message has been overidden";
-
-    std::println(messages.first);
-    std::println(messages.second);
+    std::println("");
 }
 
-fn get_messages() -> TestStruct {
-    TestStruct {
-        second: "This is the second message",
-        first: "This is the first message",
-    }
+fn not(b: bool) -> bool {
+    if b {false} else {true}
 }

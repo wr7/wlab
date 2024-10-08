@@ -11,6 +11,9 @@ use crate::{
     error_handling::Spanned as S,
 };
 
+mod break_;
+pub use break_::BreakContext;
+
 pub struct ScopeVariable<'ctx> {
     pub value: GenericValue<'ctx>,
     pub name_span: Span,
@@ -19,13 +22,15 @@ pub struct ScopeVariable<'ctx> {
 pub struct Scope<'p, 'ctx> {
     parent: Option<&'p Scope<'p, 'ctx>>,
     variables: HashMap<String, ScopeVariable<'ctx>>,
+    break_context: Option<&'p BreakContext<'ctx>>,
 }
 
-impl<'ctx> Scope<'static, 'ctx> {
+impl<'ctx> Scope<'_, 'ctx> {
     pub fn new_global() -> Self {
         Self {
             parent: None,
             variables: HashMap::new(),
+            break_context: None,
         }
     }
 }
@@ -35,6 +40,7 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         Self {
             parent: Some(parent),
             variables: HashMap::new(),
+            break_context: None,
         }
     }
 
@@ -71,6 +77,11 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         self
     }
 
+    pub fn with_break(mut self, break_context: &'p BreakContext<'ctx>) -> Self {
+        self.break_context = Some(break_context);
+        self
+    }
+
     pub fn create_variable(&mut self, name: S<&str>, value: GenericValue<'ctx>) {
         self.variables.insert(
             name.0.to_owned(),
@@ -85,5 +96,9 @@ impl<'p, 'ctx> Scope<'p, 'ctx> {
         self.variables
             .get(name)
             .or_else(|| self.parent?.get_variable(name))
+    }
+
+    pub fn get_break(&self) -> Option<&'p BreakContext<'ctx>> {
+        self.break_context.or_else(|| self.parent?.get_break())
     }
 }

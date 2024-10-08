@@ -5,6 +5,7 @@ use std::{
 };
 
 use llvm_sys::{
+    analysis::LLVMVerifyModule,
     core::{
         LLVMAddFunction, LLVMAddGlobal, LLVMDisposeModule, LLVMGetNamedFunction,
         LLVMPrintModuleToFile, LLVMPrintModuleToString,
@@ -143,6 +144,24 @@ impl<'ctx> Module<'ctx> {
             } else {
                 Err(LLVMString::from_raw(err_msg.assume_init()))
             }
+        }
+    }
+
+    pub fn verify(&self) -> Result<(), LLVMString> {
+        let mut string = MaybeUninit::<*mut i8>::uninit();
+
+        let result = unsafe {
+            LLVMVerifyModule(
+                self.ptr,
+                llvm_sys::analysis::LLVMVerifierFailureAction::LLVMReturnStatusAction,
+                string.as_mut_ptr(),
+            )
+        };
+
+        if result != 0 {
+            Err(unsafe { LLVMString::from_raw(string.assume_init_read()) })
+        } else {
+            Ok(())
         }
     }
 

@@ -1,14 +1,49 @@
 use wllvm::value::ValueEnum;
+use wutil::Span;
 
 use crate::{
     codegen::{
-        self, codegen_unit::CodegenUnit, scope::Scope, types::Type, values::RValue, warning,
+        self,
+        codegen_unit::CodegenUnit,
+        error,
+        scope::{BreakContext, Scope},
+        types::Type,
+        values::RValue,
+        warning,
     },
     error_handling::{self, Diagnostic, Spanned as S},
-    parser::ast,
+    parser::ast::{self, Expression},
 };
 
 impl<'ctx> CodegenUnit<'_, 'ctx> {
+    pub fn generate_break(
+        &self,
+        scope: &mut Scope<'_, 'ctx>,
+        value: Option<S<&Expression>>,
+        span: Span,
+    ) -> Result<RValue<'ctx>, Diagnostic> {
+        let vspan = value.map_or(span, |S(_, s)| s);
+
+        let Some(break_context) = scope.get_break() else {
+            return Err(error::break_outside_of_loop(span));
+        };
+
+        let value = value.map(|v| self.generate_rvalue(v, scope)).transpose()?;
+
+        break_context.build_break(&self, value, vspan)?;
+
+        let new_bb = self
+            .c
+            .context
+            .insert_basic_block_after(self.builder.current_block().unwrap(), c"");
+        self.builder.position_at_end(new_bb);
+
+        Ok(RValue {
+            val: None,
+            type_: Type::never,
+        })
+    }
+
     pub fn generate_loop(
         &self,
         scope: &mut Scope<'_, 'ctx>,
@@ -17,27 +52,21 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let prev_block = self.builder.current_block().unwrap();
 
         let bb = self.c.context.insert_basic_block_after(prev_block, c"");
-        self.builder.build_br(bb);
+        let jump_to = self.c.context.insert_basic_block_after(bb, c"");
+        let break_context = BreakContext::new(jump_to);
 
+        self.builder.build_br(bb);
         self.builder.position_at_end(bb);
 
-        let mut inner_scope = Scope::new(scope);
+        let mut inner_scope = Scope::new(scope).with_break(&break_context);
 
         self.generate_codeblock(&block, &mut inner_scope)?;
 
         self.builder.build_br(bb);
 
-        let new_block = self
-            .c
-            .context
-            .insert_basic_block_after(self.builder.current_block().unwrap(), c"");
+        self.builder.position_at_end(jump_to);
 
-        self.builder.position_at_end(new_block);
-
-        Ok(RValue {
-            val: None,
-            type_: Type::never,
-        })
+        Ok(break_context.into_rvalue())
     }
 
     pub fn generate_if(

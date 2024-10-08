@@ -176,6 +176,14 @@ impl<'ctx> CodegenContext<'ctx> {
             .unwrap();
         }
 
+        // if let Err(e) = generator.module.verify() {
+        //     std::eprintln!("\n COMPILER BUG: LLVM ERROR:\n");
+        //     std::io::stderr().write_all(e.as_bytes()).unwrap();
+        //     std::eprintln!();
+
+        //     std::process::abort();
+        // }
+
         if params.generate_asm {
             let asm = generator
                 .module

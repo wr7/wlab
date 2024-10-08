@@ -6,7 +6,11 @@ fn write(fd: i32, data: str) {}
 #[intrinsic(exit)]
 pub fn exit(code: i32) -> ! {}
 
-pub fn println(val: str) {
+pub fn print(val: str) {
     write(1, val);
-    write(1, "\n");
+}
+
+pub fn println(val: str) {
+    print(val);
+    print("\n");
 }

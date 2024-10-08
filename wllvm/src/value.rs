@@ -9,10 +9,11 @@ use std::{
 
 use llvm_sys::{
     core::{
-        LLVMAddAttributeAtIndex, LLVMAddIncoming, LLVMAppendBasicBlockInContext, LLVMCountParams,
-        LLVMGetLinkage, LLVMGetParam, LLVMGetTypeContext, LLVMGetValueKind, LLVMGetValueName2,
-        LLVMGlobalGetValueType, LLVMIsDeclaration, LLVMIsGlobalConstant, LLVMPrintValueToString,
-        LLVMSetGlobalConstant, LLVMSetInitializer, LLVMSetLinkage, LLVMSetValueName2, LLVMTypeOf,
+        LLVMAddAttributeAtIndex, LLVMAddIncoming, LLVMAppendBasicBlockInContext, LLVMCountIncoming,
+        LLVMCountParams, LLVMGetLinkage, LLVMGetParam, LLVMGetTypeContext, LLVMGetValueKind,
+        LLVMGetValueName2, LLVMGlobalGetValueType, LLVMIsDeclaration, LLVMIsGlobalConstant,
+        LLVMPrintValueToString, LLVMSetGlobalConstant, LLVMSetInitializer, LLVMSetLinkage,
+        LLVMSetValueName2, LLVMTypeOf,
     },
     debuginfo::LLVMSetSubprogram,
     prelude::LLVMBool,
@@ -168,6 +169,11 @@ impl<'ctx> PhiValue<'ctx> {
         unsafe { LLVMAddIncoming(self.ptr, values_ptr, blocks_ptr, values.len() as u32) }
 
         true
+    }
+
+    /// Gets the number of incoming branches/values
+    pub fn num_incoming(&self) -> u32 {
+        unsafe { LLVMCountIncoming(self.ptr) }
     }
 }
 

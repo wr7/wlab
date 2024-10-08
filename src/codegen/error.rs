@@ -49,6 +49,15 @@ pub fn unexpected_type(span: Span, expected: &Type, got: &Type) -> Diagnostic {
         [Hint::new_error(format!("value here of type `{got}`"), span)]
     }
 }
+pub fn unexpected_break_type(expected: S<&Type>, got: S<&Type>) -> Diagnostic {
+    d! {
+        format!("Unexpected type: expected `{}`; got `{}`", expected.0, got.0),
+        [
+            Hint::new_info(format!("expected `{}` because of this code here", expected.0), expected.1),
+            Hint::new_error(format!("value here is of type `{}`", got.0), got.1),
+        ]
+    }
+}
 pub fn invalid_param_count(span: Span, expected: usize, got: usize) -> Diagnostic {
     d! {
         format!("Incorrect number of parameters: expected {expected}, got {got}"),
@@ -320,6 +329,13 @@ pub fn exit_arguments() -> Diagnostic {
 pub fn main_return_type(span: Span) -> Diagnostic {
     d! {
         "main function must return `()` (unit) type",
+        [ Hint::new_error("", span) ]
+    }
+}
+
+pub fn break_outside_of_loop(span: Span) -> Diagnostic {
+    d! {
+        "Break statements can only be used within loops. Did you mean `return` instead?",
         [ Hint::new_error("", span) ]
     }
 }

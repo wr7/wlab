@@ -38,7 +38,7 @@ impl Display for Type {
 }
 
 impl Type {
-    /// Checks if `self` can be used in-place-of `type_`
+    /// Checks if `self` can be used in-place-of `type_` without doing any conversion whatsoever
     ///
     /// This has special handling for the `!` type which can be used in-place-of any type.
     pub fn is(&self, type_: &Self) -> bool {
