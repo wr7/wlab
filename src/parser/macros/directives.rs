@@ -84,7 +84,7 @@ macro_rules! bracketed {
             let Some(_tmp_closing @ $crate::error_handling::Spanned($crate::lexer::Token::CloseBracket($crate::lexer::BracketType::$type), _)) = nb_iter.next() else {
                 unreachable!()
             };
-            let closing_idx = $crate::util::SliceExt::elem_offset($tokens, _tmp_closing).unwrap();
+            let closing_idx = $tokens.elem_offset(_tmp_closing).unwrap();
 
             let val = {
                 let mut _remaining = &$tokens[1..closing_idx];

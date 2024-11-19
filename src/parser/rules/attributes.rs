@@ -9,7 +9,6 @@ use crate::{
         util::{NonBracketedIter, TokenSplit},
         TokenStream,
     },
-    util::SliceExt as _,
     T,
 };
 

@@ -8,7 +8,6 @@ use crate::{
         util::{NonBracketedIter, TokenSplit},
         TokenStream,
     },
-    util::SliceExt,
     T,
 };
 

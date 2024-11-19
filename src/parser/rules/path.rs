@@ -4,7 +4,7 @@ use crate::{
     error_handling::{self, Spanned as S},
     lexer::Token,
     parser::{ast::Path, error, rules::PResult, TokenStream},
-    util::{MaybeVec, SliceExt},
+    util::MaybeVec,
     T,
 };
 

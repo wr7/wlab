@@ -8,7 +8,6 @@ pub(crate) use max_vec::MaxVec;
 pub(crate) use maybe_vec::MaybeVec;
 pub(crate) use memory_store::MemoryStore;
 pub(crate) use push_vec::PushVec;
-pub(crate) use slice_ext::SliceExt;
 
 mod binary_search_map;
 mod hashmap_ext;
@@ -16,7 +15,6 @@ mod max_vec;
 mod maybe_vec;
 mod memory_store;
 mod push_vec;
-mod slice_ext;
 
 /// Gets the line and column number of a byte in some text
 pub fn line_and_col(src: &str, byte_position: usize) -> (usize, usize) {

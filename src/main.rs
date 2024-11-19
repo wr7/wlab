@@ -11,6 +11,7 @@
 #![forbid(clippy::semicolon_if_nothing_returned)]
 #![forbid(clippy::map_unwrap_or)]
 #![forbid(clippy::uninlined_format_args)]
+#![feature(substr_range)]
 
 use std::{io::Write as _, process};
 

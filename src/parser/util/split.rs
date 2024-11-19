@@ -1,8 +1,6 @@
 use wutil::Span;
 
-use crate::{
-    error_handling::Spanned, lexer::Token, parser::util::NonBracketedIter, util::SliceExt,
-};
+use crate::{error_handling::Spanned, lexer::Token, parser::util::NonBracketedIter};
 
 /// Splits by tokens that patch a predicate. This takes brackets into consideration.
 pub struct TokenSplit<'a, 'src, P>
