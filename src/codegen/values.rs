@@ -38,6 +38,13 @@ impl<'ctx> GenericValue<'ctx> {
             }
         }
     }
+
+    pub fn type_(&self) -> &Type {
+        match self {
+            GenericValue::RValue(RValue { val: _, type_ }) => type_,
+            GenericValue::MutValue(MutValue { ptr: _, type_ }) => type_,
+        }
+    }
 }
 
 #[derive(Clone)]

@@ -1,6 +1,6 @@
 use wllvm::{
     debug_info::{
-        DIBasicType, DIBuilder, DICompileUnit, DIFile, DIFlags, DIScope, DIType, SourceLanguage,
+        DIBasicType, DIBuilder, DICompileUnit, DIFile, DIFlags, DIType, SourceLanguage,
         TypeEncoding,
     },
     target::OptLevel,
@@ -26,7 +26,6 @@ struct DebugPrimitives<'ctx> {
 pub struct DebugContext<'ctx> {
     pub builder: DIBuilder<'ctx>,
     pub cu: DICompileUnit<'ctx>,
-    pub scope: DIScope<'ctx>,
     primitives: DebugPrimitives<'ctx>,
     structs: SharedBinarySearchMap<String, DIType<'ctx>>,
     files: SharedBinarySearchMap<usize, DIFile<'ctx>>,
@@ -61,7 +60,6 @@ impl<'ctx> DebugContext<'ctx> {
         Self {
             builder,
             cu,
-            scope: *cu,
             primitives,
             structs: BinarySearchMap::new().into(),
             files: files.into(),

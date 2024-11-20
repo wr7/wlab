@@ -1,11 +1,12 @@
-use std::{ffi::c_char, marker::PhantomData, ptr};
+use std::{ffi::c_char, i8, marker::PhantomData, ptr};
 
 use llvm_sys::{
     debuginfo::{
-        LLVMCreateDIBuilder, LLVMDIBuilderCreateBasicType, LLVMDIBuilderCreateFile,
-        LLVMDIBuilderCreateFunction, LLVMDIBuilderCreateLexicalBlock,
-        LLVMDIBuilderCreateMemberType, LLVMDIBuilderCreateStructType,
-        LLVMDIBuilderCreateSubroutineType, LLVMDIBuilderFinalize, LLVMDisposeDIBuilder,
+        LLVMCreateDIBuilder, LLVMDIBuilderCreateAutoVariable, LLVMDIBuilderCreateBasicType,
+        LLVMDIBuilderCreateExpression, LLVMDIBuilderCreateFile, LLVMDIBuilderCreateFunction,
+        LLVMDIBuilderCreateLexicalBlock, LLVMDIBuilderCreateMemberType,
+        LLVMDIBuilderCreateStructType, LLVMDIBuilderCreateSubroutineType, LLVMDIBuilderFinalize,
+        LLVMDIBuilderInsertDbgValueAtEnd, LLVMDIBuilderInsertDeclareAtEnd, LLVMDisposeDIBuilder,
     },
     prelude::LLVMBool,
     LLVMOpaqueDIBuilder, LLVMOpaqueMetadata,
@@ -15,7 +16,7 @@ pub use compile_unit::*;
 pub use metadata::*;
 pub use re_exports::*;
 
-use crate::Module;
+use crate::{BasicBlock, Module, Value};
 mod compile_unit;
 mod metadata;
 mod re_exports;
@@ -40,6 +41,87 @@ impl<'ctx> DIBuilder<'ctx> {
         // TODO: compile unit may be necessary
 
         unsafe { Self::from_raw(builder) }
+    }
+
+    pub fn insert_dbg_value_at_end(
+        &self,
+        value: Value<'ctx>,
+        variable: DILocalVariable<'ctx>,
+        expr: DIExpression<'ctx>,
+        location: DILocation<'ctx>,
+        block: BasicBlock<'ctx>,
+    ) {
+        unsafe {
+            LLVMDIBuilderInsertDbgValueAtEnd(
+                self.ptr,
+                value.raw(),
+                variable.raw(),
+                expr.raw(),
+                location.raw(),
+                block.raw(),
+            );
+        }
+    }
+
+    pub fn insert_dbg_declare_at_end(
+        &self,
+        value: Value<'ctx>,
+        variable: DILocalVariable<'ctx>,
+        expr: DIExpression<'ctx>,
+        location: DILocation<'ctx>,
+        block: BasicBlock<'ctx>,
+    ) {
+        unsafe {
+            LLVMDIBuilderInsertDeclareAtEnd(
+                self.ptr,
+                value.raw(),
+                variable.raw(),
+                expr.raw(),
+                location.raw(),
+                block.raw(),
+            );
+        }
+    }
+
+    pub fn expression(&self, operators: &[DwarfOperator]) -> DIExpression<'ctx> {
+        let ptr = operators.as_ptr().cast::<u64>().cast_mut();
+
+        unsafe {
+            DIExpression::from_raw(LLVMDIBuilderCreateExpression(
+                self.ptr,
+                ptr,
+                operators.len(),
+            ))
+        }
+    }
+
+    pub fn local_variable(
+        &self,
+        scope: DILocalScope<'ctx>,
+        name: &(impl ?Sized + AsRef<[u8]>),
+        file: DIFile<'ctx>,
+        line_no: u32,
+        ty: DIType<'ctx>,
+        always_preserve: bool,
+        flags: DIFlags,
+        align_bits: u32,
+    ) -> DILocalVariable<'ctx> {
+        let name = name.as_ref();
+
+        unsafe {
+            DILocalVariable::from_raw(LLVMDIBuilderCreateAutoVariable(
+                self.ptr,
+                scope.raw(),
+                name.as_ptr().cast::<i8>(),
+                name.len(),
+                file.raw(),
+                line_no,
+                ty.raw(),
+                always_preserve as LLVMBool,
+                flags.into(),
+                align_bits,
+            ))
+        }
     }
 
     pub fn subprogram(

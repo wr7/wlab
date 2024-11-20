@@ -30,24 +30,18 @@ argtea_impl! {
             );
         }
 
-        /// Disables all compiler optimization
-        ("-O0") => {
-            opt_level = OptLevel::None;
-        }
+        /// Sets the optimization level (0, 1, 2, 3).
+        /// Default: 2
+        ("--opt-level" | "-O", level) => {
+            let level = level.ok_or("expected optimization level")?;
 
-        /// Sets optimization level to 1.
-        ("-O1") => {
-            opt_level = OptLevel::Less;
-        }
-
-        /// Sets optimization level to 2 (default).
-        ("-O2") => {
-            opt_level = OptLevel::Default;
-        }
-
-        /// Sets optimization level to 3 (maximum).
-        ("-O3") => {
-            opt_level = OptLevel::Aggressive;
+            opt_level = match &*level {
+                "0" => OptLevel::None,
+                "1" => OptLevel::Less,
+                "2" => OptLevel::Default,
+                "3" => OptLevel::Aggressive,
+                other => return Err(format!("invalid optimization level `{other}`").into()),
+            }
         }
 
         /// Generates a `.lex` file for each input.

@@ -63,6 +63,15 @@ metadata_types! {
         supertype: DILocalScope
         flags: [is_scope];
 
+    /// Used for providing the values of DILocalVariables
+    pub struct DIExpression;
+
+    pub struct DIVariable;
+
+    /// A variable defined in a function
+    pub struct DILocalVariable
+        supertype: DIVariable;
+
     pub struct DIScope;
 
     /// A scope that can contain lexical blocks, local variables, and debug info locations.

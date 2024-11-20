@@ -6,4 +6,4 @@ alias r="c && cargo run -- $args"
 alias wtool="cargo run -p wtool --"
 
 alias rr='r && ld ./compiler_output/*.o -o ./compiler_output/a.out && printf "=======\n" && ./compiler_output/a.out'
-alias rd='r && ld ./compiler_output/*.o -o ./compiler_output/a.out && gdb ./compiler_output/a.out'
+alias rd='r -O 0 && ld ./compiler_output/*.o -o ./compiler_output/a.out && gdb ./compiler_output/a.out'

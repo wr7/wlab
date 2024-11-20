@@ -59,7 +59,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let (fn_line_no, _) = util::line_and_col(self.source, function.1.start);
 
         let subprogram = self.debug_context.builder.subprogram(
-            self.debug_context.scope,
+            *self.debug_context.cu,
             function.name,
             ll_function.name(),
             self.debug_context.cu.file(),
@@ -74,21 +74,13 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         ll_function.set_subprogram(subprogram);
 
-        let dbg_lexical_block = self.debug_context.builder.lexical_block(
-            **subprogram,
-            self.debug_context.cu.file(),
-            scope_line_no as u32,
-            scope_col_no as u32,
-        );
-
-        let mut dbg_scope = **dbg_lexical_block;
-        std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
+        let fn_scope = Scope::new_function(self, scope, *subprogram, function.body.1.start);
 
         self.builder
             .set_debug_location(self.c.context.debug_location(
                 scope_line_no as u32,
                 scope_col_no as u32,
-                self.debug_context.scope,
+                *fn_scope.di_scope(),
                 None,
             ));
 
@@ -110,8 +102,6 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         }
 
         if intrinsic_span.is_some() {
-            // there was an intrinsic attribute; skip body generation //
-            std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
             return Ok(());
         }
 
@@ -119,9 +109,9 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         self.builder.position_at_end(main_block);
 
         let mut fn_scope = if uncallable {
-            Scope::new(scope).with_uninstatiable_params(&params)
+            fn_scope.with_uninstatiable_params(&params)
         } else {
-            Scope::new(scope).with_params(&params, ll_function)
+            fn_scope.with_params(&params, ll_function, self)
         }
         .with_return_type(return_type.clone());
 
@@ -140,8 +130,6 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         } else {
             self.builder.build_unreachable();
         }
-
-        std::mem::swap(&mut dbg_scope, &mut self.debug_context.scope);
 
         Ok(())
     }

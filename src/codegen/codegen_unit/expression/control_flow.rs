@@ -101,7 +101,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         self.builder.build_br(bb);
         self.builder.position_at_end(bb);
 
-        let mut inner_scope = Scope::new(scope).with_break(&break_context);
+        let mut inner_scope = Scope::new(self, scope, block.1.start).with_break(&break_context);
 
         self.generate_codeblock(&block, &mut inner_scope)?;
 
@@ -165,7 +165,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
 
         self.builder.position_at_end(if_bb);
 
-        let mut if_scope = Scope::new(scope);
+        let mut if_scope = Scope::new(self, scope, block.1.start);
         let if_retval = self.generate_codeblock(*block, &mut if_scope)?;
 
         if if_retval.val.is_some() {
@@ -181,7 +181,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
         let else_retval: Option<RValue<'ctx>> =
             if let Some((else_bb, else_block)) = else_bb.zip(else_block.as_ref()) {
                 self.builder.position_at_end(else_bb);
-                let mut else_scope = Scope::new(scope);
+                let mut else_scope = Scope::new(self, scope, else_block.1.start);
 
                 let else_retval = self.generate_codeblock(else_block, &mut else_scope)?;
 

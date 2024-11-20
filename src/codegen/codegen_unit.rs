@@ -76,7 +76,8 @@ impl<'m, 'ctx> CodegenUnit<'m, 'ctx> {
                     GenericValue::RValue(orig_val)
                 };
 
-                scope.create_variable(*name, val);
+                scope.create_variable(*name, val, self, Some(value.1));
+
                 Ok(unreachable.then_some(RValue {
                     val: None,
                     type_: Type::never,

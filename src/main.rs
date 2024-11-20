@@ -41,9 +41,9 @@ mod parser;
  *       - Give errors for recursively-defined types
  *  - Give parser access to source code to further reduce allocations
  *  - Use more efficient representation of ast::Path
+ *  - Add more efficient conversion from byte position to line number
  *  - Debug info
- *      - Create DILexicalScope for all code blocks (not just functions)
- *      - Add debug info for variables
+ *      - Move dbg declarations before their `store` instructions
  *      - Fix mangled names in debug info
  */
 

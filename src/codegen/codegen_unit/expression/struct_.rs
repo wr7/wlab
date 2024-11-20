@@ -154,7 +154,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 Err(idx) => idx,
             };
 
-            let mut scope = Scope::new(scope);
+            let mut scope = Scope::new(self, scope, field.1.start);
             let value = S(
                 self.generate_rvalue(field.val.as_sref(), &mut scope)?,
                 field.val.1,

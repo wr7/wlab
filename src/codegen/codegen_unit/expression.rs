@@ -27,12 +27,10 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
     ) -> Result<RValue<'ctx>, Diagnostic> {
         let (line_no, col_no) = util::line_and_col(self.source, expression.1.start);
 
-        let dbg_location = self.c.context.debug_location(
-            line_no as u32,
-            col_no as u32,
-            self.debug_context.scope,
-            None,
-        );
+        let dbg_location =
+            self.c
+                .context
+                .debug_location(line_no as u32, col_no as u32, *scope.di_scope(), None);
 
         self.builder.set_debug_location(dbg_location);
 
@@ -62,7 +60,7 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
                 a.generate_operation(&self, a_expr.1, *operator, &S(b, b_expr.1))
             }
             Expression::CompoundExpression(block) => {
-                let mut scope = Scope::new(scope);
+                let mut scope = Scope::new(self, scope, expression.1.start);
                 self.generate_codeblock(block, &mut scope)
             }
             Expression::FunctionCall(fn_name, arguments) => {
@@ -94,12 +92,10 @@ impl<'ctx> CodegenUnit<'_, 'ctx> {
     ) -> Result<MutValue<'ctx>, Diagnostic> {
         let (line_no, col_no) = util::line_and_col(self.source, expression.1.start);
 
-        let dbg_location = self.c.context.debug_location(
-            line_no as u32,
-            col_no as u32,
-            self.debug_context.scope,
-            None,
-        );
+        let dbg_location =
+            self.c
+                .context
+                .debug_location(line_no as u32, col_no as u32, *scope.di_scope(), None);
 
         self.builder.set_debug_location(dbg_location);
 
