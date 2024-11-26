@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-argtea = "1.0.0"
+argtea = "1.0.1"
 serde = { version = "1.0.209", features = ["serde_derive"] }
 toml = "0.8.19"

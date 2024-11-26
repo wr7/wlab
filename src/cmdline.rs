@@ -30,8 +30,23 @@ argtea_impl! {
             );
         }
 
-        /// Sets the optimization level (0, 1, 2, 3).
-        /// Default: 2
+        /// Disables all compiler optimization
+        #[fake]
+        ("-O0") => {}
+
+        /// Sets optimization level to 1.
+        #[fake]
+        ("-O1") => {}
+
+        /// Sets optimization level to 2 (default).
+        #[fake]
+        ("-O2") => {}
+
+        /// Sets optimization level to 3 (maximum).
+        #[fake]
+        ("-O3") => {}
+
+        /// Sets the optimization level (See above).
         ("--opt-level" | "-O", level) => {
             let level = level.ok_or("expected optimization level")?;
 
